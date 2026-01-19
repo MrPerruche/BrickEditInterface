@@ -3,8 +3,10 @@ from PySide6.QtCore import Qt
 from asteval import Interpreter
 import math
 
+
+
 class SafeMathLineEdit(QLineEdit):
-    
+
     SYM_TABLE = {
         'pi': math.pi,
         'e': math.e,
@@ -16,58 +18,59 @@ class SafeMathLineEdit(QLineEdit):
         'log10': math.log10,
         'log2': math.log2,
         'exp': math.exp,
-        'abs': abs
+        'abs': abs,
     }
-    
-    def __init__(self, value: str | float = 0.0, default_value = None, parent = None):
-        
+
+    def __init__(self, value: float = 0.0, parent=None):
         super().__init__(parent)
-        
-        if default_value is None:
-            self.default_value = value
-        else:
-            self.default_value = default_value
-        if isinstance(value, (float, int)):
-            value = round(value, 5)
-        
+
+        self._value: float = float(value)
+        self.default_value: float = float(value)
+
         self.setAlignment(Qt.AlignRight)
-        self.setText(str(value))  # assure qu'on part d'un float
+        self.setText(self._format(self._value))
 
-        # Création d'un interpréteur asteval sécurisé
         self.aeval = Interpreter()
-        self.aeval.symtable.clear()  # supprime tout par défaut
+        self.aeval.symtable.clear()
+        self.aeval.symtable.update(self.SYM_TABLE)
 
-        # Ajouter uniquement les fonctions et constantes mathiques souhaitées
-        for k, v in self.SYM_TABLE.items():
-            self.aeval.symtable[k] = v
-        self.aeval.symtable['x'] = default_value
+        # Optional: expose current value as `x`
+        self.aeval.symtable['x'] = self._value
 
-        # Connecte l'évaluation à la fin de l'édition ou à Enter
         self.editingFinished.connect(self.evaluate_expression)
         self.returnPressed.connect(self.evaluate_expression)
 
+
+    def _format(self, value: float) -> str:
+        return f"{value:.5g}"
+
+
     def evaluate_expression(self):
-        """Évalue le texte et remplace par le résultat float."""
-        expr = self.text().replace(',', '.')  # convertir les virgules en points
+        expr = self.text().replace(',', '.')
+
         try:
             result = self.aeval(expr)
-            # S'assurer que le résultat est un float
+
             if not isinstance(result, (int, float)):
-                raise ValueError("L'expression doit être un nombre")
-            self.setText(str(float(result)))
+                raise ValueError("Expression did not evaluate to a number")
+
+            self._value = float(result)
+            self.aeval.symtable['x'] = self._value
+            self.setText(self._format(self._value))
+
         except Exception:
-            self.setText("0.0")  # fallback si invalide
+            # revert to last valid value
+            self.setText(self._format(self._value))
+
 
     def value(self) -> float:
-        """Retourne la valeur actuelle en float"""
         self.evaluate_expression()
-        try:
-            return float(self.text())
-        except ValueError:
-            return 0.0
+        return self._value
 
-    def setValue(self, value: str | float, set_default = True):
-        """Change la valeur affichée"""
-        self.setText(str(value))
-        if set_default:
-            self.default_value = value
+    def set_value(self, value: float):
+        self._value = float(value)
+        self.aeval.symtable['x'] = self._value
+        self.setText(self._format(self._value))
+
+    def reset(self):
+        self.set_value(self.default_value)

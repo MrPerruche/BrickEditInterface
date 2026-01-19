@@ -12,3 +12,7 @@ def str_time_since(seconds):
         return f"{seconds // MONTH} month(s) {seconds % MONTH // DAY}d"
     else:
         return f"{seconds // YEAR} year(s)"
+
+def parse_float_tuple(text: str):
+    text = text.strip().strip("()")
+    return tuple(map(float, text.split(",")))

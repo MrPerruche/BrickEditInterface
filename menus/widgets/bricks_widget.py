@@ -1,37 +1,105 @@
 from .square_widget import SquareWidget
 from .float_line_edit import SafeMathLineEdit
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDoubleSpinBox, QLabel, QPushButton
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDoubleSpinBox, QLabel, QPushButton, QLineEdit, QMessageBox
 from PySide6.QtGui import QIcon
 from brickedit.src.brickedit import *
+from utils import parse_float_tuple
+from custom_validators import TupleFloatValidator
 
 from copy import deepcopy
 
 
+class UnknownBrickMeta(bt.BrickMeta):
+    def base_properties(self):
+        return {}  # Not even base default properties, we do now know what we're dealing with.
+
+
+def get_line_edit_for_property(prop: str, value) -> QLineEdit:
+
+    # 1. Get the meta:
+    meta = bt.registry.get(prop)
+    if meta is None:
+        meta = UnknownBrickMeta(prop)
+
+    if isinstance(meta, p.Float32Meta):
+        return SafeMathLineEdit(value)
+
+    if isinstance(meta, p.Vec2Meta):
+        le = QLineEdit(str(value.as_tuple()))
+        le.setValidator(TupleFloatValidator(2))
+        return le
+
+    # if isinstance(meta, p.Vec3Meta):
+    #     le = QLineEdit(str(value.as_tuple()))
+    #     le.setValidator(TupleFloatValidator(3))
+    #     return le
+
+    if isinstance(meta, p.TextMeta):
+        return QLineEdit()
+
+    ukn_le = QLineEdit()
+    ukn_le.setText("Not supported")
+    ukn_le.setReadOnly(True)
+    return ukn_le
+
+
 class BrickWidget(SquareWidget):
 
-    def __init__(self, brick: Brick, parent=None):
+    def __init__(self, idx: int, brick: Brick, parent=None):
         super().__init__(parent)
+        self.idx = idx
         self.brick = brick
         self.og_brick = deepcopy(brick)
-        print(brick)
 
-        self.master_layout = QVBoxLayout(self)
-        self.setLayout(self.master_layout)
+        self.master_layout = QVBoxLayout()  # no parent
+        self.setLayout(self.master_layout)  # explicitly assign
+        self.build_widget()
 
+
+    def clear_layout(self, layout=None):
+        if layout is None:
+            layout = self.master_layout
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+            elif item.layout():
+                self.clear_layout(item.layout())
+
+
+
+    def build_widget(self):
+
+        # ==============================
         # Internal name and reset button
-        self.top_layout = QHBoxLayout(self)
-        
-        self.brick_internal_name_label = QLabel(f"Internal name: {self.brick.meta().name()}")
-        self.top_layout.addWidget(self.brick_internal_name_label)
+        # ==============================
 
+        self.clear_layout()
+
+        # Index
+        self.top_layout = QHBoxLayout()
+        self.brick_idx_label = QLabel(f"[{self.idx}]")
+        
+        # Internal name
+        self.brick_type_le = QLineEdit()
+        self.brick_type_le.setText(self.brick.meta().name())
+        self.brick_type_le.editingFinished.connect(self.recieve_new_internal_name)
+        self.brick_type_le_last_in = self.brick.meta().name()
+        self.top_layout.addWidget(self.brick_type_le)
+
+        # Reset
         self.reset_brick_button_icon = QIcon.fromTheme("view-refresh")
         self.reset_brick_button = QPushButton()
         self.reset_brick_button.setIcon(self.reset_brick_button_icon)
-        self.reset_brick_button.clicked.connect(self.reset_brick)
+        self.reset_brick_button.clicked.connect(self.build_widget)
         self.top_layout.addWidget(self.reset_brick_button)
 
         self.master_layout.addLayout(self.top_layout)
+
+        # ====================
+        # Local space settings
+        # ====================
 
         # Position
         self.position_layout = QHBoxLayout()
@@ -53,10 +121,40 @@ class BrickWidget(SquareWidget):
         self.rotation_layout.addWidget(self.rot_z_spin)
         self.master_layout.addLayout(self.rotation_layout)
 
-    def reset_brick_button(self):
-        self.brick = deepcopy(self.og_brick)
-        self.brick_internal_name_label.setText(f"Internal name: {self.brick.meta().name()}")
 
+
+    def recieve_new_internal_name(self):
+        return self.new_internal_name(self.brick_type_le.text())
+
+
+
+    def new_internal_name(self, new_name):
+
+        # Get the meta
+        brick_meta = bt.bt_registry.get(new_name)
+
+        # If none, warn. Ask for confirmation
+        if brick_meta is None:
+            # Warning
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("Unknown internal name")
+            dlg.setText(f"This internal name is not known by BrickEdit: {new_name}")
+            dlg.setIcon(QMessageBox.Warning)
+            dlg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
+            result = dlg.exec()
+            # result = QMessageBox.warning(self, "Unknown internal name", f"This internal name is not known by BrickEdit: {new_name}\nPress cancel to undo or OK to confirm")
+            # Undo changes
+            if result == QMessageBox.Cancel:
+                self.brick_type_le.setText(self.brick_type_le_last_in)
+                return
+            # Create a new brick type
+            else:
+                brick_meta = UnknownBrickMeta(new_name)
+
+        # Now we have a valid meta. We can recreate the brick
+        self.brick = Brick(self.brick.ref, brick_meta, self.brick.pos, self.brick.rot, self.brick.ppatch)
+        self.brick_type_le_last_in = new_name
+        self.brick_type_le.setText(new_name)
 
 
 class BrickListWidget(SquareWidget):
@@ -85,7 +183,7 @@ class BrickListWidget(SquareWidget):
         self.clear_layout(self.master_layout)
 
         # Redo widgets
-        self.brick_widgets = [BrickWidget(brick) for brick in bricks]
+        self.brick_widgets = [BrickWidget(i, brick) for i, brick in enumerate(bricks)]
         for brick_widget in self.brick_widgets:
             self.master_layout.addWidget(brick_widget)
 
