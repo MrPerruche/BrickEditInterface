@@ -1,0 +1,3 @@
+[submodule "brickedit"]
+	path = brickedit
+	url = https://github.com/MrPerruche/BrickEdit.git
