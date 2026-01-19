@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>assets/icons/placeholder.png</file>
+        <file>assets/icons/not_found.png</file>
+        <file>assets/icons/unknown.png</file>
+        <file>assets/icons/missing_thumbnail.png</file>
+    </qresource>
+</RCC>
