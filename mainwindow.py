@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout
+from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout, QScrollArea
 from PySide6.QtGui import QIcon
 
 from sidebar import Sidebar
@@ -13,8 +13,8 @@ class BrickEditInterface(QMainWindow):
         super().__init__()
         
         self.resize(360, 720)
+        self.setMinimumWidth(360)
         self.setWindowTitle("BrickEdit Interface")
-        self.setWindowIcon(QIcon(":/assets/icons/brickeditinterface.png"))
         
         # Initialize menus
         self.menus = [
@@ -50,7 +50,13 @@ class BrickEditInterface(QMainWindow):
 
         # Add menus to stack
         for menu in self.menus:
-            self.menu_stack.addWidget(menu)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            scroll.setFrameShape(QScrollArea.NoFrame)
+
+            scroll.setWidget(menu)
+            self.menu_stack.addWidget(scroll)
 
         # Connect sidebar menu changes to stack
         self.sidebar.menu_changed.connect(self.menu_stack.setCurrentIndex)

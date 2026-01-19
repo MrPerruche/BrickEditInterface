@@ -5,20 +5,21 @@ from custom_validators import *
 
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit
 from PySide6.QtCore import Qt
-from brickedit.src.brickedit import p
+from brickedit.src.brickedit import p, vec
 
 
 class PropertyWidget(SquareWidget):
-    def __init__(self, property_display_name: str, default_value: str, parent=None):
+    def __init__(self, name: str, display_name: str, default_value: str, parent=None):
         super().__init__(parent)
         
         self.master_layout = QVBoxLayout(self)
         self.default_value = default_value
         self.setLayout(self.master_layout)
         
-        self.property_display_name = property_display_name
-        self.property_display_name_label = QLabel(property_display_name)
-        self.master_layout.addWidget(self.property_display_name_label)
+        self.name = name
+        self.display_name = display_name
+        self.display_name_label = QLabel(display_name)
+        self.master_layout.addWidget(self.display_name_label)
 
     def get_text(self):
         raise NotImplementedError
@@ -30,19 +31,33 @@ class PropertyWidget(SquareWidget):
         raise NotImplementedError
 
     @staticmethod
-    def from_property_name(prop):
+    def from_property(prop, value):
+        
+        pmeta = p.pmeta_registry.get(prop)
+        if pmeta is None:
+            return UnknownPropertyWidget(prop, value)
+
+        display_name = prop
+
         # TODO: use a registry instead
-        if isinstance(prop, p.TextMeta):
-            return TextPropertyWidget(prop.name, prop.default_value)
-        if isinstance(prop, p.EnumMeta):
-            return AsciiPropertyWidget(prop.name, prop.default_value)
-        if isinstance(prop, p.Float32Meta):
-            return FloatPropertyWidget(prop.name, prop.default_value)
+        if isinstance(pmeta, type) and issubclass(pmeta, p.TextMeta):
+            return TextPropertyWidget(prop, display_name, value)
+        if isinstance(pmeta, type) and issubclass(pmeta, p.EnumMeta):
+            return AsciiPropertyWidget(prop, display_name, value)
+        if isinstance(pmeta, type) and issubclass(pmeta, p.Float32Meta):
+            return FloatPropertyWidget(prop, display_name, value)
+        if isinstance(pmeta, type) and issubclass(pmeta, p.Vec2Meta): pass
+            # return Vec2PropertyWidget(prop, display_name, value)
+
+        return UnknownPropertyWidget(prop, display_name, value)
+
+    def get_dict_pair(self):
+        return (self.name, self.get_value())
 
 
 class TextPropertyWidget(PropertyWidget):
-    def __init__(self, property_display_name: str, default_value: str, parent=None):
-        super().__init__(property_display_name, default_value, parent)
+    def __init__(self, name: str, display_name: str, default_value: str, parent=None):
+        super().__init__(name, display_name, default_value, parent)
         self.input_le = QLineEdit()
         self.input_le.setText(self.default_value)
         self.master_layout.addWidget(self.input_le)
@@ -58,8 +73,8 @@ class TextPropertyWidget(PropertyWidget):
 
 
 class AsciiPropertyWidget(PropertyWidget):
-    def __init__(self, property_display_name: str, default_value: str, parent=None):
-        super().__init__(property_display_name, default_value, parent)
+    def __init__(self, name: str, display_name: str, default_value: str, parent=None):
+        super().__init__(name, display_name, default_value, parent)
         self.input_le = QLineEdit()
         self.input_le.setText(self.default_value)
         self.input_le.setValidator(AsciiOnlyValidator())
@@ -76,8 +91,8 @@ class AsciiPropertyWidget(PropertyWidget):
 
 
 class FloatPropertyWidget(PropertyWidget):
-    def __init__(self, property_display_name: str, default_value: str, parent=None):
-        super().__init__(property_display_name, default_value, parent)
+    def __init__(self, name: str, display_name: str, default_value: str, parent=None):
+        super().__init__(name, display_name, default_value, parent)
         self.input_le = SafeMathLineEdit(float(default_value))
         self.master_layout.addWidget(self.input_le)
 
@@ -95,8 +110,8 @@ class FloatPropertyWidget(PropertyWidget):
 
 
 class Vec2PropertyWidget(PropertyWidget):
-    def __init__(self, property_display_name: str, default_value: str, parent=None):
-        super().__init__(property_display_name, default_value, parent)
+    def __init__(self, name: str, display_name: str, default_value: str, parent=None):
+        super().__init__(name, display_name, default_value, parent)
         self.values_layout = QHBoxLayout()
         self.master_layout.addLayout(self.values_layout)
 
@@ -111,9 +126,37 @@ class Vec2PropertyWidget(PropertyWidget):
         return f"({self.input_le_x.text()}, {self.input_le_y.text()})"
 
     def set_value(self, value):
-        x, y = value.strip().strip("()").split(",")
+        try:
+            x, y = value.strip().strip("()").split(",")
+        except ValueError:
+            return
         self.input_le_x.setText(x)
         self.input_le_y.setText(y)
 
     def get_value(self):
-        return f"({self.input_le_x.value()}, {self.input_le_y.value()})"
+        return vec.Vec2(self.input_le_x.value(), self.input_le_y.value())
+
+
+
+
+
+# -----
+
+class UnknownPropertyWidget(PropertyWidget):
+    
+    def __init__(self, name: str, property_display_name: str, default_value: str, parent=None):
+        super().__init__(name, property_display_name, default_value, parent)
+
+        self.input_le = QLineEdit()
+        self.input_le.setText(f"Unsupported: {str(self.default_value)}")
+        self.input_le.setReadOnly(True)
+        self.master_layout.addWidget(self.input_le)
+
+    def get_text(self):
+        return self.input_le.text()
+
+    def set_value(self, value):
+        self.input_le.setText(f"Unsupported: {str(value)}")
+
+    def get_value(self):
+        return self.input_le.text().strip("Unsupported: ")

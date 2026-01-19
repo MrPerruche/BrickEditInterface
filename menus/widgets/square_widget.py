@@ -11,9 +11,9 @@ class SquareWidget(QWidget):
         
         # Render constants
         self.radius: int = 6
-        self.normal_fill_color = QColor(48, 48, 48, 48)
+        self.normal_fill_color = QColor(48, 48, 48, 72)
         self.normal_border_color = QColor(48, 48, 48)
-        self.severe_fill_color = QColor(192, 24, 36, 48)
+        self.severe_fill_color = QColor(192, 24, 36, 72)
         self.severe_border_color = QColor(192, 24, 36)
         self.fill_color = self.normal_fill_color
         self.border_color = self.normal_border_color

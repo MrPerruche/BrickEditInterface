@@ -22,4 +22,4 @@ class VehicleUpscalerMenu(base.BaseMenu):
         return "Vehicle Upscaler"
 
     def get_icon_path(self) -> str:
-        return "assets/icons/placeholder.png"
+        return ":/assets/icons/placeholder.png"

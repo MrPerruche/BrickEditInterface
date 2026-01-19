@@ -1,5 +1,6 @@
 from .square_widget import SquareWidget
 from .float_line_edit import SafeMathLineEdit
+from .property_widgets import PropertyWidget
 
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDoubleSpinBox, QLabel, QPushButton, QLineEdit, QMessageBox
 from PySide6.QtGui import QIcon
@@ -14,34 +15,6 @@ class UnknownBrickMeta(bt.BrickMeta):
     def base_properties(self):
         return {}  # Not even base default properties, we do now know what we're dealing with.
 
-
-def get_line_edit_for_property(prop: str, value) -> QLineEdit:
-
-    # 1. Get the meta:
-    meta = bt.registry.get(prop)
-    if meta is None:
-        meta = UnknownBrickMeta(prop)
-
-    if isinstance(meta, p.Float32Meta):
-        return SafeMathLineEdit(value)
-
-    if isinstance(meta, p.Vec2Meta):
-        le = QLineEdit(str(value.as_tuple()))
-        le.setValidator(TupleFloatValidator(2))
-        return le
-
-    # if isinstance(meta, p.Vec3Meta):
-    #     le = QLineEdit(str(value.as_tuple()))
-    #     le.setValidator(TupleFloatValidator(3))
-    #     return le
-
-    if isinstance(meta, p.TextMeta):
-        return QLineEdit()
-
-    ukn_le = QLineEdit()
-    ukn_le.setText("Not supported")
-    ukn_le.setReadOnly(True)
-    return ukn_le
 
 
 class BrickWidget(SquareWidget):
@@ -120,6 +93,13 @@ class BrickWidget(SquareWidget):
         self.rotation_layout.addWidget(self.rot_y_spin)
         self.rotation_layout.addWidget(self.rot_z_spin)
         self.master_layout.addLayout(self.rotation_layout)
+
+        # Properties
+        self.property_widgets = []
+        for prop, val in self.brick.get_all_properties().items():
+            pw = PropertyWidget.from_property(prop, val)
+            self.property_widgets.append(pw)
+            self.master_layout.addWidget(pw)
 
 
 
