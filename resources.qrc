@@ -4,5 +4,7 @@
         <file>assets/icons/not_found.png</file>
         <file>assets/icons/unknown.png</file>
         <file>assets/icons/missing_thumbnail.png</file>
+        <file>assets/icons/brickeditinterface.png</file>
+        <file>assets/icons/brickeditinterface.ico</file>
     </qresource>
 </RCC>

@@ -14,6 +14,7 @@ class BrickEditInterface(QMainWindow):
         
         self.resize(360, 720)
         self.setWindowTitle("BrickEdit Interface")
+        self.setWindowIcon(QIcon(":/assets/icons/brickeditinterface.png"))
         
         # Initialize menus
         self.menus = [
