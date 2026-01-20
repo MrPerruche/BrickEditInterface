@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtGui import QIcon
 
 from . import base
 from .widgets import *
@@ -7,8 +8,8 @@ from .widgets import *
 
 class HomeMenu(base.BaseMenu):
     
-    def __init__(self):
-        super().__init__(header=False)
+    def __init__(self, mw):
+        super().__init__(mw, header=False)
 
         self.welcome_label = LargeLabel("Welcome to\nBrickEdit-Interface", 1, center_text=True)
         self.master_layout.addWidget(self.welcome_label)
@@ -26,5 +27,5 @@ class HomeMenu(base.BaseMenu):
     def get_menu_name(self) -> str:
         return "Home"
 
-    def get_icon_path(self) -> str:
-        return ":/assets/icons/placeholder.png"
+    def get_icon(self) -> QIcon:
+        return QIcon(":/assets/icons/placeholder.png")

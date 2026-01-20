@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout
+from PySide6.QtGui import QIcon
 
 from . import base
 
@@ -6,8 +7,8 @@ from . import base
 class VehicleUpscalerMenu(base.BaseMenu):
     """Menu for upscaling vehicle properties."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, mw):
+        super().__init__(mw)
 
         label = QLabel("Upscale Vehicle")
         button = QPushButton("Test")
@@ -19,5 +20,5 @@ class VehicleUpscalerMenu(base.BaseMenu):
     def get_menu_name(self) -> str:
         return "Vehicle Upscaler"
 
-    def get_icon_path(self) -> str:
-        return ":/assets/icons/placeholder.png"
+    def get_icon(self) -> QIcon:
+        return QIcon(":/assets/icons/placeholder.png")

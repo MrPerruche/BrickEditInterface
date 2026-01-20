@@ -17,8 +17,10 @@ class SettingsManager:
         self.load()
 
     def create_default_settings(self):
-        self.short_term_backup_limit = 6
-        self.long_term_backup_limit = 3
+        self.st_backup_count_limit = 6
+        self.st_backup_size_limit_kb = 8192
+        self.lt_backup_count_limit = 3
+        self.lt_backup_size_limit_kb = 8192
 
 
     def get_settings_path(self):
@@ -33,14 +35,26 @@ class SettingsManager:
         return settings_file
 
 
+    def get_settings_file_path(self):
+        config_dir = Path(user_config_dir(self.APP_NAME))
+        settings_file = config_dir / self.SAVE_FILE
+
+        config_dir.mkdir(parents=True, exist_ok=True)
+
+        return settings_file
+        
+
+
     def save(self):
         settings = {
             "file_version": self.CURRENT_FILE_VERSION,
-            "short_term_backup_limit": self.short_term_backup_limit,
-            "long_term_backup_limit": self.long_term_backup_limit,
+            "st_backup_count_limit": self.short_term_backup_limit,
+            "st_backup_size_limit_kb": self.short_term_backup_size_limit_kb,
+            "lt_backup_count_limit": self.long_term_backup_limit,
+            "lt_backup_size_limit_kb": self.long_term_backup_size_limit_kb,
         }
         # Make sure the path exist. We don't do anything of the result
-        settings_path = self.get_settings_path()
+        settings_path = self.get_settings_file_path()
         # Save
         with open(settings_path, "wb") as f:
             tomli_w.dump(settings, f)
@@ -54,8 +68,10 @@ class SettingsManager:
                 settings = tomllib.load(f)
 
                 file_version = settings.get("file_version", -1)
-                self.short_term_backup_limit = settings.get("short_term_backup_limit", self.short_term_backup_limit)
-                self.long_term_backup_limit = settings.get("long_term_backup_limit", self.long_term_backup_limit)
+                self.st_backup_count_limit = settings.get("st_backup_count_limit", self.st_backup_count_limit)
+                self.st_backup_size_limit_mb = settings.get("st_backup_size_limit_kb", self.st_backup_size_limit_kb)
+                self.lt_backup_count_limit = settings.get("lt_backup_count_limit", self.lt_backup_count_limit)
+                self.lt_backup_size_limit_mb = settings.get("lt_backup_size_limit_kb", self.lt_backup_size_limit_kb)
 
                 if file_version > self.CURRENT_FILE_VERSION or file_version == -1:
                     QMessageBox.warning("Unknown file version", "The settings file you are loading may contain error. Please try to update BrickEdit-Interface.")

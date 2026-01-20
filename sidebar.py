@@ -42,7 +42,7 @@ class Sidebar(QWidget):
         for index, config in enumerate(menu_configs):
             btn = QToolButton()
             btn.setToolTip(config.get('name', f'Menu {index}'))
-            btn.setIcon(QIcon(config.get('icon_path', ':/assets/icons/placeholder.png')))
+            btn.setIcon(config.get('icon', QIcon(':/assets/icons/placeholder.png')))
             btn.setIconSize(QSize(24, 24))
             btn.setCheckable(True)
             btn.setAutoExclusive(True)

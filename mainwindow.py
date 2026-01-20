@@ -4,6 +4,7 @@ from PySide6.QtGui import QIcon
 
 from sidebar import Sidebar
 from menus import *
+from settings_manager import SettingsManager
 
 
 class BrickEditInterface(QMainWindow):
@@ -15,20 +16,22 @@ class BrickEditInterface(QMainWindow):
         self.resize(360, 720)
         self.setMinimumWidth(360)
         self.setWindowTitle("BrickEdit Interface")
-        
+
+        self.settings = SettingsManager()
+
         # Initialize menus
         self.menus = [
-            HomeMenu(),
-            BackupMenu(),
-            EditBrickMenu(),
-            VehicleUpscalerMenu(),
+            HomeMenu(self),
+            SettingsAndBackupsMenu(self),
+            EditBrickMenu(self),
+            VehicleUpscalerMenu(self),
         ]
         
         # Build menu configurations for sidebar
         menu_configs = [
             {
                 'name': menu.get_menu_name(),
-                'icon_path': menu.get_icon_path(),
+                'icon': menu.get_icon(),
             }
             for menu in self.menus
         ]

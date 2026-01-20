@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QSizePolicy
+from PySide6.QtGui import QIcon
 
 from . import base
 from .widgets import VehicleWidget, ColorWidget, LargeLabel, BrickListWidget
@@ -9,8 +10,8 @@ from brickedit.src.brickedit import *
 class EditBrickMenu(base.BaseMenu):
     """Menu for editing brick properties."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, mw):
+        super().__init__(mw)
 
         # label = QLabel("Edit Brick")
         # button = QPushButton("Apply")
@@ -29,8 +30,8 @@ class EditBrickMenu(base.BaseMenu):
     def get_menu_name(self) -> str:
         return "Brick Editor"
 
-    def get_icon_path(self) -> str:
-        return ":/assets/icons/placeholder.png"
+    def get_icon(self) -> QIcon:
+        return QIcon(":/assets/icons/placeholder.png")
 
     def on_brv_reload(self):
         brv = self.vehicle_selector.brv
