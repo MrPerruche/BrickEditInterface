@@ -27,7 +27,7 @@ class SafeMathLineEdit(QLineEdit):
         self._value: float = float(value)
         self.default_value: float = float(value)
 
-        self.setAlignment(Qt.AlignRight)
+        self.setAlignment(Qt.AlignLeft)
         self.setText(self._format(self._value))
 
         self.aeval = Interpreter()
@@ -42,7 +42,7 @@ class SafeMathLineEdit(QLineEdit):
 
 
     def _format(self, value: float) -> str:
-        return f"{value:.5g}"
+        return str(round(value, 5))
 
 
     def evaluate_expression(self):

@@ -95,11 +95,15 @@ class BrickWidget(SquareWidget):
         self.master_layout.addLayout(self.rotation_layout)
 
         # Properties
+        self.properties_layout = QVBoxLayout()
+        self.properties_layout.setContentsMargins(0, 0, 0, 0)
+        self.properties_layout.setSpacing(0)
+        self.master_layout.addLayout(self.properties_layout)
         self.property_widgets = []
         for prop, val in self.brick.get_all_properties().items():
             pw = PropertyWidget.from_property(prop, val)
             self.property_widgets.append(pw)
-            self.master_layout.addWidget(pw)
+            self.properties_layout.addWidget(pw)
 
 
 
