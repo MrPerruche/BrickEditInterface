@@ -19,6 +19,7 @@ class BrickEditInterface(QMainWindow):
         # Initialize menus
         self.menus = [
             HomeMenu(),
+            BackupMenu(),
             EditBrickMenu(),
             VehicleUpscalerMenu(),
         ]

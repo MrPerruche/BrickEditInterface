@@ -8,9 +8,8 @@ from .widgets import *
 class HomeMenu(base.BaseMenu):
     
     def __init__(self):
-        super().__init__()
+        super().__init__(header=False)
 
-        self.master_layout = QVBoxLayout(self)
         self.welcome_label = LargeLabel("Welcome to\nBrickEdit-Interface", 1, center_text=True)
         self.master_layout.addWidget(self.welcome_label)
 
@@ -22,7 +21,7 @@ class HomeMenu(base.BaseMenu):
         self.brickeditinterface_label.setPixmap(self.brickeditinterface_logo)
         self.master_layout.addWidget(self.brickeditinterface_label)
 
-        self.master_layout.addStretch()  # ⬅ keeps everything at the top
+        self.master_layout.addStretch()
 
     def get_menu_name(self) -> str:
         return "Home"

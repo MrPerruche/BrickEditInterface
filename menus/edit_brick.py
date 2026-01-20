@@ -12,23 +12,19 @@ class EditBrickMenu(base.BaseMenu):
     def __init__(self):
         super().__init__()
 
-        layout = QVBoxLayout(self)
-
         # label = QLabel("Edit Brick")
         # button = QPushButton("Apply")
-        self.header_label = LargeLabel(self.get_menu_name(), 2)
-        layout.addWidget(self.header_label)
     
         self.vehicle_selector = VehicleWidget([self.on_brv_reload])
-        layout.addWidget(self.vehicle_selector)
+        self.master_layout.addWidget(self.vehicle_selector)
 
         self.color_selector = ColorWidget(lambda: self.vehicle_selector.brv)
-        layout.addWidget(self.color_selector)
+        self.master_layout.addWidget(self.color_selector)
 
         self.bricks_widget = BrickListWidget([])
-        layout.addWidget(self.bricks_widget)
+        self.master_layout.addWidget(self.bricks_widget)
 
-        layout.addStretch()
+        self.master_layout.addStretch()
 
     def get_menu_name(self) -> str:
         return "Brick Editor"

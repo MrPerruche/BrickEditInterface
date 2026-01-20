@@ -9,14 +9,12 @@ class VehicleUpscalerMenu(base.BaseMenu):
     def __init__(self):
         super().__init__()
 
-        layout = QVBoxLayout(self)
-
         label = QLabel("Upscale Vehicle")
         button = QPushButton("Test")
 
-        layout.addWidget(label)
-        layout.addWidget(button)
-        layout.addStretch()
+        self.master_layout.addWidget(label)
+        self.master_layout.addWidget(button)
+        self.master_layout.addStretch()
 
     def get_menu_name(self) -> str:
         return "Vehicle Upscaler"
