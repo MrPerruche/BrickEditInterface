@@ -69,9 +69,9 @@ class SettingsManager:
 
                 file_version = settings.get("file_version", -1)
                 self.st_backup_count_limit = settings.get("st_backup_count_limit", self.st_backup_count_limit)
-                self.st_backup_size_limit_mb = settings.get("st_backup_size_limit_kb", self.st_backup_size_limit_kb)
+                self.st_backup_size_limit_kb = settings.get("st_backup_size_limit_kb", self.st_backup_size_limit_kb)
                 self.lt_backup_count_limit = settings.get("lt_backup_count_limit", self.lt_backup_count_limit)
-                self.lt_backup_size_limit_mb = settings.get("lt_backup_size_limit_kb", self.lt_backup_size_limit_kb)
+                self.lt_backup_size_limit_kb = settings.get("lt_backup_size_limit_kb", self.lt_backup_size_limit_kb)
 
                 if file_version > self.CURRENT_FILE_VERSION or file_version == -1:
                     QMessageBox.warning("Unknown file version", "The settings file you are loading may contain error. Please try to update BrickEdit-Interface.")

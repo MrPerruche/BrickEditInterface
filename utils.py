@@ -1,3 +1,5 @@
+import os
+
 def str_time_since(seconds):
     MINUTE, HOUR, DAY, MONTH, YEAR = 60, 60 * 60, 24 * 60 * 60, 30 * 24 * 60 * 60, 365 * 24 * 60 * 60
     if seconds < MINUTE:
@@ -13,9 +15,33 @@ def str_time_since(seconds):
     else:
         return f"{seconds // YEAR} year(s)"
 
+
 def parse_float_tuple(text: str):
     text = text.strip().strip("()")
     return tuple(map(float, text.split(",")))
+
+
+def dir_size(path):
+    total = 0
+    for root, _, files in os.walk(path):
+        for f in files:
+            fp = os.path.join(root, f)
+            if os.path.exists(fp):
+                total += os.path.getsize(fp)
+    return total
+
+
+def repr_file_size(size_bytes: int, digits: int = 2):
+    # If you're dealing with RiB or QiB wth are you doing playing Brick Rigs and using this sht "software" in 2200 ?
+    size_names = ("B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB")
+    i = 0
+    while size_bytes >= 1024:
+        size_bytes /= 1024
+        i += 1
+    if digits == 0:
+        return f"{int(size_bytes)} {size_names[i]}"
+    else:
+        return f"{round(size_bytes, digits)} {size_names[i]}"
 
 
 def blockwise_exp(n, p=3, base=2):
