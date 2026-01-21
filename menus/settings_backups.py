@@ -1,4 +1,6 @@
 from PySide6.QtWidgets import QSlider
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QDesktopServices
 
 from . import base
 from .widgets import *
@@ -12,6 +14,24 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
     def __init__(self, mw):
         super().__init__(mw)
+        
+        # ----------------
+        # Contron settings
+        # ----------------
+        
+        self.control_layout = QHBoxLayout()
+        self.master_layout.addLayout(self.control_layout)
+        
+        # Reset settings
+        self.reset_settings_button = QPushButton("Reset settings")
+        self.reset_settings_button.clicked.connect(self.reset_settings)
+        self.control_layout.addWidget(self.reset_settings_button)
+        
+        # Open settings file in file explorer
+        self.open_settings_file_button = QPushButton("Reveal in file explorer")
+        self.open_settings_file_button.clicked.connect(self.open_settings_file)
+        self.control_layout.addWidget(self.open_settings_file_button)
+        
         
         
         # ---------------
@@ -34,7 +54,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.main_window.settings.st_backup_count_limit
         
         # Short term
-        self.st_label = QLabel("Short term backups limit (created when a vehicle is modified) / creation")
+        self.st_label = QLabel("Short term backups limit / Vehicle\n→ Created when a vehicle is modified")
         self.st_label.setWordWrap(True)
         self.master_layout.addWidget(self.st_label)
 
@@ -69,7 +89,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
         # Long term
-        self.lt_label = QLabel("Long term backups limit (created once per session when a vehicle is modified) / creation")
+        self.lt_label = QLabel("Long term backups limit / Vehicle\n→ Created once per session when a vehicle is modified")
         self.lt_label.setWordWrap(True)
         self.master_layout.addWidget(self.lt_label)
 
@@ -114,6 +134,16 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         return QIcon(":/assets/icons/placeholder.png")
 
 
+    def open_settings_file(self):
+        target = self.main_window.settings.get_settings_file_path().parent
+        QDesktopServices.openUrl(QUrl.fromLocalFile(target))
+
+
+    def reset_settings(self):
+        self.main_window.settings.create_default_settings()
+        self.update_slider_labels()
+        self.update_slider_values()
+
     def slider_updated(self, value, type: str):
         match type:
             case 'st_count':
@@ -126,6 +156,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                 self.main_window.settings.lt_backup_size_limit_kb = value * self.BACKUP_SIZE_STEP_KB
 
         self.update_slider_labels()
+        self.main_window.settings.save()
 
 
     def update_slider_labels(self):
@@ -144,3 +175,9 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         else:
             lt_text = f"{self.main_window.settings.lt_backup_size_limit_kb / 1024:,} MB"
         self.lt_size_limit_label.setText(lt_text)
+
+    def update_slider_values(self):
+        self.st_count_limit_slider.setValue(self.main_window.settings.st_backup_count_limit)
+        self.st_size_limit_slider.setValue(self.main_window.settings.st_backup_size_limit_kb // self.BACKUP_SIZE_STEP_KB)
+        self.lt_count_limit_slider.setValue(self.main_window.settings.lt_backup_count_limit)
+        self.lt_size_limit_slider.setValue(self.main_window.settings.lt_backup_size_limit_kb // self.BACKUP_SIZE_STEP_KB)

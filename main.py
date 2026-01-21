@@ -12,7 +12,7 @@ def main():
     app = QApplication(sys.argv)
 
     # Title bar icon (cross-platform)
-    bei_icon = QIcon(":/assets/icons/brickeditinterface.png")
+    bei_icon = QIcon(":/assets/icons/brickeditinterface.ico")
     app.setWindowIcon(bei_icon)
 
     window = BrickEditInterface()
