@@ -46,7 +46,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.warning_widget = SquareWidget()
         self.warning_widget.set_severity(True)
         self.warning_widget_layout = QHBoxLayout(self.warning_widget)
-        self.warning_widget_label = QLabel("BrickEdit-Interface backups are meant to help recover from data losses caused by this software.\nBackups are stored in the same directory as vehicles. Deleting vehicles will also delete backups.")
+        self.warning_widget_label = QLabel("BrickEdit-Interface backups are meant to help recover from mistakes made using this software.\nBackups are stored in the same directory as vehicles. Deleting vehicles will also delete backups.")
         self.warning_widget_label.setWordWrap(True)
         self.warning_widget_layout.addWidget(self.warning_widget_label)
         self.master_layout.addWidget(self.warning_widget)
