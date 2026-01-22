@@ -31,11 +31,12 @@ def dir_size(path):
     return total
 
 
-def repr_file_size(size_bytes: int, digits: int = 2):
+def repr_file_size(size_bytes: int, digits: int = 2, unit_change_threshold: int = 1024):
     # If you're dealing with RiB or QiB wth are you doing playing Brick Rigs and using this sht "software" in 2200 ?
     size_names = ("B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB")
     i = 0
-    while size_bytes >= 1024:
+    assert unit_change_threshold >= 1024, f"Invalid unit change threshold {unit_change_threshold}"
+    while size_bytes >= unit_change_threshold:
         size_bytes /= 1024
         i += 1
     if digits == 0:

@@ -5,6 +5,8 @@ from PySide6.QtGui import QDesktopServices
 from . import base
 from .widgets import *
 
+from utils import repr_file_size
+
 
 class SettingsAndBackupsMenu(base.BaseMenu):
 
@@ -44,7 +46,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
         # Warning
         self.warning_widget = SquareWidget()
-        self.warning_widget.set_severity(True)
+        self.warning_widget.set_state(SquareState.HIGHLIGHT)
         self.warning_widget_layout = QHBoxLayout(self.warning_widget)
         self.warning_widget_label = QLabel("BrickEdit-Interface backups are meant to help recover from mistakes made using this software.\nBackups are stored in the same directory as vehicles. Deleting vehicles will also delete backups.")
         self.warning_widget_label.setWordWrap(True)
@@ -162,18 +164,12 @@ class SettingsAndBackupsMenu(base.BaseMenu):
     def update_slider_labels(self):
         self.st_count_limit_label.setText(f"{self.main_window.settings.st_backup_count_limit} Backups")
 
-        if self.main_window.settings.st_backup_size_limit_kb < 10_000:
-            st_text = f"{self.main_window.settings.st_backup_size_limit_kb:,} KB"
-        else:
-            st_text = f"{self.main_window.settings.st_backup_size_limit_kb / 1024:,} MB"
+        st_text = repr_file_size(self.main_window.settings.st_backup_size_limit_kb * 1024, 2, 10_000)
         self.st_size_limit_label.setText(st_text)
 
         self.lt_count_limit_label.setText(f"{self.main_window.settings.lt_backup_count_limit} Backups")
 
-        if self.main_window.settings.lt_backup_size_limit_kb < 10_000:
-            lt_text = f"{self.main_window.settings.lt_backup_size_limit_kb:,} KB"
-        else:
-            lt_text = f"{self.main_window.settings.lt_backup_size_limit_kb / 1024:,} MB"
+        lt_text = repr_file_size(self.main_window.settings.lt_backup_size_limit_kb * 1024, 2, 10_000)
         self.lt_size_limit_label.setText(lt_text)
 
     def update_slider_values(self):

@@ -1,50 +1,116 @@
+from enum import Enum, auto
+
 from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QPainter, QPainterPath, QColor, QPen
+from PySide6.QtCore import Qt, QRectF, QEvent
+from PySide6.QtGui import (
+    QPainter,
+    QPainterPath,
+    QColor,
+    QPen,
+    QPalette,
+)
+
+
+class SquareState(Enum):
+    NORMAL = auto()
+    SEVERE = auto()
+    HIGHLIGHT = auto()
+    ACCENT = auto()
 
 
 class SquareWidget(QWidget):
-    """Base widget with a dark rounded square background."""
-    
+    """Rounded square widget with state-based coloring."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        
-        # Render constants
+
+        # Rendering constants
         self.radius: int = 6
-        self.normal_fill_color = QColor(48, 48, 48, 72)
-        self.normal_border_color = QColor(48, 48, 48)
-        self.severe_fill_color = QColor(192, 24, 36, 72)
-        self.severe_border_color = QColor(192, 24, 36)
-        self.fill_color = self.normal_fill_color
-        self.border_color = self.normal_border_color
-        self.is_severe = False
-        
-        # Set background via palette (doesn't break child widgets)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), self.fill_color)
-        self.setPalette(palette)
+
+        # Hard-coded semantic colors
+        # Normal is intentionally lighter than the background
+        self._normal_fill = QColor(48, 48, 48, 72)
+        self._normal_border = QColor(48, 48, 48)
+
+        self._severe_fill = QColor(192, 24, 36, 72)
+        self._severe_border = QColor(192, 24, 36)
+
+        self._state = SquareState.NORMAL
+
+        # Background painting via palette (safe for child widgets)
         self.setAutoFillBackground(True)
-        
-        # No margins or spacing influence
+        self._apply_background_color()
+
+        # Layout constraints
         self.setContentsMargins(0, 0, 0, 0)
         self.setMinimumHeight(3 * self.radius)
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
-    def set_severity(self, severity: bool):
-        self.is_severe = severity
-        self.fill_color = self.severe_fill_color if self.is_severe else self.normal_fill_color
-        self.border_color = self.severe_border_color if self.is_severe else self.normal_border_color
+    def set_state(self, state: SquareState):
+        if self._state == state:
+            return
+
+        self._state = state
+        self._apply_background_color()
+        self.update()
+
+    def state(self) -> SquareState:
+        return self._state
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _colors_for_state(self):
+        pal = self.palette()
+
+        if self._state == SquareState.NORMAL:
+            fill = self._normal_fill
+            border = self._normal_border
+
+        elif self._state == SquareState.SEVERE:
+            fill = self._severe_fill
+            border = self._severe_border
+
+        elif self._state == SquareState.HIGHLIGHT:
+            base = pal.color(QPalette.Highlight)
+            fill = QColor(base)
+            fill.setAlpha(72)
+            border = base
+
+        elif self._state == SquareState.ACCENT:
+            base = pal.color(QPalette.Accent)
+            fill = QColor(base)
+            fill.setAlpha(72)
+            border = base
+
+        return fill, border
+
+    def _apply_background_color(self):
+        fill, _ = self._colors_for_state()
 
         palette = self.palette()
-        palette.setColor(self.backgroundRole(), self.fill_color)
+        palette.setColor(self.backgroundRole(), fill)
         self.setPalette(palette)
 
 
+    def changeEvent(self, event):
+        if event.type() == QEvent.PaletteChange:
+            # Re-resolve highlight/accent colors when OS theme changes
+            self._apply_background_color()
+            self.update()
+
+        super().changeEvent(event)
+
     def paintEvent(self, event):
-        # Let Qt render normally first (children + background)
+        # Let Qt paint background & children first
         super().paintEvent(event)
-        
-        # Then paint the border on top
+
+        _, border = self._colors_for_state()
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
 
@@ -53,7 +119,5 @@ class SquareWidget(QWidget):
         path = QPainterPath()
         path.addRoundedRect(rect, self.radius, self.radius)
 
-        # Just paint border, no fill (background already handled)
-        pen = QPen(self.border_color, 1)
-        painter.setPen(pen)
+        painter.setPen(QPen(border, 1))
         painter.drawPath(path)

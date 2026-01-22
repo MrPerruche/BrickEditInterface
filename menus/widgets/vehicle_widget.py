@@ -9,7 +9,7 @@ import traceback
 
 from utils import str_time_since
 from brickedit.src.brickedit import *  # TODO
-from .square_widget import SquareWidget
+from .square_widget import SquareWidget, SquareState
 
 
 class VehicleWidget(SquareWidget):
@@ -229,6 +229,6 @@ class VehicleWidget(SquareWidget):
 
         # Red highlight if severe
         if last_modified_time_seconds < last_loaded_time_seconds:
-            self.set_severity(True)
+            self.set_state(SquareState.SEVERE)
         else:
-            self.set_severity(False)
+            self.set_state(SquareState.NORMAL)
