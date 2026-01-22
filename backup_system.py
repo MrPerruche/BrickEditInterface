@@ -22,6 +22,14 @@ class BackupSystem:
         self.main_window = mw
         self.not_eligible_for_lt = set()
 
+
+    def full_backup_procedure(self, vehicle_path, description="No description provided."):
+        self.create_backup(vehicle_path, description)
+        excess = self.find_excess(vehicle_path)
+        for excess_dir_path in excess:
+            shutil.rmtree(excess_dir_path)
+
+
     def create_backup(self, vehicle_path, description="No description provided."):
         """Create a backup for a vehicle, given the path of the vehicle."""
 
@@ -34,9 +42,9 @@ class BackupSystem:
 
         # Create the backup file structure
         # First backup of a creation per session is eligible for long_term status
-        file_name = f"st-{time_now}.brv"
+        file_name = f"st-{time_now}"
         if vehicle_path not in self.not_eligible_for_lt:
-            file_name = f"lt-{time_now}.brv"
+            file_name = f"lt-{time_now}"
             self.not_eligible_for_lt.add(vehicle_path)
         backup_path = os.path.join(vehicle_path, *self.BACKUPS_SUBDIR, file_name)
         os.makedirs(backup_path, exist_ok=True)

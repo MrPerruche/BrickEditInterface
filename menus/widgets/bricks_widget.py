@@ -1,6 +1,6 @@
 from .square_widget import SquareWidget
 from .float_line_edit import SafeMathLineEdit
-from .property_widgets import PropertyWidget
+from .property_widgets import PropertyWidget, UnknownPropertyWidget
 
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDoubleSpinBox, QLabel, QPushButton, QLineEdit, QMessageBox
 from PySide6.QtGui import QIcon
@@ -49,10 +49,7 @@ class BrickWidget(SquareWidget):
         # ==============================
 
         self.clear_layout()
-
-        # Index
         self.top_layout = QHBoxLayout()
-        self.brick_idx_label = QLabel(f"[{self.idx}]")
         
         # Internal name
         self.brick_type_le = QLineEdit()
@@ -60,6 +57,10 @@ class BrickWidget(SquareWidget):
         self.brick_type_le.editingFinished.connect(self.recieve_new_internal_name)
         self.brick_type_le_last_in = self.brick.meta().name()
         self.top_layout.addWidget(self.brick_type_le)
+
+        # Index
+        self.brick_idx_label = QLabel(f"[{self.idx}]")
+        self.top_layout.addWidget(self.brick_idx_label)
 
         # Reset
         self.reset_brick_button_icon = QIcon.fromTheme("view-refresh")
@@ -99,7 +100,7 @@ class BrickWidget(SquareWidget):
         self.properties_layout.setContentsMargins(0, 0, 0, 0)
         self.properties_layout.setSpacing(0)
         self.master_layout.addLayout(self.properties_layout)
-        self.property_widgets = []
+        self.property_widgets: list[PropertyWidget] = []
         for prop, val in self.brick.get_all_properties().items():
             pw = PropertyWidget.from_property(prop, val)
             self.property_widgets.append(pw)
@@ -140,6 +141,19 @@ class BrickWidget(SquareWidget):
         self.brick_type_le_last_in = new_name
         self.brick_type_le.setText(new_name)
 
+    def get_modified_brick(self):
+        # Update pos and rot
+        self.brick.pos = Vec3(self.pos_x_spin.value(), self.pos_y_spin.value(), self.pos_z_spin.value())
+        self.brick.rot = Vec3(self.rot_x_spin.value(), self.rot_y_spin.value(), self.rot_z_spin.value())
+
+        # Update properties
+        for pw in self.property_widgets:
+            if isinstance(pw, UnknownPropertyWidget):
+                continue
+            self.brick.set_property(pw.name, pw.get_value())
+
+        return self.brick
+
 
 class BrickListWidget(SquareWidget):
 
@@ -153,6 +167,7 @@ class BrickListWidget(SquareWidget):
 
         self.no_bricks_label = QLabel("No bricks selected")
 
+        self.brick_widgets = []
         self.update_brick_widgets(bricks)
 
     def clear_layout(self, layout):
@@ -162,12 +177,12 @@ class BrickListWidget(SquareWidget):
             if widget is not None:
                 widget.setParent(None)
 
-    def update_brick_widgets(self, bricks: list[Brick]):
+    def update_brick_widgets(self, bricks: list[tuple[int, Brick]]):
         # Delete old widgets
         self.clear_layout(self.master_layout)
 
         # Redo widgets
-        self.brick_widgets = [BrickWidget(i, brick) for i, brick in enumerate(bricks)]
+        self.brick_widgets = [BrickWidget(i, brick) for i, brick in bricks]
         for brick_widget in self.brick_widgets:
             self.master_layout.addWidget(brick_widget)
 

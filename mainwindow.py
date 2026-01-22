@@ -5,6 +5,7 @@ from PySide6.QtGui import QIcon
 from sidebar import Sidebar
 from menus import *
 from settings_manager import SettingsManager
+from backup_system import BackupSystem
 
 
 class BrickEditInterface(QMainWindow):
@@ -18,6 +19,7 @@ class BrickEditInterface(QMainWindow):
         self.setWindowTitle("BrickEdit Interface")
 
         self.settings = SettingsManager()
+        self.backups = BackupSystem(self)
 
         # Initialize menus
         self.menus = [

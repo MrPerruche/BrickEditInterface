@@ -195,7 +195,7 @@ class UnknownPropertyWidget(PropertyWidget):
         self.input_le.setText(f"NS: {str(value)}")
 
     def get_value(self):
-        return self.input_le.text().strip("NS: ")
+        raise ValueError("Cannot get value of unknown property")
 
     def get_dict_pair(self):
         return {}

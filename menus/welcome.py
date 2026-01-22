@@ -1,31 +1,65 @@
-from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QVBoxLayout, QSizePolicy
 from PySide6.QtGui import QIcon
 
 from . import base
 from .widgets import *
 
 
-
 class HomeMenu(base.BaseMenu):
-    
+
     def __init__(self, mw):
         super().__init__(mw, header=False)
 
-        self.welcome_label = LargeLabel("Welcome to\nBrickEdit-Interface", 1, center_text=True)
+        self._logo_pixmap = QPixmap(':/assets/icons/brickeditinterface.png')
+
+        self.brickeditinterface_label = QLabel()
+        self.brickeditinterface_label.setAlignment(Qt.AlignCenter)
+        self.brickeditinterface_label.setScaledContents(False)
+        self.brickeditinterface_label.setMinimumSize(0, 0)
+        self.brickeditinterface_label.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Expanding
+        )
+        self.master_layout.addWidget(self.brickeditinterface_label)
+
+        self.welcome_label = QLabel(
+            "blah blah blah blah blah blah blah blahblah blah blah blahblah blah blah blah"
+        )
+        self.welcome_label.setWordWrap(True)
         self.master_layout.addWidget(self.welcome_label)
 
-        self.brickeditinterface_logo = QPixmap(":/assets/icons/brickeditinterface.png")
-        self.brickeditinterface_logo = self.brickeditinterface_logo.scaled(
-            300, 300, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
-        )
-        self.brickeditinterface_label = QLabel()
-        self.brickeditinterface_label.setPixmap(self.brickeditinterface_logo)
-        self.master_layout.addWidget(self.brickeditinterface_label)
 
         self.master_layout.addStretch()
 
-    def get_menu_name(self) -> str:
-        return "Home"
+        self._update_logo()
 
-    def get_icon(self) -> QIcon:
-        return QIcon(":/assets/icons/placeholder.png")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_logo()
+
+    def _update_logo(self):
+        if self._logo_pixmap.isNull():
+            return
+
+        size = self.brickeditinterface_label.contentsRect().size()
+        size.setWidth(size.width() // 1.01)
+        size.setHeight(size.height() // 1.01)
+
+        if size.width() <= 0 or size.height() <= 0:
+            return
+
+        scaled = self._logo_pixmap.scaled(
+            size,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation
+        )
+
+        self.brickeditinterface_label.setPixmap(scaled)
+
+
+    def get_menu_name(self):
+        return "Welcome"
+
+    def get_icon(self):
+        return QIcon(':/assets/icons/placeholder.png')
