@@ -7,7 +7,7 @@ from datetime import datetime
 import os
 import traceback
 
-from utils import str_time_since
+from utils import str_time_since, get_vehicles_path
 from brickedit.src.brickedit import *  # TODO
 from .square_widget import SquareWidget, SquareState
 
@@ -101,7 +101,7 @@ class VehicleWidget(SquareWidget):
 
     def on_select_vehicle(self):
         """Open file explorer to select a vehicle folder."""
-        default_path = os.path.expanduser("~\\AppData\\Local\\BrickRigs\\SavedRemastered\\Vehicles")
+        default_path = get_vehicles_path()
         folder_path = QFileDialog.getExistingDirectory(
             self,
             "Select Vehicle Folder",

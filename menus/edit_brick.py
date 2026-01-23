@@ -46,6 +46,9 @@ class EditBrickMenu(base.BaseMenu):
 
     def save_changes(self):
         # Create backup
+        if self.vehicle_selector.brv_file is None:
+            QMessageBox.warning(self, "No vehicle selected", "No vehicle selected. Please select a vehicle before saving changes.")
+            return
         vehicle_dir = os.path.dirname(self.vehicle_selector.brv_file)
         self.main_window.backups.full_backup_procedure(vehicle_dir, f"Modified using the {self.get_menu_name()}.")
 

@@ -2,10 +2,13 @@ from PySide6.QtWidgets import QSlider
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 
+import shutil
+from send2trash import send2trash
+
 from . import base
 from .widgets import *
 
-from utils import repr_file_size
+from utils import repr_file_size, dir_size, get_vehicles_path
 
 
 class SettingsAndBackupsMenu(base.BaseMenu):
@@ -126,6 +129,25 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
         self.update_slider_labels()
         
+        # Delete excess backups
+        self.excess_label = QLabel("No excess backups found.")
+        self.master_layout.addWidget(self.excess_label)
+        
+        self.delete_layout = QHBoxLayout()
+        self.master_layout.addLayout(self.delete_layout)
+
+        self.bin_excess_button = QPushButton("Send to recycle bin")
+        self.bin_excess_button.setEnabled(False)
+        self.bin_excess_button.clicked.connect(lambda: self.delete_excess_backups(True))
+        self.delete_layout.addWidget(self.bin_excess_button)
+
+        self.del_excess_button = QPushButton("Delete permanantly")
+        self.del_excess_button.setEnabled(False)
+        self.del_excess_button.clicked.connect(lambda: self.delete_excess_backups(False))
+        self.delete_layout.addWidget(self.del_excess_button)
+        
+        self.update_excess_label()
+        
         self.master_layout.addStretch()
 
 
@@ -134,6 +156,31 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
     def get_icon(self) -> QIcon:
         return QIcon(":/assets/icons/placeholder.png")
+
+
+    def update_excess_label(self):
+        excess = self.main_window.backups.find_all_excess(get_vehicles_path())
+        excess_size = 0
+        for excess_dir in excess:
+            excess_size += dir_size(excess_dir)
+        self.excess_label.setText(f"Found {len(excess)} excess backups - total size: {repr_file_size(excess_size)}")
+        self.excess_label.setWordWrap(True)
+        if len(excess) > 0:
+            self.bin_excess_button.setEnabled(True)
+            self.del_excess_button.setEnabled(True)
+        else:
+            self.bin_excess_button.setEnabled(False)
+            self.del_excess_button.setEnabled(False)
+
+
+    def delete_excess_backups(self, recycle_bin):
+        excess = self.main_window.backups.find_all_excess(get_vehicles_path())
+        for excess_dir in excess:
+            if recycle_bin:
+                send2trash(excess_dir)
+            else:
+                shutil.rmtree(excess_dir)
+        self.update_excess_label()
 
 
     def open_settings_file(self):

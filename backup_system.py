@@ -104,7 +104,7 @@ class BackupSystem:
 
             try:
                 backup_type, backup_time = backup.split('-', 1)
-                backup_time = int(backup_time)
+                backup_time = int(backup_time[ :18])  # It will be a thousand years before we use 19 digits to represent time this way
                 backup_size = dir_size(backup_path)
             except ValueError:
                 # Not a backup or malformed, skip.
@@ -141,9 +141,3 @@ class BackupSystem:
                 size[backup_type] = new_size
 
         return excess_backups
-
-
-
-    def remove_excess(self):
-        # TODO
-        pass
