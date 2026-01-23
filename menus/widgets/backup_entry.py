@@ -7,7 +7,7 @@ from PySide6.QtCore import QSize
 
 from backup_system import BackupSystem
 
-from .square_widget import SquareWidget
+from .square_widget import SquareWidget, SquareState
 
 from brickedit import vhelper
 
@@ -34,8 +34,12 @@ class BackupEntry(SquareWidget):
         self.backup_dt = vhelper.from_net_ticks(backup_metadata.get(BackupSystem.TOML_TIME_TAG, 0))
 
         backup_folder_name = os.path.basename(self.backup_path)
-        backup_type = "Long term backup" if backup_folder_name[ :2] == "lt" else "Short term backup"
+        backup_folder_short_type = backup_folder_name[ :2]
+        backup_type = f"{self.main_window.backups.get_backup_name(backup_folder_short_type)} backup"
         backup_dt_text = f"{self.backup_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+
+        if backup_folder_short_type == "ug":
+            self.set_state(SquareState.HIGHLIGHT)
 
         # DATE AND BUTTONS
         # Layout
@@ -119,7 +123,6 @@ class BackupEntry(SquareWidget):
             if not os.path.exists(backup_brv_file):
                 return
             shutil.copy2(backup_brv_file, brv_file)
-
 
     def delete_backup_btn(self):
         dlg = QMessageBox()

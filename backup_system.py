@@ -34,7 +34,7 @@ class BackupSystem:
             shutil.rmtree(excess_dir_path)
 
 
-    def create_backup(self, vehicle_path, description="No description provided.", force_lt = False):
+    def create_backup(self, vehicle_path, description="No description provided.", user_generated = False):
         """Create a backup for a vehicle, given the path of the vehicle."""
 
         # Get relevant information
@@ -47,7 +47,9 @@ class BackupSystem:
         # Create the backup file structure
         # First backup of a creation per session is eligible for long_term status
         file_name = f"st-{time_now}"
-        if force_lt or (vehicle_path not in self.not_eligible_for_lt):
+        if user_generated:
+            file_name = f"ug-{time_now}"
+        elif vehicle_path not in self.not_eligible_for_lt:
             file_name = f"lt-{time_now}"
             self.not_eligible_for_lt.add(vehicle_path)
         backup_path = os.path.join(vehicle_path, *self.BACKUPS_SUBDIR, file_name)
@@ -133,15 +135,17 @@ class BackupSystem:
 
         # We now have the list of backups. Sort from newest to oldest, then prepare variables
         found_backups.sort(key=lambda x: x[1], reverse=True)
-        count = {"st": 0, "lt": 0}  # I'm too lazy to make if statements. Hey, if we ever add mid-term...
-        size = {"st": 0, "lt": 0}
+        count = {"st": 0, "lt": 0, "ug": 0}  # I'm too lazy to make if statements. Hey, if we ever add mid-term...
+        size = {"st": 0, "lt": 0, "ug": 0}
         max_count = {
             "st": self.main_window.settings.st_backup_count_limit,
-            "lt": self.main_window.settings.lt_backup_count_limit
+            "lt": self.main_window.settings.lt_backup_count_limit,
+            "ug": 1e99
         }
         max_size = {
             "st": self.main_window.settings.st_backup_size_limit_kb * 1024,
-            "lt": self.main_window.settings.lt_backup_size_limit_kb * 1024
+            "lt": self.main_window.settings.lt_backup_size_limit_kb * 1024,
+            "ug": 1e99
         }
 
         for backup_type, backup_time, backup_size, backup_path in found_backups:
@@ -163,3 +167,14 @@ class BackupSystem:
             return {}
         with open(toml_file, "rb") as f:
             return tomllib.load(f)
+
+    def get_backup_name(self, shorthand: str):
+        match shorthand:
+            case "st":
+                return "Short term"
+            case "lt":
+                return "Long term"
+            case "ug":
+                return "User generated"
+            case _:
+                return "Unknown"

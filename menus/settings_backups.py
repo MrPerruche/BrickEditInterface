@@ -130,6 +130,15 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
         self.update_slider_labels()
         
+        
+        # ---------------
+        # Backup manager
+        # ---------------
+
+        # Recovery label
+        self.recover_label = LargeLabel("Backup manager", 4)
+        self.master_layout.addWidget(self.recover_label)
+        
         # Delete excess backups
         self.excess_label = QLabel("No excess backups found.")
         self.master_layout.addWidget(self.excess_label)
@@ -150,16 +159,8 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.update_excess_label()
         
         
-        # ---------------
-        # Backup recovery
-        # ---------------
-
-        # Recovery label
-        self.recover_label = LargeLabel("Backup recovery", 4)
-        self.master_layout.addWidget(self.recover_label)
-        
         # Vehicle selector
-        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_ONLY, [self.update_backup_recovery_entries], must_deserialize=False)
+        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_AND_RELOAD, [self.update_backup_recovery_entries], must_deserialize=False)
         self.master_layout.addWidget(self.vehicle_selector)
         
         # Backup entries for that vehicle
@@ -298,6 +299,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                 self.main_window.settings.lt_backup_count_limit = value
             case 'lt_size':
                 self.main_window.settings.lt_backup_size_limit_kb = value * self.BACKUP_SIZE_STEP_KB
+            case _: pass
 
         self.update_slider_labels()
         self.main_window.settings.save()
