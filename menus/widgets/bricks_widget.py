@@ -2,11 +2,9 @@ from .square_widget import SquareWidget
 from .float_line_edit import SafeMathLineEdit
 from .property_widgets import PropertyWidget, UnknownPropertyWidget
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDoubleSpinBox, QLabel, QPushButton, QLineEdit, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox
 from PySide6.QtGui import QIcon
-from brickedit.src.brickedit import *
-from utils import parse_float_tuple
-from custom_validators import TupleFloatValidator
+from brickedit import *
 
 from copy import deepcopy
 

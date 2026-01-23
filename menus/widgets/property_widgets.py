@@ -1,11 +1,9 @@
-from .square_widget import SquareWidget
 from .float_line_edit import SafeMathLineEdit
 
 from custom_validators import *
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QWidget
-from PySide6.QtCore import Qt
-from brickedit.src.brickedit import p, vec
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QWidget
+from brickedit import p, vec
 
 
 class PropertyWidget(QWidget):

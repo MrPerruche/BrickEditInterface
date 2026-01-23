@@ -7,7 +7,7 @@ from PySide6.QtGui import QIcon
 
 from .square_widget import SquareWidget
 
-from brickedit.src.brickedit import BRVFile, p, vhelper
+from brickedit import BRVFile, p, vhelper
 
 
 class ColorWidget(SquareWidget):

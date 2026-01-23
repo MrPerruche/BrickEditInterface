@@ -1,14 +1,13 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QToolButton, QFileDialog, QMessageBox
-from PySide6.QtCore import Qt, QSize, QTimer, QDateTime
-from PySide6.QtGui import QColor, QIcon, QPixmap
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
+from PySide6.QtCore import Qt, QTimer, QDateTime
+from PySide6.QtGui import QPixmap
 
-from typing import Final, Optional, Callable
-from datetime import datetime
+from typing import Optional, Callable
 import os
 import traceback
 
 from utils import str_time_since, get_vehicles_path
-from brickedit.src.brickedit import *  # TODO
+from brickedit import *  # TODO
 from .square_widget import SquareWidget, SquareState
 
 
