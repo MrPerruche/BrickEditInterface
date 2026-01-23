@@ -49,6 +49,15 @@ def repr_file_size(size_bytes: int, digits: int = 2, unit_change_threshold: int 
         return f"{round(size_bytes, digits)} {size_names[i]}"
 
 
+def clear_layout(layout):
+    while layout.count():
+        item = layout.takeAt(0)
+        if item.widget():
+            item.widget().setParent(None)
+        elif item.layout():
+            clear_layout(item.layout())
+
+
 def blockwise_exp(n, p=3, base=2):
     r"""
     Compute a stepwise accelerating integer value for a slider or similar control.

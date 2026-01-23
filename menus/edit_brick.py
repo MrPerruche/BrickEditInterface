@@ -1,11 +1,11 @@
-from PySide6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QSizePolicy, QMessageBox
+from PySide6.QtWidgets import QPushButton, QMessageBox
 from PySide6.QtGui import QIcon
 import os
 
 from . import base
-from .widgets import VehicleWidget, ColorWidget, LargeLabel, BrickListWidget
+from .widgets import VehicleWidget, VehicleWidgetMode, ColorWidget, BrickListWidget
 
-from brickedit.src.brickedit import *
+from brickedit import *
 
 
 class EditBrickMenu(base.BaseMenu):
@@ -14,7 +14,7 @@ class EditBrickMenu(base.BaseMenu):
     def __init__(self, mw):
         super().__init__(mw)
     
-        self.vehicle_selector = VehicleWidget([self.on_brv_reload])
+        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_AND_RELOAD, [self.on_brv_reload])
         self.master_layout.addWidget(self.vehicle_selector)
 
         self.color_selector = ColorWidget(lambda: self.vehicle_selector.brv)

@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 
 class BackupSystem:
+    
+    TOML_VERSION_TAG = "version"
+    TOML_DESCRIPTION_TAG = "description"
+    TOML_TIME_TAG = "time"
 
     BACKUP_SYSTEM_VERSION: int = 2
     SHORT_TERM_BACKUP_MAX_DAYS: int = 14
@@ -30,7 +34,7 @@ class BackupSystem:
             shutil.rmtree(excess_dir_path)
 
 
-    def create_backup(self, vehicle_path, description="No description provided."):
+    def create_backup(self, vehicle_path, description="No description provided.", force_lt = False):
         """Create a backup for a vehicle, given the path of the vehicle."""
 
         # Get relevant information
@@ -43,7 +47,7 @@ class BackupSystem:
         # Create the backup file structure
         # First backup of a creation per session is eligible for long_term status
         file_name = f"st-{time_now}"
-        if vehicle_path not in self.not_eligible_for_lt:
+        if force_lt or (vehicle_path not in self.not_eligible_for_lt):
             file_name = f"lt-{time_now}"
             self.not_eligible_for_lt.add(vehicle_path)
         backup_path = os.path.join(vehicle_path, *self.BACKUPS_SUBDIR, file_name)
@@ -57,11 +61,21 @@ class BackupSystem:
         toml_file = os.path.join(backup_path, "bei_metadata.toml")
         with open(toml_file, "w") as f:
             toml_w = tomli_w.dumps({
-                "version": self.BACKUP_SYSTEM_VERSION,
-                "description": description,
-                "time": time_now
+                self.TOML_VERSION_TAG: self.BACKUP_SYSTEM_VERSION,
+                self.TOML_DESCRIPTION_TAG: description,
+                self.TOML_TIME_TAG: time_now
             })
             f.write(toml_w)
+
+
+    def find_backup_names(self, vehicle_path):
+        backups_root = os.path.join(vehicle_path, *self.BACKUPS_SUBDIR)
+        if not os.path.isdir(backups_root):
+            return []
+        return os.listdir(backups_root)
+
+    def find_backups(self, vehicle_path):
+        return [os.path.join(vehicle_path, *self.BACKUPS_SUBDIR, backup) for backup in self.find_backup_names(vehicle_path)]
 
 
     def find_all_excess(self, vehicles_path):
@@ -141,3 +155,11 @@ class BackupSystem:
                 size[backup_type] = new_size
 
         return excess_backups
+
+
+    def fetch_backup_metadata(self, backup_path):
+        toml_file = os.path.join(backup_path, "bei_metadata.toml")
+        if not os.path.exists(toml_file):
+            return {}
+        with open(toml_file, "rb") as f:
+            return tomllib.load(f)

@@ -1,14 +1,15 @@
 from PySide6.QtWidgets import QSlider
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QUrl, QSize
 from PySide6.QtGui import QDesktopServices
 
 import shutil
 from send2trash import send2trash
+from pathlib import Path
 
 from . import base
 from .widgets import *
 
-from utils import repr_file_size, dir_size, get_vehicles_path
+from utils import repr_file_size, dir_size, get_vehicles_path, clear_layout
 
 
 class SettingsAndBackupsMenu(base.BaseMenu):
@@ -148,6 +149,28 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         
         self.update_excess_label()
         
+        
+        # ---------------
+        # Backup recovery
+        # ---------------
+
+        # Recovery label
+        self.recover_label = LargeLabel("Backup recovery", 4)
+        self.master_layout.addWidget(self.recover_label)
+        
+        # Vehicle selector
+        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_ONLY, [self.update_backup_recovery_entries], must_deserialize=False)
+        self.master_layout.addWidget(self.vehicle_selector)
+        
+        # Backup entries for that vehicle
+        self.backup_entries = SquareWidget()
+        self.backup_entries_layout = QVBoxLayout(self.backup_entries)
+        self.master_layout.addWidget(self.backup_entries)
+        
+        
+        
+        self.update_backup_recovery_entries()
+        
         self.master_layout.addStretch()
 
 
@@ -156,6 +179,77 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
     def get_icon(self) -> QIcon:
         return QIcon(":/assets/icons/placeholder.png")
+
+
+    def update_backup_recovery_entries(self):
+        # Make sure it is a blank slate
+        clear_layout(self.backup_entries_layout)
+
+        # MANUAL USER INPUTS
+        # Label
+        self.create_backup_label = QLabel("Create a backup manually:")
+        self.backup_entries_layout.addWidget(self.create_backup_label)
+        # Description and add button layout
+        self.create_backup_desc_btn_layout = QHBoxLayout()
+        self.backup_entries_layout.addLayout(self.create_backup_desc_btn_layout)
+        # Description
+        self.create_backup_desc = QLineEdit()
+        self.create_backup_desc.setPlaceholderText("My manual backup description")
+        self.create_backup_desc_btn_layout.addWidget(self.create_backup_desc)
+        # Add button
+        self.create_backup_btn = QPushButton()
+        self.create_backup_btn_icon = QIcon.fromTheme("document-save")
+        self.create_backup_btn.setIcon(self.create_backup_btn_icon)
+        self.create_backup_btn.setFixedSize(QSize(32, 32))
+        self.create_backup_btn.clicked.connect(self.create_manual_backup)
+        self.create_backup_desc_btn_layout.addWidget(self.create_backup_btn)
+
+        # Gray out manual input if no vehicle is selected
+        self.create_backup_label.setDisabled(self.vehicle_selector.brv_file is None)
+        self.create_backup_desc.setDisabled(self.vehicle_selector.brv_file is None)
+        self.create_backup_btn.setDisabled(self.vehicle_selector.brv_file is None)
+        
+        # Get the backups. If no vehicle is loaded, pretend one is loaded and we got an empty list
+        result = []
+        brv_file = self.vehicle_selector.brv_file
+        if brv_file is not None:
+            vehicle_file = os.path.dirname(brv_file)
+            result = self.main_window.backups.find_backups(vehicle_file)
+        result.sort(reverse=True)
+
+        # If no backup is found, leave a label.
+        if not result:
+            self.backup_entries_layout.addWidget(QLabel("No backups found."))
+            self.update_excess_label()
+            return
+
+        for backup_path in result:
+            backup_entry = BackupEntry(
+                self.main_window, self.delete_backup,
+                str(Path(vehicle_file).resolve()),
+                str(Path(backup_path).resolve()))
+            self.backup_entries_layout.addWidget(backup_entry)
+
+        self.update_excess_label()
+
+
+    def create_manual_backup(self):
+        description = self.create_backup_desc.text()
+        if description == "":
+            description = "My manual backup description"
+        self.main_window.backups.create_backup(
+            os.path.dirname(self.vehicle_selector.brv_file),  # Vehicle directory
+            description, True  # Force long-term backup
+        )
+        self.update_backup_recovery_entries()
+
+
+    def delete_backup(self, recycle_bin: bool, backup_path: str):
+        if recycle_bin:
+            send2trash(backup_path)
+        else:
+            shutil.rmtree(backup_path)
+        self.update_backup_recovery_entries()
 
 
     def update_excess_label(self):
@@ -192,6 +286,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.main_window.settings.create_default_settings()
         self.update_slider_labels()
         self.update_slider_values()
+
 
     def slider_updated(self, value, type: str):
         match type:

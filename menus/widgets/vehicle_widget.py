@@ -5,16 +5,30 @@ from PySide6.QtGui import QPixmap
 from typing import Optional, Callable
 import os
 import traceback
+from enum import Enum, auto
 
 from utils import str_time_since, get_vehicles_path
 from brickedit import *  # TODO
 from .square_widget import SquareWidget, SquareState
 
 
+
+class VehicleWidgetMode(Enum):
+    SELECT_AND_RELOAD = auto()
+    SELECT_ONLY = auto()
+    DISPLAY_ONLY = auto()
+
+    def may_display_select_btn(self):
+        return self not in (VehicleWidgetMode.DISPLAY_ONLY,)
+
+    def may_display_reload_btn(self):
+        return self not in (VehicleWidgetMode.DISPLAY_ONLY, VehicleWidgetMode.SELECT_ONLY)
+
+
 class VehicleWidget(SquareWidget):
     """Custom widget for vehicle selection with rounded borders."""
     
-    def __init__(self, call_on_reload: list[Callable] | Callable | None = None, parent=None):
+    def __init__(self, widget_mode: VehicleWidgetMode, call_on_reload: list[Callable] | Callable | None = None, parent=None, must_deserialize: bool = True):
         super().__init__(parent)
 
         # --- LOGIC
@@ -29,6 +43,7 @@ class VehicleWidget(SquareWidget):
         self.brv_file: Optional[str] = None
         self.brm_file: Optional[str] = None
         self.icon_file: Optional[str] = None
+        self.must_deserialize = must_deserialize
 
         self.brv = None
         
@@ -77,11 +92,13 @@ class VehicleWidget(SquareWidget):
 
         self.select_vehicle = QPushButton("Select")
         self.select_vehicle.clicked.connect(self.on_select_vehicle)
-        self.button_layout.addWidget(self.select_vehicle)
+        if widget_mode.may_display_select_btn(): 
+            self.button_layout.addWidget(self.select_vehicle)
 
         self.reload_vehicle = QPushButton("Reload")
         self.reload_vehicle.clicked.connect(self.on_reload_vehicle)
-        self.button_layout.addWidget(self.reload_vehicle)
+        if widget_mode.may_display_reload_btn():
+            self.button_layout.addWidget(self.reload_vehicle)
 
 
 
@@ -143,8 +160,9 @@ class VehicleWidget(SquareWidget):
                 elif version > FILE_MAX_SUPPORTED_VERSION:
                     raise Exception("too new")
                 # Load
-                brv = BRVFile(version)
-                brv.deserialize(file)
+                if self.must_deserialize:
+                    brv = BRVFile(version)
+                    brv.deserialize(file)
 
         # Oh no, something went wrong
         except BrickError:
@@ -167,7 +185,8 @@ class VehicleWidget(SquareWidget):
 
         # From now on, everything is fine. We can store variables and update everything
         self.brv_file = brv_file
-        self.brv = brv
+        if self.must_deserialize:
+            self.brv = brv
         
         # Metadata
         self.brm_file = None

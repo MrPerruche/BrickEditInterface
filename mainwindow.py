@@ -1,6 +1,5 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout, QScrollArea
-from PySide6.QtGui import QIcon
 
 from sidebar import Sidebar
 from menus import *

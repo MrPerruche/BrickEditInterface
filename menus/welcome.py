@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QVBoxLayout, QSizePolicy
+from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtGui import QIcon
 
 from . import base
