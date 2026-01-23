@@ -62,4 +62,4 @@ class HomeMenu(base.BaseMenu):
         return "Welcome"
 
     def get_icon(self):
-        return QIcon(':/assets/icons/placeholder.png')
+        return QIcon(':/assets/icons/brickeditinterface.ico')

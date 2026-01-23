@@ -179,7 +179,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         return "Settings and backups"
 
     def get_icon(self) -> QIcon:
-        return QIcon(":/assets/icons/placeholder.png")
+        return QIcon(":/assets/icons/BackupIcon.png")
 
 
     def update_backup_recovery_entries(self):

@@ -2,7 +2,7 @@ import os
 import shutil
 
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QMessageBox
-from PySide6.QtGui import QIcon, QColor, QPainter
+from PySide6.QtGui import QIcon, QColor, QPainter, QFont
 from PySide6.QtCore import QSize
 
 from backup_system import BackupSystem
@@ -36,7 +36,7 @@ class BackupEntry(SquareWidget):
         backup_folder_name = os.path.basename(self.backup_path)
         backup_folder_short_type = backup_folder_name[ :2]
         backup_type = f"{self.main_window.backups.get_backup_name(backup_folder_short_type)} backup"
-        backup_dt_text = f"{self.backup_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+        backup_dt_text = f"{self.backup_dt.strftime('%y-%m-%d\n%H:%M:%S')}"
 
         if backup_folder_short_type == "ug":
             self.set_state(SquareState.HIGHLIGHT)
@@ -50,6 +50,10 @@ class BackupEntry(SquareWidget):
         self.info_layout = QVBoxLayout()
         self.dt_text_label = QLabel(backup_dt_text)
         self.dt_text_label.setWordWrap(True)
+        dt_text_label_font = QFont()
+        dt_text_label_font.setBold(True)
+        dt_text_label_font.setFamily("Consolas")
+        self.dt_text_label.setFont(dt_text_label_font)
         self.info_layout.addWidget(self.dt_text_label)
         self.info_and_buttons_layout.addLayout(self.info_layout)
 

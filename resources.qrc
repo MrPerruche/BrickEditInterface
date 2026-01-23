@@ -6,5 +6,9 @@
         <file>assets/icons/missing_thumbnail.png</file>
         <file>assets/icons/brickeditinterface.png</file>
         <file>assets/icons/brickeditinterface.ico</file>
+        <file>assets/icons/BackupIcon.png</file>
+        <file>assets/icons/BrickEditorIcon.png</file>
+        <file>assets/icons/GizmoIcon.png</file>
+        <file>assets/icons/HomeIcon.png</file>
     </qresource>
 </RCC>

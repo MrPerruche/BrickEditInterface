@@ -62,7 +62,7 @@ class VehicleWidget(SquareWidget):
         
         # Add layout and widgets
         self.master_layout = QHBoxLayout(self)
-        self.master_layout.setContentsMargins(6, 6, 6, 6)
+        self.master_layout.setContentsMargins(12, 12, 12, 12)
         self.master_layout.setSpacing(8)
         
         # Vehicle Icon

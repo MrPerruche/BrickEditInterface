@@ -33,7 +33,7 @@ class EditBrickMenu(base.BaseMenu):
         return "Brick Editor"
 
     def get_icon(self) -> QIcon:
-        return QIcon(":/assets/icons/placeholder.png")
+        return QIcon(":/assets/icons/BrickEditorIcon.png")
 
     def on_brv_reload(self):
         brv = self.vehicle_selector.brv

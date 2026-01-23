@@ -21,4 +21,4 @@ class VehicleUpscalerMenu(base.BaseMenu):
         return "Vehicle Upscaler"
 
     def get_icon(self) -> QIcon:
-        return QIcon(":/assets/icons/placeholder.png")
+        return QIcon(":/assets/icons/GizmoIcon.png")
