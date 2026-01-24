@@ -88,6 +88,8 @@ class VehicleWidget(SquareWidget):
 
         # Button layout
         self.button_layout = QHBoxLayout()
+        self.button_layout.setContentsMargins(0, 0, 0, 0)
+        self.button_layout.setSpacing(0)
         self.layout.addLayout(self.button_layout)
 
         self.select_vehicle = QPushButton("Select")

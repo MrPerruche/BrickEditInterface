@@ -1,9 +1,12 @@
 BrickEdit-Interface is a tool to help users exploit BrickEdit's capabilities without any code knowledge, by providing a set of tools in a graphical interface.
 
+# For developers:
+
 Before using BrickEdit-Interface, you need to have the following dependencies installed:
 
-`PySide6`: Python binding for the Qt framework (used for GUI);
-`asteval`: A Python library for evaluating arbitrary expressions safely
+```ps1
+pip install -r requirements.txt
+```
 
 BrickEdit-Interface uses Qt Resource Files (.qrc) to bundle resources such as icons and images.
 

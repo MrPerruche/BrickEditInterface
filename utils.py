@@ -1,5 +1,10 @@
 import os
 
+
+VERSION = "1.0.0"
+DEV_VERSION = False
+
+
 def str_time_since(seconds):
     MINUTE, HOUR, DAY, MONTH, YEAR = 60, 60 * 60, 24 * 60 * 60, 30 * 24 * 60 * 60, 365 * 24 * 60 * 60
     if seconds < MINUTE:

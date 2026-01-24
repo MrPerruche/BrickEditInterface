@@ -119,7 +119,8 @@ class BackupSystem:
                 continue
 
             try:
-                backup_type, backup_time = backup.split('-', 1)
+                backup_split = backup.replace(".brv", "").strip().split('-')  # Replace for previous versions support
+                backup_type, backup_time = backup_split[0].strip(), backup_split[1].strip()
                 backup_time = int(backup_time[ :18])  # It will be a thousand years before we use 19 digits to represent time this way
                 backup_size = dir_size(backup_path)
             except ValueError:

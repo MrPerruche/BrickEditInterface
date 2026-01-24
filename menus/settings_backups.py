@@ -15,15 +15,68 @@ from utils import repr_file_size, dir_size, get_vehicles_path, clear_layout
 class SettingsAndBackupsMenu(base.BaseMenu):
 
     MAX_BACKUP_COUNT = 20
-    MAX_BACKUP_SIZE_KB = 65536
+    MAX_BACKUP_SIZE_KB = 32728
     BACKUP_SIZE_STEP_KB = 256
 
     def __init__(self, mw):
         super().__init__(mw)
         
-        # ----------------
+        # ---------------
+        # Backup manager
+        # ---------------
+
+        # Warning
+        self.warning_widget = SquareWidget()
+        self.warning_widget.set_state(SquareState.HIGHLIGHT)
+        self.warning_widget_layout = QHBoxLayout(self.warning_widget)
+        self.warning_widget_label = QLabel("BrickEdit-Interface backups are here to help you experiement with your creations and recover from mistakes made using this software.\nDeleting a vehicle will also delete its backups.")
+        self.warning_widget_label.setWordWrap(True)
+        self.warning_widget_layout.addWidget(self.warning_widget_label)
+        self.master_layout.addWidget(self.warning_widget)
+
+        # Recovery label
+        # self.recover_label = LargeLabel("Backup manager", 4)
+        # self.master_layout.addWidget(self.recover_label)
+        
+        # Delete excess backups
+        self.excess_label = QLabel("No excess backups found.")
+        self.master_layout.addWidget(self.excess_label)
+        
+        self.delete_layout = QHBoxLayout()
+        self.master_layout.addLayout(self.delete_layout)
+
+        self.bin_excess_button = QPushButton("Send to recycle bin")
+        self.bin_excess_button.setEnabled(False)
+        self.bin_excess_button.clicked.connect(lambda: self.delete_excess_backups(True))
+        self.delete_layout.addWidget(self.bin_excess_button)
+
+        self.del_excess_button = QPushButton("Delete permanantly")
+        self.del_excess_button.setEnabled(False)
+        self.del_excess_button.clicked.connect(lambda: self.delete_excess_backups(False))
+        self.delete_layout.addWidget(self.del_excess_button)
+        
+        self.update_excess_label()
+        
+        
+        # Vehicle selector
+        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_AND_RELOAD, [self.update_backup_recovery_entries], must_deserialize=False)
+        self.master_layout.addWidget(self.vehicle_selector)
+        
+        # Backup entries for that vehicle
+        self.backup_entries = SquareWidget()
+        self.backup_entries_layout = QVBoxLayout(self.backup_entries)
+        self.master_layout.addWidget(self.backup_entries)
+
+
+        # ---------------
+        # Backup Settings
+        # ---------------
+        
+        
+        self.backups_part_header = LargeLabel("Backup settings", 4)
+        self.master_layout.addWidget(self.backups_part_header)
+        
         # Contron settings
-        # ----------------
         
         self.control_layout = QHBoxLayout()
         self.master_layout.addLayout(self.control_layout)
@@ -37,30 +90,11 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.open_settings_file_button = QPushButton("Reveal in file explorer")
         self.open_settings_file_button.clicked.connect(self.open_settings_file)
         self.control_layout.addWidget(self.open_settings_file_button)
-        
-        
-        
-        # ---------------
-        # Backup Settings
-        # ---------------
-        
-        
-        self.backups_part_header = LargeLabel("Backups", 4)
-        self.master_layout.addWidget(self.backups_part_header)
-
-        # Warning
-        self.warning_widget = SquareWidget()
-        self.warning_widget.set_state(SquareState.HIGHLIGHT)
-        self.warning_widget_layout = QHBoxLayout(self.warning_widget)
-        self.warning_widget_label = QLabel("BrickEdit-Interface backups are meant to help recover from mistakes made using this software.\nBackups are stored in the same directory as vehicles. Deleting vehicles will also delete backups.")
-        self.warning_widget_label.setWordWrap(True)
-        self.warning_widget_layout.addWidget(self.warning_widget_label)
-        self.master_layout.addWidget(self.warning_widget)
 
         self.main_window.settings.st_backup_count_limit
         
         # Short term
-        self.st_label = QLabel("Short term backups limit / Vehicle\n→ Created when a vehicle is modified")
+        self.st_label = QLabel(f"Short term backups limit / Vehicle\n→ When a vehicle is modified\n→ May be automatically deleted if it's older than {self.main_window.backups.SHORT_TERM_BACKUP_MAX_DAYS}d")
         self.st_label.setWordWrap(True)
         self.master_layout.addWidget(self.st_label)
 
@@ -95,7 +129,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
         # Long term
-        self.lt_label = QLabel("Long term backups limit / Vehicle\n→ Created once per session when a vehicle is modified")
+        self.lt_label = QLabel("Long term backups limit / Vehicle\n→ Once per session when a vehicle is modified")
         self.lt_label.setWordWrap(True)
         self.master_layout.addWidget(self.lt_label)
 
@@ -128,55 +162,15 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.lt_size_limit_label.setAlignment(Qt.AlignRight)
         self.lt_size_limit_layout.addWidget(self.lt_size_limit_label, 3)
 
+
+
         self.update_slider_labels()
-        
-        
-        # ---------------
-        # Backup manager
-        # ---------------
-
-        # Recovery label
-        self.recover_label = LargeLabel("Backup manager", 4)
-        self.master_layout.addWidget(self.recover_label)
-        
-        # Delete excess backups
-        self.excess_label = QLabel("No excess backups found.")
-        self.master_layout.addWidget(self.excess_label)
-        
-        self.delete_layout = QHBoxLayout()
-        self.master_layout.addLayout(self.delete_layout)
-
-        self.bin_excess_button = QPushButton("Send to recycle bin")
-        self.bin_excess_button.setEnabled(False)
-        self.bin_excess_button.clicked.connect(lambda: self.delete_excess_backups(True))
-        self.delete_layout.addWidget(self.bin_excess_button)
-
-        self.del_excess_button = QPushButton("Delete permanantly")
-        self.del_excess_button.setEnabled(False)
-        self.del_excess_button.clicked.connect(lambda: self.delete_excess_backups(False))
-        self.delete_layout.addWidget(self.del_excess_button)
-        
-        self.update_excess_label()
-        
-        
-        # Vehicle selector
-        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_AND_RELOAD, [self.update_backup_recovery_entries], must_deserialize=False)
-        self.master_layout.addWidget(self.vehicle_selector)
-        
-        # Backup entries for that vehicle
-        self.backup_entries = SquareWidget()
-        self.backup_entries_layout = QVBoxLayout(self.backup_entries)
-        self.master_layout.addWidget(self.backup_entries)
-        
-        
-        
         self.update_backup_recovery_entries()
-        
         self.master_layout.addStretch()
 
 
     def get_menu_name(self) -> str:
-        return "Settings and backups"
+        return "Backup Manager"
 
     def get_icon(self) -> QIcon:
         return QIcon(":/assets/icons/BackupIcon.png")

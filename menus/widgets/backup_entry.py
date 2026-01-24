@@ -36,7 +36,10 @@ class BackupEntry(SquareWidget):
         backup_folder_name = os.path.basename(self.backup_path)
         backup_folder_short_type = backup_folder_name[ :2]
         backup_type = f"{self.main_window.backups.get_backup_name(backup_folder_short_type)} backup"
-        backup_dt_text = f"{self.backup_dt.strftime('%y-%m-%d\n%H:%M:%S')}"
+        if self.backup_dt.year > 2000:
+            backup_dt_text = f"{self.backup_dt.strftime('%y-%m-%d\n%H:%M:%S')}"
+        else:
+            backup_dt_text = f"{self.backup_dt.strftime('%Y-%m-%d\n%H:%M:%S')} (?)"
 
         if backup_folder_short_type == "ug":
             self.set_state(SquareState.HIGHLIGHT)
