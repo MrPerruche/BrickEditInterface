@@ -128,6 +128,8 @@ If you remember the numbers at the end of the file path, when selecting, you can
 ---
 2. Don't be afraid to experiment! BrickEdit-Interface automatically backs up every time it does something. You can easily recover them in the backup manager.
 Our backup system lets you adjust both how many and how large the backups of a vehicle may grow. We create both "short-term" and "long-term" backups so you can recover from your immediate and previous mistakes.
+---
+3. Most if not all number inputs allow you to input mathematical expressions, which will be evaluated once you are done writing.
 """
 
         self.welcome_labels = []
