@@ -6,6 +6,7 @@ from . import base
 from .widgets import VehicleWidget, VehicleWidgetMode, ColorWidget, BrickListWidget
 
 from brickedit import *
+from utils import try_serialize
 
 
 class EditBrickMenu(base.BaseMenu):
@@ -54,29 +55,17 @@ class EditBrickMenu(base.BaseMenu):
 
         # Save (and make sure the path exists)
         makedirs(path.dirname(self.vehicle_selector.brv_file), exist_ok=True)
-        try:
-            # Get the BRV with modified bricks
-            brv = self.vehicle_selector.brv
-            for brick_widget in self.bricks_widget.brick_widgets:
-                brv.bricks[brick_widget.idx] = brick_widget.get_modified_brick()
-            # Serialize and save
-            serialized = brv.serialize()
-            with open(self.vehicle_selector.brv_file, "wb") as f:
-                f.write(serialized)
 
-        # Message box in case of bugs
-        except PermissionError as e:
-            QMessageBox.critical(self, "Failed to save changes",
-                f"BrickEdit-Interface was denied permission to save changes: {str(e)}"
-            )
-        except OSError as e:
-            QMessageBox.critical(self, "Failed to save changes",
-                f"BrickEdit-Interface could not save changes: {str(e)}"
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "Failed to save changes",
-                f"BrickEdit failed to save changes (most likely failed to serialize). Please report the following errors to the developers:\n\n{type(e).__name__}: {str(e)}"
-            )
-            raise e
+        # Get the BRV with modified bricks
+        brv = self.vehicle_selector.brv
+        for brick_widget in self.bricks_widget.brick_widgets:
+            brv.bricks[brick_widget.idx] = brick_widget.get_modified_brick()
+
+        # Serialize and save
+        serialized = try_serialize(brv.serialize())
+        if serialized is None:
+            return
+        with open(self.vehicle_selector.brv_file, "wb") as f:
+            f.write(serialized)
 
         QMessageBox.information(self, "BrickEdit-Interface", "Successfully saved changes.")

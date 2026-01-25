@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout,
 
 from sidebar import Sidebar
 from menus import *
+from utils import DEV_VERSION
 from settings_manager import SettingsManager
 from backup_system import BackupSystem
 
@@ -27,6 +28,11 @@ class BrickEditInterface(QMainWindow):
             EditBrickMenu(self),
             VehicleUpscalerMenu(self),
         ]
+        self.in_dev_menus = [
+            GradientMaker(self)
+        ]
+        if DEV_VERSION:
+            self.menus.extend(self.in_dev_menus)
         
         # Build menu configurations for sidebar
         menu_configs = [

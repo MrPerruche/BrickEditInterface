@@ -1,7 +1,9 @@
 import os
+from brickedit import *
+from PySide6.QtWidgets import QMessageBox
 
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 DEV_VERSION = False
 
 
@@ -119,3 +121,26 @@ def blockwise_exp_inverse(value, p=3, base=2):
         if val > value:
             return max(0, n - 1)
         n += 1
+
+
+
+def try_serialize(brv: BRVFile) -> bytearray | None:
+    try:
+        return brv.serialize()
+
+    # Message box in case of bugs
+    except PermissionError as e:
+        QMessageBox.critical(None, "Failed to save changes",
+            f"BrickEdit-Interface was denied permission to save changes: {str(e)}"
+        )
+    except OSError as e:
+        QMessageBox.critical(None, "Failed to save changes",
+            f"BrickEdit-Interface could not save changes: {str(e)}"
+        )
+    except Exception as e:
+        QMessageBox.critical(None, "Failed to save changes",
+            f"BrickEdit failed to save changes (most likely failed to serialize). Please report the following errors to the developers:\n\n{type(e).__name__}: {str(e)}"
+        )
+        raise e
+
+    return None

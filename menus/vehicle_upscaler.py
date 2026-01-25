@@ -5,6 +5,7 @@ from .widgets import VehicleWidget, VehicleWidgetMode, SafeMathLineEdit, LargeLa
 from . import base
 
 from brickedit import *
+from utils import try_serialize
 
 from copy import deepcopy
 from os import path, makedirs
@@ -286,26 +287,11 @@ class VehicleUpscalerMenu(base.BaseMenu):
 
 
 
-        try:
-            # Serialize and save
-            serialized = brv.serialize()
-            with open(self.vehicle_selector.brv_file, "wb") as f:
-                f.write(serialized)
-
-        # Message box in case of bugs
-        except PermissionError as e:
-            QMessageBox.critical(self, "Failed to save changes",
-                f"BrickEdit-Interface was denied permission to save changes: {str(e)}"
-            )
-        except OSError as e:
-            QMessageBox.critical(self, "Failed to save changes",
-                f"BrickEdit-Interface could not save changes: {str(e)}"
-            )
-        except Exception as e:
-            QMessageBox.critical(self, "Failed to save changes",
-                f"BrickEdit failed to save changes (most likely failed to serialize). Please report the following errors to the developers:\n\n{type(e).__name__}: {str(e)}"
-            )
-            raise e
+        serialized = try_serialize(brv)
+        if serialized is None:
+            return
+        with open(self.vehicle_selector.brv_file, "wb") as f:
+            f.write(serialized)
 
         QMessageBox.information(self, "BrickEdit-Interface", "Successfully saved changes.")
 
