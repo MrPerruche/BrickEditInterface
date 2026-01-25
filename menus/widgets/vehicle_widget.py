@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt, QTimer, QDateTime
 from PySide6.QtGui import QPixmap
 
 from typing import Optional, Callable
-import os
+from os import path
 import traceback
 from enum import Enum, auto
 
@@ -134,15 +134,15 @@ class VehicleWidget(SquareWidget):
 
     def on_reload_vehicle(self):
         if self.brv_file is not None:
-            self.load_vehicle(os.path.dirname(self.brv_file))
+            self.load_vehicle(path.dirname(self.brv_file))
 
 
 
     def load_vehicle(self, folder_path):
         
         # Before accepting it, make sure the BRV exists and is deserilizable
-        brv_file = os.path.join(folder_path, "Vehicle.brv")
-        if not os.path.exists(brv_file):
+        brv_file = path.join(folder_path, "Vehicle.brv")
+        if not path.exists(brv_file):
             QMessageBox.warning(self, "File not found", "Vehicle.brv file not found in selected folder.")
             return
 
@@ -192,8 +192,8 @@ class VehicleWidget(SquareWidget):
         
         # Metadata
         self.brm_file = None
-        metadata_file = os.path.join(folder_path, "Metadata.brm")
-        if os.path.exists(metadata_file):
+        metadata_file = path.join(folder_path, "Metadata.brm")
+        if path.exists(metadata_file):
             try:
                 with open(metadata_file, "rb") as f:
                     file = bytearray(f.read())
@@ -206,8 +206,8 @@ class VehicleWidget(SquareWidget):
         self.vehicle_name.setText(self.name)
         
         # Set thumbnail
-        icon_file = os.path.join(folder_path, "Preview.png")
-        if os.path.exists(icon_file):
+        icon_file = path.join(folder_path, "Preview.png")
+        if path.exists(icon_file):
             self.icon_file = icon_file
             self.set_icon(QPixmap(icon_file))
         else:
@@ -231,8 +231,8 @@ class VehicleWidget(SquareWidget):
         last_modified_time_seconds = 1e99
         last_modified_time_rendered = "N/A"
         if self.brv_file is not None:
-            if os.path.exists(self.brv_file):
-                last_modified_time_os = os.path.getmtime(self.brv_file)
+            if path.exists(self.brv_file):
+                last_modified_time_os = path.getmtime(self.brv_file)
                 last_modified_time = QDateTime.fromSecsSinceEpoch(int(last_modified_time_os))
                 last_modified_time_seconds = last_modified_time.secsTo(QDateTime.currentDateTime())
                 last_modified_time_rendered = str_time_since(last_modified_time_seconds)

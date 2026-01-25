@@ -1,6 +1,6 @@
 """BrickEdit Interface - Main entry point."""
 
-import sys
+from sys import argv, exit as sys_exit
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
 import resources_rc  # your compiled Qt resources
@@ -9,7 +9,7 @@ from mainwindow import BrickEditInterface
 
 
 def main():
-    app = QApplication(sys.argv)
+    app = QApplication(argv)
 
     # Title bar icon (cross-platform)
     bei_icon = QIcon(":/assets/icons/brickeditinterface.ico")
@@ -19,7 +19,7 @@ def main():
     window.setWindowIcon(bei_icon)
 
     window.show()
-    sys.exit(app.exec())
+    sys_exit(app.exec())
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import tomllib, tomli_w
 from pathlib import Path
 from platformdirs import user_config_dir
-import sys
+from sys import exit as sys_exit
 
 from PySide6.QtWidgets import QMessageBox
 
@@ -100,4 +100,4 @@ If you press OK, you may reset your settings!
             if result == QMessageBox.Ok:
                 pass
             else:
-                sys.exit(1)
+                sys_exit(1)

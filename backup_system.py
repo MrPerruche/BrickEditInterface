@@ -1,4 +1,4 @@
-import os
+from os import path, makedirs, listdir
 import shutil
 import tomllib, tomli_w
 from datetime import datetime as _datetime, timezone as _tz, timedelta as _timedelta
@@ -39,8 +39,8 @@ class BackupSystem:
 
         # Get relevant information
         time_now = net_ticks_now()
-        og_brv = os.path.join(vehicle_path, "Vehicle.brv")
-        if not os.path.exists(og_brv):
+        og_brv = path.join(vehicle_path, "Vehicle.brv")
+        if not path.exists(og_brv):
             print(f"BackupSystem::create_backup: Vehicle.brv not found i, {og_brv}.")
             return
 
@@ -52,15 +52,15 @@ class BackupSystem:
         elif vehicle_path not in self.not_eligible_for_lt:
             file_name = f"lt-{time_now}"
             self.not_eligible_for_lt.add(vehicle_path)
-        backup_path = os.path.join(vehicle_path, *self.BACKUPS_SUBDIR, file_name)
-        os.makedirs(backup_path, exist_ok=True)
+        backup_path = path.join(vehicle_path, *self.BACKUPS_SUBDIR, file_name)
+        makedirs(backup_path, exist_ok=True)
 
         # Backup the BRV
-        new_brv_path = os.path.join(backup_path, "Vehicle.brv")
+        new_brv_path = path.join(backup_path, "Vehicle.brv")
         shutil.copy2(og_brv, new_brv_path)
 
         # Add a file containing BEI metadata.
-        toml_file = os.path.join(backup_path, "bei_metadata.toml")
+        toml_file = path.join(backup_path, "bei_metadata.toml")
         with open(toml_file, "w") as f:
             toml_w = tomli_w.dumps({
                 self.TOML_VERSION_TAG: self.BACKUP_SYSTEM_VERSION,
@@ -71,21 +71,21 @@ class BackupSystem:
 
 
     def find_backup_names(self, vehicle_path):
-        backups_root = os.path.join(vehicle_path, *self.BACKUPS_SUBDIR)
-        if not os.path.isdir(backups_root):
+        backups_root = path.join(vehicle_path, *self.BACKUPS_SUBDIR)
+        if not path.isdir(backups_root):
             return []
-        return os.listdir(backups_root)
+        return listdir(backups_root)
 
     def find_backups(self, vehicle_path):
-        return [os.path.join(vehicle_path, *self.BACKUPS_SUBDIR, backup) for backup in self.find_backup_names(vehicle_path)]
+        return [path.join(vehicle_path, *self.BACKUPS_SUBDIR, backup) for backup in self.find_backup_names(vehicle_path)]
 
 
     def find_all_excess(self, vehicles_path):
         excess_backups = []
-        vehicle_pathes = os.listdir(vehicles_path)
+        vehicle_pathes = listdir(vehicles_path)
         for vehicle in vehicle_pathes:
-            vehicle_path = os.path.join(vehicles_path, vehicle)
-            if not os.path.isdir(vehicle_path):
+            vehicle_path = path.join(vehicles_path, vehicle)
+            if not path.isdir(vehicle_path):
                 continue
             this_vehicle_excess = self.find_excess(vehicle_path)
             if this_vehicle_excess:
@@ -102,20 +102,20 @@ class BackupSystem:
 
         # Get the vehicle folder containing non-backup brv, brm, ...
 
-        backups_root = os.path.join(vehicle_path, *self.BACKUPS_SUBDIR)
-        if not os.path.isdir(backups_root):
+        backups_root = path.join(vehicle_path, *self.BACKUPS_SUBDIR)
+        if not path.isdir(backups_root):
             return []
 
         # Path & store upcoming results
-        vehicle_backups = os.listdir(backups_root)
+        vehicle_backups = listdir(backups_root)
         # backups: list[tuple[type, time, size, path]]
         found_backups: list[tuple[str, int, int, str]] = []
 
         # Sieve through backups
         for backup in vehicle_backups:
             # Get full backup path
-            backup_path = os.path.join(backups_root, backup)
-            if (not os.path.exists(backup_path)) or (not os.path.isdir(backup_path)):
+            backup_path = path.join(backups_root, backup)
+            if (not path.exists(backup_path)) or (not path.isdir(backup_path)):
                 continue
 
             try:
@@ -163,8 +163,8 @@ class BackupSystem:
 
 
     def fetch_backup_metadata(self, backup_path):
-        toml_file = os.path.join(backup_path, "bei_metadata.toml")
-        if not os.path.exists(toml_file):
+        toml_file = path.join(backup_path, "bei_metadata.toml")
+        if not path.exists(toml_file):
             return {}
         with open(toml_file, "rb") as f:
             return tomllib.load(f)

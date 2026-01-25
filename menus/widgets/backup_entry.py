@@ -1,4 +1,4 @@
-import os
+from os import path, startfile
 import shutil
 
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QMessageBox
@@ -33,7 +33,7 @@ class BackupEntry(SquareWidget):
         self.backup_desc = backup_metadata.get(BackupSystem.TOML_DESCRIPTION_TAG, "No description provided.")
         self.backup_dt = vhelper.from_net_ticks(backup_metadata.get(BackupSystem.TOML_TIME_TAG, 0))
 
-        backup_folder_name = os.path.basename(self.backup_path)
+        backup_folder_name = path.basename(self.backup_path)
         backup_folder_short_type = backup_folder_name[ :2]
         backup_type = f"{self.main_window.backups.get_backup_name(backup_folder_short_type)} backup"
         if self.backup_dt.year > 2000:
@@ -71,7 +71,7 @@ class BackupEntry(SquareWidget):
         self.open_dir_button_icon = QIcon.fromTheme("folder-open")
         self.open_dir_button.setFixedSize(32, 32)
         self.open_dir_button.setIcon(self.open_dir_button_icon)
-        self.open_dir_button.clicked.connect(lambda: os.startfile(self.backup_path))
+        self.open_dir_button.clicked.connect(lambda: startfile(self.backup_path))
         self.buttons_layout.addWidget(self.open_dir_button)
 
         # Recover backup button
@@ -123,11 +123,11 @@ class BackupEntry(SquareWidget):
         result = dlg.exec()
 
         if result == QMessageBox.Ok:
-            brv_file = os.path.join(self.vehicle_path, "Vehicle.brv")
+            brv_file = path.join(self.vehicle_path, "Vehicle.brv")
             # if not os.path.exists(brv_file):
             #     return
-            backup_brv_file = os.path.join(self.backup_path, "Vehicle.brv")
-            if not os.path.exists(backup_brv_file):
+            backup_brv_file = path.join(self.backup_path, "Vehicle.brv")
+            if not path.exists(backup_brv_file):
                 return
             shutil.copy2(backup_brv_file, brv_file)
 

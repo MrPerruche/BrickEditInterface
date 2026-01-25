@@ -30,7 +30,11 @@ class SafeMathLineEdit(QLineEdit):
         self.setAlignment(Qt.AlignLeft)
         self.setText(self._format(self._value))
 
-        self.aeval = Interpreter()
+        self.aeval = Interpreter(
+            minimal=True,
+            builtins_readonly=True,
+            no_import=True
+        )
         self.aeval.symtable.clear()
         self.aeval.symtable.update(self.SYM_TABLE)
 
@@ -46,7 +50,7 @@ class SafeMathLineEdit(QLineEdit):
 
 
     def evaluate_expression(self):
-        expr = self.text().replace(',', '.')
+        expr = self.text().replace(',', '.').replace('^', '**')
 
         try:
             result = self.aeval(expr)

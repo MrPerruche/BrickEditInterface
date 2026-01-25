@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QPushButton, QMessageBox
 from PySide6.QtGui import QIcon
-import os
+from os import path, makedirs
 
 from . import base
 from .widgets import VehicleWidget, VehicleWidgetMode, ColorWidget, BrickListWidget
@@ -49,11 +49,11 @@ class EditBrickMenu(base.BaseMenu):
         if self.vehicle_selector.brv_file is None:
             QMessageBox.warning(self, "No vehicle selected", "No vehicle selected. Please select a vehicle before saving changes.")
             return
-        vehicle_dir = os.path.dirname(self.vehicle_selector.brv_file)
+        vehicle_dir = path.dirname(self.vehicle_selector.brv_file)
         self.main_window.backups.full_backup_procedure(vehicle_dir, f"Modified using the {self.get_menu_name()}.")
 
         # Save (and make sure the path exists)
-        os.makedirs(os.path.dirname(self.vehicle_selector.brv_file), exist_ok=True)
+        makedirs(path.dirname(self.vehicle_selector.brv_file), exist_ok=True)
         try:
             # Get the BRV with modified bricks
             brv = self.vehicle_selector.brv
