@@ -208,3 +208,5 @@ __marimo__/
 
 compiled_build/
 backup/
+release_build/
+nuitka-crash-report.xml

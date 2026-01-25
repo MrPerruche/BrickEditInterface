@@ -167,7 +167,7 @@ class VehicleWidget(SquareWidget):
                     brv.deserialize(file)
 
         # Oh no, something went wrong
-        except BrickError:
+        except BrickError as e:
             QMessageBox.critical(self, "Deserialization failed",
                 f"Failed to select/reload the vehicle file because it contains modded bricks BrickEdit Interface do not support:\n{str(e)}"
             )
