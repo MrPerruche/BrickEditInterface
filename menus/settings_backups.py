@@ -208,7 +208,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         result = []
         brv_file = self.vehicle_selector.brv_file
         if brv_file is not None:
-            vehicle_file = os.path.dirname(brv_file)
+            vehicle_file = path.dirname(brv_file)
             result = self.main_window.backups.find_backups(vehicle_file)
         result.sort(reverse=True)
 
@@ -233,7 +233,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         if description == "":
             description = "My manual backup description"
         self.main_window.backups.create_backup(
-            os.path.dirname(self.vehicle_selector.brv_file),  # Vehicle directory
+            path.dirname(self.vehicle_selector.brv_file),  # Vehicle directory
             description, True  # Force long-term backup
         )
         self.update_backup_recovery_entries()
