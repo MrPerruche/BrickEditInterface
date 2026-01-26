@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QRadioButton, QButtonGroup
+from PySide6.QtWidgets import QRadioButton, QButtonGroup, QComboBox
 from PySide6.QtGui import QIcon
 from coloraide import Color
 
@@ -22,7 +22,7 @@ class ColorSpace:
 
 class ColorSpaces(Enum):
     OKLAB = ColorSpace("Oklab", "Lightness Green-Red Blue-Yellow", "perceptual, recommended", "oklab")
-    OKLCH = ColorSpace("Oklch", "Lightness Chroma Hue", "perceptual, most recommended", "oklch")
+    OKLCH = ColorSpace("Oklch", "Lightness Chroma Hue", "perceptual, recommended", "oklch")
     LINEAR_RGB = ColorSpace("Linear RGB", "Red Green Blue", "produce dull colors", "linear_rgb")
     SRGB = ColorSpace("sRGB", "Red Green Blue", None, "srgb")
     HSV = ColorSpace("HSV", "Hue Saturation Value", "used by Brick Rigs", "hsv")
@@ -165,7 +165,7 @@ class GradientMaker(base.BaseMenu):
         super().__init__(mw)
         
         # Values
-        self.color_space = COLORSPACE_TO_ID[ColorSpaces.OKLCH]
+        self.color_space = COLORSPACE_TO_ID[ColorSpaces.OKLAB]
 
 
         # Color selector
@@ -182,10 +182,18 @@ class GradientMaker(base.BaseMenu):
         # Num bricks
         self.bricks_layout = QHBoxLayout()
         self.settings_layout.addLayout(self.bricks_layout)
-        self.num_bricks_label = QLabel("Bricks:")
-        self.bricks_layout.addWidget(self.num_bricks_label)
+        self.num_bricks_label = QLabel("Bricks")
+        self.bricks_layout.addWidget(self.num_bricks_label, 10)
         self.num_bricks_spin = SafeMathLineEdit(12, min_val=2, max_val=5_000, integer=True)
-        self.bricks_layout.addWidget(self.num_bricks_spin)
+        self.bricks_layout.addWidget(self.num_bricks_spin, 40)
+        
+        # Brick type)
+        self.brick_type_sel = QComboBox()
+        self.sorted_bt_registry = list(bt.bt_registry.keys())
+        self.sorted_bt_registry.sort()
+        self.brick_type_sel.addItems(self.sorted_bt_registry)
+        self.brick_type_sel.setCurrentIndex(self.sorted_bt_registry.index(bt.TEXT_BRICK.name()))
+        self.settings_layout.addWidget(self.brick_type_sel)
         
         
         # Colorspace label & buttons
@@ -293,16 +301,22 @@ class GradientMaker(base.BaseMenu):
         brv = BRVFile(FILE_MAIN_VERSION)
         vh = vhelper.ValueHelper(FILE_MAIN_VERSION)
 
+        brick_type = bt.bt_registry.get(self.brick_type_sel.currentText())
+        if brick_type is None:
+            brick_type = bt.TEXT_BRICK
+
         for i, bc in enumerate(brick_colors):
             nbc = vhelper.color.pack_float_to_int(*[c/255 for c in bc])
+            color_str = f"{bc[0]:02x}{bc[1]:02x}{bc[2]:02x}"
             brv.add(Brick(
                 ID(f"brick_{i}"),
-                bt.SCALABLE_BRICK,
+                brick_type,
                 pos=vh.pos(i*0.3, 0, 0),
-                rot=Vec3(0, 0, 0),
+                rot=Vec3(0, 0, 180),
                 ppatch={
-                    p.BRICK_MATERIAL: p.BrickMaterial.PLASTIC,
-                    p.BRICK_COLOR: nbc
+                    p.BRICK_COLOR: nbc,
+                    p.TEXT: f"Brick {i+1}/{num_bricks}\n#{color_str}",
+                    p.FONT: p.Font.ORBITRON
                 }
             ))
 
