@@ -28,6 +28,8 @@ class BackupSystem:
 
 
     def full_backup_procedure(self, vehicle_path, description="No description provided."):
+        if not (path.exists(vehicle_path) and path.isdir(vehicle_path)):
+            return
         self.create_backup(vehicle_path, description)
         excess = self.find_excess(vehicle_path)
         for excess_dir_path in excess:

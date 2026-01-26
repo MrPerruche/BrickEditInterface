@@ -11,6 +11,7 @@ from .float_line_edit import SafeMathLineEdit
 from utils import clear_layout
 
 
+
 class MultiColorSelectorWidget(SquareWidget):
     """A widget for selecting multiple colors with a scrollable layout."""
 
@@ -140,3 +141,7 @@ class MultiColorSelectorWidget(SquareWidget):
     def get_colors(self) -> list[QColor]:
         """Return the list of selected colors."""
         return [w.color for w in self.color_widgets]
+
+    def get_colors_pos(self) -> list[tuple[QColor, float]]:
+        """Return the list of selected colors and their positions."""
+        return [(w.color, w.position_le.value()) for w in self.color_widgets]

@@ -201,6 +201,7 @@ class VehicleWidget(SquareWidget):
         # Metadata
         self.brm_file = None
         metadata_file = path.join(folder_path, "Metadata.brm")
+        self.name = "Unknown"
         if path.exists(metadata_file):
             try:
                 with open(metadata_file, "rb") as f:
