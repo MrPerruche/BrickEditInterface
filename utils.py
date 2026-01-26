@@ -1,10 +1,14 @@
 import os
+import math
+from random import uniform
 from brickedit import *
+
 from PySide6.QtWidgets import QMessageBox
+from PySide6.QtGui import QColor
 
 
-VERSION = "1.0.3"
-DEV_VERSION = False
+VERSION = "1.1.0"
+DEV_VERSION = True
 
 
 def str_time_since(seconds):
@@ -36,6 +40,18 @@ def dir_size(path):
             if os.path.exists(fp):
                 total += os.path.getsize(fp)
     return total
+
+
+
+def get_random_color(alpha: bool) -> QColor:
+    h = uniform(0, 1)
+    s = uniform(0.5, 1)
+    v = uniform(0.2, 0.9)
+    if alpha:
+        return QColor.fromHsvF(h, s, v, uniform(0.6, 1))
+    else:
+        return QColor.fromHsvF(h, s, v, 1)
+
 
 
 def get_vehicles_path():
@@ -144,3 +160,51 @@ def try_serialize(brv: BRVFile) -> bytearray | None:
         raise e
 
     return None
+
+
+def linear_srgb_to_oklab(r, g, b):
+    # First, convert linear RGB to the LMS-like space (Ottosson's combined matrix)
+    l = 0.4122214708*r + 0.5363325363*g + 0.0514459929*b
+    m = 0.2119034982*r + 0.6806995451*g + 0.1073969566*b
+    s = 0.0883024619*r + 0.2817188376*g + 0.6299787005*b
+    # Apply cube roots (with sign)
+    l_ = math.copysign(abs(l)**(1/3), l)
+    m_ = math.copysign(abs(m)**(1/3), m)
+    s_ = math.copysign(abs(s)**(1/3), s)
+    # Now convert to Oklab L,a,b
+    L = 0.2104542553*l_ + 0.7936177850*m_ - 0.0040720468*s_
+    a = 1.9779984951*l_ - 2.4285922050*m_ + 0.4505937099*s_
+    b = 0.0259040371*l_ + 0.7827717662*m_ - 0.8086757660*s_
+    return (L, a, b)
+
+def srgb_to_linear(c):
+    if c <= 0.04045: return c/12.92
+    return ((c+0.055)/1.055)**2.4
+
+def oklab_to_linear_srgb(L, a, b):
+    # First, undo the final Oklab matrix
+    l_ = L + 0.3963377774*a + 0.2158037573*b
+    m_ = L - 0.1055613458*a - 0.0638541728*b
+    s_ = L - 0.0894841775*a - 1.2914855480*b
+    # Cube them to get l, m, s
+    l = l_**3
+    m = m_**3
+    s = s_**3
+    # Now apply the inverse of M1 to get linear RGB
+    r = +4.0767416621*l - 3.3077115913*m + 0.2309699292*s
+    g = -1.2684380046*l + 2.6097574011*m - 0.3413193965*s
+    b = -0.0041960863*l - 0.7034186147*m + 1.7076147010*s
+    return (r, g, b)
+
+def oklab_to_oklch(L, a, b):
+    C = math.sqrt(a*a + b*b)
+    # Hue in degrees (atan2 gives radians, convert to [0,360))
+    h = math.degrees(math.atan2(b, a)) % 360
+    return (L, C, h)
+
+def oklch_to_oklab(L, C, h):
+    # Assuming h is given in degrees
+    rad = math.radians(h)
+    a = C * math.cos(rad)
+    b = C * math.sin(rad)
+    return (L, a, b)

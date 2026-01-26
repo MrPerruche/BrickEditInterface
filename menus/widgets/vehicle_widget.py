@@ -77,7 +77,10 @@ class VehicleWidget(SquareWidget):
         self.master_layout.addLayout(self.layout, 1)
         
         # Select a vehicle label
-        self.vehicle_name = QLabel("Please select a vehicle.")
+        if widget_mode is VehicleWidgetMode.DISPLAY_ONLY:
+            self.vehicle_name = QLabel("A new vehicle will be created.")
+        else:
+            self.vehicle_name = QLabel("Please select a vehicle.")
         self.vehicle_name.setWordWrap(True)
         self.layout.addWidget(self.vehicle_name)
 
@@ -90,7 +93,8 @@ class VehicleWidget(SquareWidget):
         self.button_layout = QHBoxLayout()
         self.button_layout.setContentsMargins(0, 0, 0, 0)
         self.button_layout.setSpacing(0)
-        self.layout.addLayout(self.button_layout)
+        if widget_mode is not VehicleWidgetMode.DISPLAY_ONLY:
+            self.layout.addLayout(self.button_layout)
 
         self.select_vehicle = QPushButton("Select")
         self.select_vehicle.clicked.connect(self.on_select_vehicle)
@@ -138,12 +142,13 @@ class VehicleWidget(SquareWidget):
 
 
 
-    def load_vehicle(self, folder_path):
+    def load_vehicle(self, folder_path, silent=False):
         
         # Before accepting it, make sure the BRV exists and is deserilizable
         brv_file = path.join(folder_path, "Vehicle.brv")
         if not path.exists(brv_file):
-            QMessageBox.warning(self, "File not found", "Vehicle.brv file not found in selected folder.")
+            if not silent:
+                QMessageBox.warning(self, "File not found", "Vehicle.brv file not found in selected folder.")
             return
 
         try:
@@ -168,11 +173,14 @@ class VehicleWidget(SquareWidget):
 
         # Oh no, something went wrong
         except BrickError as e:
-            QMessageBox.critical(self, "Deserialization failed",
-                f"Failed to select/reload the vehicle file because it contains modded bricks BrickEdit Interface do not support:\n{str(e)}"
-            )
+            if not silent:
+                QMessageBox.critical(self, "Deserialization failed",
+                    f"Failed to select/reload the vehicle file because it contains modded bricks BrickEdit Interface do not support:\n{str(e)}"
+                )
             return
         except BaseException as e:
+            if silent:
+                return
             if str(e) == "empty":
                 QMessageBox.critical(self, "Invalid file", "Vehicle.brv file is empty.")
             elif str(e) == "too old":
@@ -200,7 +208,8 @@ class VehicleWidget(SquareWidget):
                     self.brm_file = metadata_file
                     self.name, = BRMFile(0).deserialize(file, config=BRMDeserializationConfig(name=True), auto_version=True)
             except BaseException as e:
-                QMessageBox.warning(self, "Failed to load metadata", f"Failed to load metadata file. Reason:\n{type(e).__name__}: {str(e)}")
+                if not silent:
+                    QMessageBox.warning(self, "Failed to load metadata", f"Failed to load metadata file. Reason:\n{type(e).__name__}: {str(e)}")
                 self.name = "No metadata found."
         
         self.vehicle_name.setText(self.name)

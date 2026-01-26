@@ -8,6 +8,7 @@ from PySide6.QtGui import QIcon
 from .square_widget import SquareWidget
 
 from brickedit import BRVFile, p, vhelper
+from utils import get_random_color
 
 
 class ColorWidget(SquareWidget):
@@ -191,23 +192,11 @@ class ColorWidget(SquareWidget):
 
     def generate_color(self):
 
-        # You know this overused joke that goes: when you see your own code a few weeks later and
-        # think "what kind of moron wrote this?".
-        # This is the function I'm thinking about when I say that. 2 hours later. Ts is getting
-        # refactored once I'm done with 1.0 release.
-
         brv: Optional[BRVFile] = self.brv_source()
-        color = randint(0, 0xffffffff)
         
         # make sure the color is not totally black or white
-        r, g, b, a = self._unpack_color(color)
-        h, s, v = vhelper.color.rgb_to_hsv(r/255, g/255, b/255)
-        if a < 192:
-            return self.generate_color()
-        if v < 0.2:
-            return self.generate_color()
-        if s < 0.2:
-            return self.generate_color()
+        r, g, b, a = get_random_color(True).getRgb()
+        color = (r << 24) | (g << 16) | (b << 8) | a
 
         # is the brv not loaded?
         if brv is None:

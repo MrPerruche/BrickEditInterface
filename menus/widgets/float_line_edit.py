@@ -21,13 +21,16 @@ class SafeMathLineEdit(QLineEdit):
         'abs': abs,
     }
 
-    def __init__(self, value: float = 0.0, parent=None, min_val=None, max_val=None):
+    def __init__(self, value: float = 0.0, parent=None, min_val=None, max_val=None, integer=False):
         super().__init__(parent)
 
         self._value: float = float(value)
         self.min = min_val
         self.max = max_val
+        self.integer = integer
         self.default_value: float = float(value)
+        if integer:
+            self.default_value = int(value)
 
         self.setAlignment(Qt.AlignLeft)
         self.setText(self._format(self._value))
@@ -48,7 +51,10 @@ class SafeMathLineEdit(QLineEdit):
 
 
     def _format(self, value: float) -> str:
-        return str(round(value, 5))
+        if self.integer:
+            return str(int(value))
+        else:
+            return str(round(value, 5))
 
 
     def evaluate_expression(self):
@@ -67,6 +73,8 @@ class SafeMathLineEdit(QLineEdit):
                 result = self.max
             else:
                 self._value = result
+            if self.integer:
+                self._value = int(self._value)
             self.aeval.symtable['x'] = self._value
             self.setText(self._format(self._value))
 
