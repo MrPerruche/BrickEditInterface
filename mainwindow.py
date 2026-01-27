@@ -26,10 +26,10 @@ class BrickEditInterface(QMainWindow):
             HomeMenu(self),
             SettingsAndBackupsMenu(self),
             EditBrickMenu(self),
+            GradientMaker(self),
             VehicleUpscalerMenu(self),
         ]
         self.in_dev_menus = [
-            GradientMaker(self)
         ]
         if DEV_VERSION:
             self.menus.extend(self.in_dev_menus)
