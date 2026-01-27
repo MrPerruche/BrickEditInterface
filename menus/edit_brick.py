@@ -15,7 +15,7 @@ class EditBrickMenu(base.BaseMenu):
     def __init__(self, mw):
         super().__init__(mw)
     
-        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_AND_RELOAD, [self.on_brv_reload])
+        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECTION, [self.on_brv_reload])
         self.master_layout.addWidget(self.vehicle_selector)
 
         self.color_selector = ColorWidget(lambda: self.vehicle_selector.brv)

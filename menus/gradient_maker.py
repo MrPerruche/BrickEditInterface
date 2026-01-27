@@ -189,7 +189,7 @@ class GradientMaker(base.BaseMenu):
         
         # Brick type)
         self.brick_type_sel = QComboBox()
-        self.sorted_bt_registry = list(bt.bt_registry.keys())
+        self.sorted_bt_registry = [k for k, v in bt.bt_registry.items() if p.BRICK_SIZE in v.p.keys()]
         self.sorted_bt_registry.sort()
         self.brick_type_sel.addItems(self.sorted_bt_registry)
         self.brick_type_sel.setCurrentIndex(self.sorted_bt_registry.index(bt.TEXT_BRICK.name()))
@@ -226,9 +226,12 @@ class GradientMaker(base.BaseMenu):
 
 
         # Display vehicle
-        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.DISPLAY_ONLY, must_deserialize=False)
-        self.vehicle_path = os.path.join(get_vehicles_path(), "bei-gradient")
-        self.vehicle_selector.load_vehicle(self.vehicle_path, silent=True)
+        self.vehicle_selector = VehicleWidget(
+            VehicleWidgetMode.CREATION,
+            must_deserialize=False,
+            vehicle_name="bei-gradient"
+        )
+        self.vehicle_selector.vehicle_name.editingFinished.connect(self.reload_vehicle)
         self.master_layout.addWidget(self.vehicle_selector)
 
 
@@ -238,8 +241,14 @@ class GradientMaker(base.BaseMenu):
         self.master_layout.addWidget(self.create_vehicle_button)
 
 
+        self.reload_vehicle()
         self.update_colorspace()
         self.master_layout.addStretch()
+
+
+    def get_vehicle_path(self):
+        vehicle_name_widget: QLineEdit = self.vehicle_selector.vehicle_name
+        return os.path.join(get_vehicles_path(), vehicle_name_widget.text())
 
 
     def update_colorspace(self):
@@ -257,6 +266,10 @@ class GradientMaker(base.BaseMenu):
         return QIcon(":/assets/icons/GradientIcon.png")
 
 
+    def reload_vehicle(self):
+        self.vehicle_selector.load_vehicle(self.get_vehicle_path(), silent=True)
+
+
     def create_vehicle(self):
 
         # Get values
@@ -266,7 +279,7 @@ class GradientMaker(base.BaseMenu):
         longer_hue: bool = self.longer_hue.isChecked()
 
         # Make a backup
-        path = self.vehicle_path
+        path = self.get_vehicle_path()
         description = f"Created using the {self.get_menu_name()}: {num_bricks}-bricks {colorspace.name} gradient"
         self.main_window.backups.full_backup_procedure(path, description)
         
@@ -305,18 +318,22 @@ class GradientMaker(base.BaseMenu):
         if brick_type is None:
             brick_type = bt.TEXT_BRICK
 
+        brick_size = min(0.5, 6 / num_bricks)  # Minimum between 60cm and a total length under 500cm
+
         for i, bc in enumerate(brick_colors):
             nbc = vhelper.color.pack_float_to_int(*[c/255 for c in bc])
             color_str = f"{bc[0]:02x}{bc[1]:02x}{bc[2]:02x}"
             brv.add(Brick(
                 ID(f"brick_{i}"),
                 brick_type,
-                pos=vh.pos(i*0.3, 0, 0),
-                rot=Vec3(0, 0, 180),
+                pos=vh.pos(i*brick_size, 0, 0),
+                rot=Vec3(0, 0, 90),
                 ppatch={
                     p.BRICK_COLOR: nbc,
+                    p.BRICK_SIZE: vh.pos(0.5, brick_size, 0.5),
                     p.TEXT: f"Brick {i+1}/{num_bricks}\n#{color_str}",
-                    p.FONT: p.Font.ORBITRON
+                    p.FONT: p.Font.ORBITRON,
+                    p.FONT_SIZE: 10
                 }
             ))
 
@@ -327,5 +344,7 @@ class GradientMaker(base.BaseMenu):
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, "Vehicle.brv"), "wb") as f:
             f.write(serialized)
+
+        self.reload_vehicle()
 
         QMessageBox.information(self, "Gradient Maker", "Successfully created vehicle.")

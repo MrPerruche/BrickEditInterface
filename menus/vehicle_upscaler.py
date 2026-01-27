@@ -90,7 +90,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
     def __init__(self, mw):
         super().__init__(mw)
 
-        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_AND_RELOAD, [self.update_vehicle_is_reloaded])
+        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECTION, [self.update_vehicle_is_reloaded])
         self.master_layout.addWidget(self.vehicle_selector)
 
         # Info label

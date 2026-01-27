@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QLineEdit
 from PySide6.QtCore import Qt, QTimer, QDateTime
 from PySide6.QtGui import QPixmap
 
@@ -8,27 +8,37 @@ import traceback
 from enum import Enum, auto
 
 from utils import str_time_since, get_vehicles_path
+from custom_validators import BasicTextValidator
 from brickedit import *  # TODO
 from .square_widget import SquareWidget, SquareState
 
 
 
 class VehicleWidgetMode(Enum):
-    SELECT_AND_RELOAD = auto()
+    SELECTION = auto()
     SELECT_ONLY = auto()
-    DISPLAY_ONLY = auto()
+    CREATION = auto()
 
-    def may_display_select_btn(self):
-        return self not in (VehicleWidgetMode.DISPLAY_ONLY,)
+    def is_selection(self):
+        return self not in (VehicleWidgetMode.CREATION,)
 
-    def may_display_reload_btn(self):
-        return self not in (VehicleWidgetMode.DISPLAY_ONLY, VehicleWidgetMode.SELECT_ONLY)
+    def is_selection_and_reload(self):
+        return self not in (VehicleWidgetMode.CREATION, VehicleWidgetMode.SELECT_ONLY)
+
 
 
 class VehicleWidget(SquareWidget):
     """Custom widget for vehicle selection with rounded borders."""
     
-    def __init__(self, widget_mode: VehicleWidgetMode, call_on_reload: list[Callable] | Callable | None = None, parent=None, must_deserialize: bool = True):
+    def __init__(self, widget_mode: VehicleWidgetMode, call_on_reload: list[Callable] | Callable | None = None, parent=None, must_deserialize: bool = True, vehicle_name = ""):
+        """
+        Args:
+        - widget_mode: Mode of the widget (selection, selection_and_reload, creation)
+        - call_on_reload: List of callables to call when the vehicle is reloaded
+        - parent: Parent widget
+        - must_deserialize: When loading, leave brv set to None or deserialize
+        - vehicle_name: Default name of the vehicle for CREATION mode
+        """
         super().__init__(parent)
 
         # --- LOGIC
@@ -44,6 +54,7 @@ class VehicleWidget(SquareWidget):
         self.brm_file: Optional[str] = None
         self.icon_file: Optional[str] = None
         self.must_deserialize = must_deserialize
+        self.widget_mode = widget_mode
 
         self.brv = None
         
@@ -72,38 +83,40 @@ class VehicleWidget(SquareWidget):
         self.master_layout.addWidget(self.icon_label)
         
         # Side layout
-        self.layout = QVBoxLayout()
-        self.layout.setAlignment(Qt.AlignTop)
-        self.master_layout.addLayout(self.layout, 1)
+        self.side_layout = QVBoxLayout()
+        self.side_layout.setAlignment(Qt.AlignTop)
+        self.master_layout.addLayout(self.side_layout, 1)
         
         # Select a vehicle label
-        if widget_mode is VehicleWidgetMode.DISPLAY_ONLY:
+        if widget_mode.is_selection():
             self.vehicle_name = QLabel("A new vehicle will be created.")
+            self.vehicle_name.setWordWrap(True)
         else:
-            self.vehicle_name = QLabel("Please select a vehicle.")
-        self.vehicle_name.setWordWrap(True)
-        self.layout.addWidget(self.vehicle_name)
+            self.vehicle_name = QLineEdit()
+            self.vehicle_name.setValidator(BasicTextValidator())
+            self.vehicle_name.setText(vehicle_name)
+        self.side_layout.addWidget(self.vehicle_name)
 
         # Seconds since initialization label
         self.seconds_label = QLabel("Label not initialized!")
         self.seconds_label.setWordWrap(True)
-        self.layout.addWidget(self.seconds_label)
+        self.side_layout.addWidget(self.seconds_label)
 
         # Button layout
         self.button_layout = QHBoxLayout()
         self.button_layout.setContentsMargins(0, 0, 0, 0)
         self.button_layout.setSpacing(0)
-        if widget_mode is not VehicleWidgetMode.DISPLAY_ONLY:
-            self.layout.addLayout(self.button_layout)
+        if widget_mode is not VehicleWidgetMode.CREATION:
+            self.side_layout.addLayout(self.button_layout)
 
         self.select_vehicle = QPushButton("Select")
         self.select_vehicle.clicked.connect(self.on_select_vehicle)
-        if widget_mode.may_display_select_btn(): 
+        if widget_mode.is_selection(): 
             self.button_layout.addWidget(self.select_vehicle)
 
         self.reload_vehicle = QPushButton("Reload")
         self.reload_vehicle.clicked.connect(self.on_reload_vehicle)
-        if widget_mode.may_display_reload_btn():
+        if widget_mode.is_selection_and_reload():
             self.button_layout.addWidget(self.reload_vehicle)
 
 
@@ -146,15 +159,19 @@ class VehicleWidget(SquareWidget):
         
         # Before accepting it, make sure the BRV exists and is deserilizable
         brv_file = path.join(folder_path, "Vehicle.brv")
-        if not path.exists(brv_file):
+        if not path.exists(brv_file) and self.must_deserialize:
             if not silent:
                 QMessageBox.warning(self, "File not found", "Vehicle.brv file not found in selected folder.")
             return
 
-        try:
+        self.set_icon(QPixmap(":/assets/icons/unknown.png"))
+
+        if self.must_deserialize:
             version = -1
             with open(brv_file, "rb") as f:
                 file = bytearray(f.read())
+
+            try:
 
                 # Is empty?
                 if file == b'':
@@ -167,31 +184,31 @@ class VehicleWidget(SquareWidget):
                 elif version > FILE_MAX_SUPPORTED_VERSION:
                     raise Exception("too new")
                 # Load
-                if self.must_deserialize:
-                    brv = BRVFile(version)
-                    brv.deserialize(file)
+            
+                brv = BRVFile(version)
+                brv.deserialize(file)
 
-        # Oh no, something went wrong
-        except BrickError as e:
-            if not silent:
-                QMessageBox.critical(self, "Deserialization failed",
-                    f"Failed to select/reload the vehicle file because it contains modded bricks BrickEdit Interface do not support:\n{str(e)}"
-                )
-            return
-        except BaseException as e:
-            if silent:
+            # Oh no, something went wrong
+            except BrickError as e:
+                if not silent:
+                    QMessageBox.critical(self, "Deserialization failed",
+                        f"Failed to select/reload the vehicle file because it contains modded bricks BrickEdit Interface do not support:\n{str(e)}"
+                    )
                 return
-            if str(e) == "empty":
-                QMessageBox.critical(self, "Invalid file", "Vehicle.brv file is empty.")
-            elif str(e) == "too old":
-                QMessageBox.critical(self, "Invalid file", f"BrickEdit Interface do not support vehicles made in this version ({version}). Please open, edit, undo change, then re-save the vehicle.")
-            elif str(e) == "too new":
-                QMessageBox.critical(self, "Invalid file", f"BrickEdit Interface do not support vehicles made in this version ({version}). Please update BrickEdit-Interface.")
-            else:
-                QMessageBox.critical(self, "Deserialization failed",
-                    f"Failed to select/reload the vehicle file! Please send the following information to the developer @perru_ on discord:\n\n{traceback.format_exc()}"
-                )
-            return
+            except BaseException as e:
+                if silent:
+                    return
+                if str(e) == "empty":
+                    QMessageBox.critical(self, "Invalid file", "Vehicle.brv file is empty.")
+                elif str(e) == "too old":
+                    QMessageBox.critical(self, "Invalid file", f"BrickEdit Interface do not support vehicles made in this version ({version}). Please open, edit, undo change, then re-save the vehicle.")
+                elif str(e) == "too new":
+                    QMessageBox.critical(self, "Invalid file", f"BrickEdit Interface do not support vehicles made in this version ({version}). Please update BrickEdit-Interface.")
+                else:
+                    QMessageBox.critical(self, "Deserialization failed",
+                        f"Failed to select/reload the vehicle file! Please send the following information to the developer @perru_ on discord:\n\n{traceback.format_exc()}"
+                    )
+                return
 
         # From now on, everything is fine. We can store variables and update everything
         self.brv_file = brv_file

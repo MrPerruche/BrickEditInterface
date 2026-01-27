@@ -60,3 +60,13 @@ class AsciiOnlyValidator(QValidator):
             return QValidator.Acceptable, text, pos
 
         return QValidator.Invalid, text, pos
+
+
+BASIC_TEXT_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_ "
+
+class BasicTextValidator(QValidator):
+    def validate(self, text: str, pos: int):
+        if all(c in BASIC_TEXT_ALPHABET for c in text):
+            return QValidator.Acceptable, text, pos
+
+        return QValidator.Invalid, text, pos

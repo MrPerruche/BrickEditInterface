@@ -59,7 +59,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         
         
         # Vehicle selector
-        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECT_AND_RELOAD, [self.update_backup_recovery_entries], must_deserialize=False)
+        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECTION, [self.update_backup_recovery_entries], must_deserialize=False)
         self.master_layout.addWidget(self.vehicle_selector)
         
         # Backup entries for that vehicle
