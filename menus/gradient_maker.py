@@ -187,10 +187,21 @@ class GradientMaker(base.BaseMenu):
         self.num_bricks_spin = SafeMathLineEdit(12, min_val=2, max_val=5_000, integer=True)
         self.bricks_layout.addWidget(self.num_bricks_spin, 40)
         
-        # Brick type)
+        # Brick type
+        special_bricks = [bt.TEXT_BRICK.name(), bt.TEXT_CYLINDER.name(), bt.SPINNER_BRICK.name()]
+        special_bricks_str = ", ".join(special_bricks)
+        
+        self.brick_type_info = QLabel(f"{special_bricks_str} have special interactions.")
+        self.brick_type_info.setWordWrap(True)
+        self.settings_layout.addWidget(self.brick_type_info)
+        
         self.brick_type_sel = QComboBox()
-        self.sorted_bt_registry = [k for k, v in bt.bt_registry.items() if p.BRICK_SIZE in v.p.keys()]
-        self.sorted_bt_registry.sort()
+        
+        # Create the registry
+        self.sorted_bt_registry = special_bricks.copy()
+        other = [k for k, v in bt.bt_registry.items() if p.BRICK_SIZE in v.p.keys() and k not in special_bricks]
+        self.sorted_bt_registry.extend(sorted(other))
+
         self.brick_type_sel.addItems(self.sorted_bt_registry)
         self.brick_type_sel.setCurrentIndex(self.sorted_bt_registry.index(bt.TEXT_BRICK.name()))
         self.settings_layout.addWidget(self.brick_type_sel)
@@ -323,19 +334,36 @@ class GradientMaker(base.BaseMenu):
         for i, bc in enumerate(brick_colors):
             nbc = vhelper.color.pack_float_to_int(*[c/255 for c in bc])
             color_str = f"{bc[0]:02x}{bc[1]:02x}{bc[2]:02x}"
-            brv.add(Brick(
-                ID(f"brick_{i}"),
-                brick_type,
-                pos=vh.pos(i*brick_size, 0, 0),
-                rot=Vec3(0, 0, 90),
-                ppatch={
-                    p.BRICK_COLOR: nbc,
-                    p.BRICK_SIZE: vh.pos(0.5, brick_size, 0.5),
-                    p.TEXT: f"Brick {i+1}/{num_bricks}\n#{color_str}",
-                    p.FONT: p.Font.ORBITRON,
-                    p.FONT_SIZE: 10
-                }
-            ))
+            
+            # Spinner brick
+            if brick_type == bt.SPINNER_BRICK:
+                angle_per_step = 360 / num_bricks
+                brv.add(Brick(
+                    ID(f"brick_{i}"),
+                    brick_type,
+                    pos=Vec3(0, 0, 0),
+                    rot=Vec3(0, 0, angle_per_step*i),
+                    ppatch={
+                        p.BRICK_COLOR: nbc,
+                        p.SPINNER_RADIUS: Vec2(200, 200),
+                        p.SPINNER_SIZE: Vec2(100, 50),
+                        p.SPINNER_ANGLE: angle_per_step
+                    }
+                ))
+            else:
+                brv.add(Brick(
+                    ID(f"brick_{i}"),
+                    brick_type,
+                    pos=vh.pos(i*brick_size, 0, 0),
+                    rot=Vec3(0, 0, 90),
+                    ppatch={
+                        p.BRICK_COLOR: nbc,
+                        p.BRICK_SIZE: vh.pos(0.5, brick_size, 0.5),
+                        p.TEXT: f"Brick {i+1}/{num_bricks}\n#{color_str}",
+                        p.FONT: p.Font.ORBITRON,
+                        p.FONT_SIZE: 10
+                    }
+                ))
 
         serialized = try_serialize(brv)
         if serialized is None:
@@ -352,7 +380,8 @@ class GradientMaker(base.BaseMenu):
             brm,
             self.vehicle_selector.vehicle_name.text(),
             description,
-            num_bricks
+            num_bricks,
+            tags=[]
         )
 
         with open(os.path.join(path, "MetaData.brm"), "wb") as f:
