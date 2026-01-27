@@ -62,5 +62,6 @@ python -m nuitka `
     --windows-icon-from-ico="assets/icons/brickeditinterface.ico" `
     --enable-plugin=pyside6 `
     --remove-output `
+    --output-filename="BrickEdit-Interface.exe" `
     main.py
 ```
