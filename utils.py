@@ -162,6 +162,54 @@ def try_serialize(brv: BRVFile) -> bytearray | None:
     return None
 
 
+def try_serialize_metadata(
+    brm: BRMFile,
+    file_name: Optional[str] = None,
+    description: str = "",
+    brick_count: Optional[int] = None,
+    size: Vec3 = Vec3(0, 0, 0),
+    weight: float = 0.0,
+    price: float = 0.0,
+    author: Optional[int] = None,
+    creation_time: Optional[int] = None,
+    last_update_time: Optional[int] = None,
+    visibility: int = VISIBILITY_PUBLIC,
+    tags: Optional[list[str]] = None
+) -> bytearray | None:
+
+    try:
+        return brm.serialize(
+            file_name=file_name,
+            description=description,
+            brick_count=brick_count,
+            size=size,
+            weight=weight,
+            price=price,
+            author=author,
+            creation_time=creation_time,
+            last_update_time=last_update_time,
+            visibility=visibility,
+            tags=tags
+        )
+    
+    except PermissionError as e:
+        QMessageBox.critical(None, "Failed to save changes",
+            f"BrickEdit-Interface was denied permission to save changes: {str(e)}"
+        )
+    except OSError as e:
+        QMessageBox.critical(None, "Failed to save changes",
+            f"BrickEdit-Interface could not save changes: {str(e)}"
+        )
+    except Exception as e:
+        QMessageBox.critical(None, "Failed to save changes",
+            f"BrickEdit failed to save changes (most likely failed to serialize). Please report the following errors to the developers:\n\n{type(e).__name__}: {str(e)}"
+        )
+        raise e
+
+    return None
+
+
+
 def linear_srgb_to_oklab(r, g, b):
     # First, convert linear RGB to the LMS-like space (Ottosson's combined matrix)
     l = 0.4122214708*r + 0.5363325363*g + 0.0514459929*b

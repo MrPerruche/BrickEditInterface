@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import os
 
 from brickedit import vhelper
-from utils import try_serialize
+from utils import try_serialize, try_serialize_metadata
 
 
 @dataclass(frozen=True)
@@ -344,6 +344,20 @@ class GradientMaker(base.BaseMenu):
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, "Vehicle.brv"), "wb") as f:
             f.write(serialized)
+
+
+        # Metadata
+        brm = BRMFile(FILE_MAIN_VERSION, brv)
+        serialized_brm = try_serialize_metadata(
+            brm,
+            self.vehicle_selector.vehicle_name.text(),
+            description,
+            num_bricks
+        )
+
+        with open(os.path.join(path, "MetaData.brm"), "wb") as f:
+            f.write(serialized_brm)
+
 
         self.reload_vehicle()
 
