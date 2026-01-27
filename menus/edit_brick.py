@@ -62,7 +62,7 @@ class EditBrickMenu(base.BaseMenu):
             brv.bricks[brick_widget.idx] = brick_widget.get_modified_brick()
 
         # Serialize and save
-        serialized = try_serialize(brv.serialize())
+        serialized = try_serialize(brv)
         if serialized is None:
             return
         with open(self.vehicle_selector.brv_file, "wb") as f:
