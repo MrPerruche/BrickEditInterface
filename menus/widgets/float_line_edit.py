@@ -3,8 +3,9 @@ from PySide6.QtCore import Qt
 from asteval import Interpreter
 import math
 
+from deprecated import deprecated
 
-
+@deprecated("To be replaced with ExpressionWidget")
 class SafeMathLineEdit(QLineEdit):
 
     SYM_TABLE = {
