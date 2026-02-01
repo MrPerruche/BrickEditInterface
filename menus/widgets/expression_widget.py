@@ -4,7 +4,6 @@ from enum import Enum, auto
 from typing import Any, Callable
 
 from asteval import Interpreter
-from asteval.astutils import ExceptionHolder
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QMessageBox
 from PySide6.QtCore import Signal
@@ -79,6 +78,8 @@ REPLACEMENT_TABLE: list[tuple[str, str]] = [
 
 class ExpressionWidget(QWidget):
 
+    new_expr = Signal(str)
+
     def __init__(self,
         default: str,
         expression_type: ExpressionType,
@@ -116,9 +117,6 @@ class ExpressionWidget(QWidget):
             no_import=True,
             readonly_symbols=True,
         )
-
-        # Custom signals
-        self.new_expr = Signal()
 
 
         self.master_layout = QVBoxLayout()
@@ -158,6 +156,7 @@ class ExpressionWidget(QWidget):
                 # Update contents because it may be calculated or reformatted
                 self.line_edit.setText(result)
                 self.last_valid_line_edit_text = result
+                self.new_expr.emit(result)
                 return
 
             # Return to not trigger the fail logic

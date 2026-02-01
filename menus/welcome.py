@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QDialog, QTextEdit
-from PySide6.QtCore import QFile, QTextStream
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QFile, QTextStream, QUrl
+from PySide6.QtGui import QIcon, QDesktopServices
 
 from . import base
 from .widgets import *
@@ -95,7 +95,7 @@ class HomeMenu(base.BaseMenu):
 BrickEdit-Interface is a set of tools made using BrickEdit 5 to help builders and get over the limitations of Brick Rigs.
 
 ---
-#License
+#License:
 ---
 This software is under the GNU GENERAL PUBLIC LICENSE Version 3.
 https://www.gnu.org/licenses/gpl-3.0.en.html
@@ -103,6 +103,14 @@ The source code is available at:
 https://github.com/MrPerruche/BrickEditInterface
 ---
 licensebtn
+---
+
+---
+# Links:
+---
+linkbtn_discord
+---
+linkbtn_github
 ---
 
 #Frequently asked questions:
@@ -113,32 +121,41 @@ We do not currently plan to add an obj-importer. Our decision may change if the 
 → 2. Is BrickEdit-Interface safe to use?
 Yes! We actively fix bugs as soon as possible, and our backup system runs automatically.
 ---
-→ 3. Where can I get updates and support?
-https://github.com/MrPerruche/BrickEditInterface
-https://discord.gg/P9wcknqQVB
----
-→ 4. Will you add X? Will you ever do Y?
+→ 3. Will you add X? Will you ever do Y?
 We would love to add more features to our software. We are looking for suggestions and feedback, so feel free to share them in our Discord!
 
 ---
 #Tips:
 ---
-1. Most features will require you to specify which vehicle you want to modify. In-game, you can select a vehicle and click "Open in file explorer" to see which file you must select.
+→ 1. Most features will require you to specify which vehicle you want to modify. In-game, you can select a vehicle and click "Open in file explorer" to see which file you must select.
 If you remember the numbers at the end of the file path, when selecting, you can input these numbers and press Enter twice. This is much faster than searching through the list.
 ---
-2. Don't be afraid to experiment! BrickEdit-Interface automatically backs up every time it does something. You can easily recover them in the backup manager.
+→ 2. Don't be afraid to experiment! BrickEdit-Interface automatically backs up every time it does something. You can easily recover them in the backup manager.
 Our backup system lets you adjust both how many and how large the backups of a vehicle may grow. We create both "short-term" and "long-term" backups so you can recover from your immediate and previous mistakes.
 ---
-3. Most if not all number inputs allow you to input mathematical expressions, which will be evaluated once you are done writing.
+→ 3. Most if not all number inputs allow you to input mathematical expressions, which will be evaluated once you are done writing.
 """
 
         self.welcome_labels = []
         for welcome_label_text in text.split('\n---\n'):
-            if welcome_label_text.strip() == 'licensebtn':
-                self.license_button = QPushButton("Show license offline")
-                self.license_button.clicked.connect(self.show_license)
-                self.master_layout.addWidget(self.license_button)
-                continue
+
+            match welcome_label_text.strip():
+                case 'linkbtn_github':
+                    self.github_button = QPushButton("Github (download updates in releases)")
+                    self.github_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/MrPerruche/BrickEditInterface")))
+                    self.master_layout.addWidget(self.github_button)
+                    continue
+                case 'linkbtn_discord':
+                    self.discord_button = QPushButton("Discord (chat, get notifications and support)")
+                    self.discord_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://discord.gg/P9wcknqQVB")))
+                    self.master_layout.addWidget(self.discord_button)
+                    continue
+                case 'licensebtn':
+                    self.license_button = QPushButton("Show license offline")
+                    self.license_button.clicked.connect(self.show_license)
+                    self.master_layout.addWidget(self.license_button)
+                    continue
+
             is_large = False
             if welcome_label_text.strip().startswith('#'):
                 is_large = True
