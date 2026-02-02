@@ -207,6 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 compiled_build/
-backup/
 release_build/
+backup/
+logs/
 nuitka-crash-report.xml
