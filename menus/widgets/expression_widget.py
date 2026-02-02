@@ -17,7 +17,7 @@ class ExpressionType(Enum):
     PYTHON_EXPR = auto()
 
     def must_calc_immediately(self) -> bool:
-        return self in (ExpressionType.MATH_EXPR, ExpressionType.PYTHON_EXPR)
+        return self not in (ExpressionType.MATH_EXPR, ExpressionType.PYTHON_EXPR)
 
 
 @dataclass(frozen=True)
@@ -70,7 +70,7 @@ DEFAULT_SYMBOLS: list[ExpressionSymbol] = [
 ]
 
 REPLACEMENT_TABLE: list[tuple[str, str]] = [
-    (',', '.'),
+    # (',', '.'),
     ('^', '**'),
     ('_XOR', '^')
 ]
@@ -78,7 +78,7 @@ REPLACEMENT_TABLE: list[tuple[str, str]] = [
 
 class ExpressionWidget(QWidget):
 
-    new_expr = Signal(str)
+    new_value = Signal(str)
 
     def __init__(self,
         default: str,
@@ -86,7 +86,9 @@ class ExpressionWidget(QWidget):
         clamps: tuple[float | None, float | None] = (None, None),
         custom_sym: list[ExpressionSymbol] | None = None,
         custom_restriction: Callable[[str], bool] | None = None,
-        must_warn_user: bool = True
+        must_warn_user: bool = True,
+
+        parent = None
     ):
         """
         Args:
@@ -97,6 +99,7 @@ class ExpressionWidget(QWidget):
             custom_restriction (Callable[[str], bool]): Callable telling if an input is acceptable in this context or not
             must_warn_user (bool): Send a pyside6 messagebox if the evaluation fails
         """
+        super().__init__(parent)
 
         # Store basic data
         self.default = default
@@ -106,7 +109,7 @@ class ExpressionWidget(QWidget):
         self.must_warn_user = must_warn_user
 
         # Build symbols list. Order of sym matters
-        self.sym = [ExpressionSymbol('x', lambda: self.default, None)]
+        self.sym = [ExpressionSymbol('x', lambda: float(self.default), None)]
         if custom_sym is not None:
             self.sym.extend(custom_sym)
         self.sym.extend(DEFAULT_SYMBOLS)
@@ -115,11 +118,13 @@ class ExpressionWidget(QWidget):
             minimal=True,
             builtins_readonly=True,
             no_import=True,
-            readonly_symbols=True,
+            # readonly_symbols=True,
         )
 
 
         self.master_layout = QVBoxLayout()
+        self.master_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.setSpacing(0)
         self.setLayout(self.master_layout)
 
         self.line_edit = QLineEdit()
@@ -156,7 +161,7 @@ class ExpressionWidget(QWidget):
                 # Update contents because it may be calculated or reformatted
                 self.line_edit.setText(result)
                 self.last_valid_line_edit_text = result
-                self.new_expr.emit(result)
+                self.new_value.emit(result)
                 return
 
             # Return to not trigger the fail logic
@@ -177,10 +182,12 @@ class ExpressionWidget(QWidget):
 
         self.interpreter.symtable.clear()
         self.interpreter.symtable.update({sym.sym: sym.value_getter() for sym in self.sym})
+        # print(self.interpreter.symtable)
         self.interpreter.error = []  # Clear the traceback
 
         try:
             output = self.interpreter(self.get_value_str())
+            num_result = -1
 
             if self.interpreter.error:  # Traceback is not empty? Raise
                 e = self.interpreter.error[-1]
@@ -193,18 +200,30 @@ class ExpressionWidget(QWidget):
 
             # If we do not calc immediately, interpreter is only good to check for errors
             if not self.expression_type.must_calc_immediately():
+                # print("not immediate??? type is", str(self.expression_type.name))
                 return self.get_value_str()
             # Cast to right type as str
             elif self.expression_type is ExpressionType.INTEGER:
-                return str(int(float(output)))
+                num_result = int(float(output))
             else:
-                return str(float(output))
+                num_result = float(output)
+
+            assert num_result is not None, "Num result is None?"
+
+            mn, mx = self.clamps
+            if mn is not None and num_result < mn:
+                num_result = mn
+            if mx is not None and num_result > mx:
+                num_result = mx
+
+            return str(num_result)
+
 
         except BaseException as e:
             if self.must_warn_user:
                 QMessageBox.warning(None,
                     "Invalid expression",
-                    f"The given expression could not evaluated: {str(e)}"
+                    f"The given expression could not evaluated: {str(e)}\n\nNote: you are not allowed to use commas for decimals. Use dots to mark the decimal places"
                 )
 
         # If we are here something went wrong

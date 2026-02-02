@@ -8,3 +8,4 @@ from .backup_entry import *
 from .property_widgets import *
 from .color_selector import *
 from .multi_color_selector import *
+from .expression_widget import *

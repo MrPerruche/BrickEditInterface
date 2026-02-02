@@ -88,6 +88,7 @@ class VehicleWidget(SquareWidget):
         self.master_layout.addLayout(self.side_layout, 1)
         
         # Select a vehicle label
+        self.name = vehicle_name
         if widget_mode.is_selection():
             self.vehicle_name = QLabel("A new vehicle will be created.")
             self.vehicle_name.setWordWrap(True)
@@ -218,7 +219,7 @@ class VehicleWidget(SquareWidget):
         # Metadata
         self.brm_file = None
         metadata_file = path.join(folder_path, "Metadata.brm")
-        self.name = "Unknown"
+        # self.name = "Unknown"
         if path.exists(metadata_file):
             try:
                 with open(metadata_file, "rb") as f:
@@ -228,7 +229,7 @@ class VehicleWidget(SquareWidget):
             except BaseException as e:
                 if not silent:
                     QMessageBox.warning(self, "Failed to load metadata", f"Failed to load metadata file. Reason:\n{type(e).__name__}: {str(e)}")
-                self.name = "No metadata found."
+                # self.name = "No metadata found."
         
         self.vehicle_name.setText(self.name)
         

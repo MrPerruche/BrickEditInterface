@@ -184,19 +184,20 @@ class GradientMaker(base.BaseMenu):
         self.settings_layout.addLayout(self.bricks_layout)
         self.num_bricks_label = QLabel("Bricks")
         self.bricks_layout.addWidget(self.num_bricks_label, 10)
-        self.num_bricks_spin = SafeMathLineEdit(12, min_val=2, max_val=5_000, integer=True)
+        # self.num_bricks_spin = SafeMathLineEdit(12, min_val=2, max_val=5_000, integer=True)
+        self.num_bricks_spin = ExpressionWidget("12", ExpressionType.INTEGER, clamps=(2, 5000))
         self.bricks_layout.addWidget(self.num_bricks_spin, 40)
-        
+
         # Brick type
         special_bricks = [bt.TEXT_BRICK.name(), bt.TEXT_CYLINDER.name(), bt.SPINNER_BRICK.name()]
         special_bricks_str = ", ".join(special_bricks)
-        
+
         self.brick_type_info = QLabel(f"{special_bricks_str} have special interactions.")
         self.brick_type_info.setWordWrap(True)
         self.settings_layout.addWidget(self.brick_type_info)
-        
+
         self.brick_type_sel = QComboBox()
-        
+
         # Create the registry
         self.sorted_bt_registry = special_bricks.copy()
         other = [k for k, v in bt.bt_registry.items() if p.BRICK_SIZE in v.p.keys() and k not in special_bricks]
