@@ -13,7 +13,7 @@ from PySide6.QtGui import QIcon, QColor
 from utils import get_random_color
 
 from .square_widget import SquareWidget
-from .float_line_edit import SafeMathLineEdit
+from .expression_widget import ExpressionWidget, ExpressionType
 
 
 
@@ -58,7 +58,7 @@ class ColorSelectorWidget(SquareWidget):
         self.position_layout = QHBoxLayout()
         self.master_layout.addLayout(self.position_layout)
 
-        self.position_le = SafeMathLineEdit(position, self, min_val=0.0, max_val=100.0)
+        self.position_le = ExpressionWidget(position, ExpressionType.FLOAT, parent=self, clamps=(0.0, 100.0))
         self.position_layout.addWidget(self.position_le, 1)
         self.position_percent_label = QLabel("%")
         self.position_percent_label.setAlignment(Qt.AlignLeft)

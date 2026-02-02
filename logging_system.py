@@ -11,6 +11,10 @@ LOG_DIR_NAME = 'logs'
 LOG_FILE_NAME = 'BrickEditInterface.log'
 
 
+# ------------------------------------------------------------
+# Paths
+# ------------------------------------------------------------
+
 def _get_log_dir():
     if getattr(sys, 'frozen', False):
         base_dir = os.path.dirname(sys.executable)
@@ -22,48 +26,60 @@ def _get_log_dir():
     return log_dir
 
 
+# ------------------------------------------------------------
+# Setup
+# ------------------------------------------------------------
+
 def setup_logging():
     log_dir = _get_log_dir()
     log_path = os.path.join(log_dir, LOG_FILE_NAME)
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
 
+    formatter = logging.Formatter(
+        '%(asctime)s | %(levelname)-8s | [%(name)s]: %(message)s'
+    )
+
+    # ---- File handler (always on)
     file_handler = RotatingFileHandler(
         log_path,
         maxBytes=5 * 1024 * 1024,
         backupCount=5,
         encoding='utf-8'
     )
-
-    formatter = logging.Formatter(
-        '%(asctime)s | %(levelname)-8s | %(message)s'
-    )
     file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.DEBUG)
+    root_logger.addHandler(file_handler)
 
-    logger.addHandler(file_handler)
+    # ---- Console handler (DEV ONLY, VS Code safe)
+    if not getattr(sys, 'frozen', False):
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        console_handler.setLevel(logging.DEBUG)
+        root_logger.addHandler(console_handler)
 
-    _redirect_stdout_stderr(logger)
-    _install_exception_hook(logger)
-    _install_qt_message_handler(logger)
+    _redirect_stdout_stderr(root_logger)
+    _install_exception_hook(root_logger)
+    _install_qt_message_handler(root_logger)
 
-    logger.info("Logging initialized")
-    logger.info(f"Log file: {log_path}")
+    root_logger.info("Logging initialized")
+    root_logger.info(f"Log file: {log_path}")
 
 
-# -------------------------------
-# stdout / stderr redirection
-# -------------------------------
+# ------------------------------------------------------------
+# stdout / stderr redirection (print → logging)
+# ------------------------------------------------------------
 
 class _StreamRedirector:
     def __init__(self, logger, level):
-        self.logger = logger
-        self.level = level
+        self._logger = logger
+        self._level = level
 
     def write(self, message):
         message = message.rstrip()
         if message:
-            self.logger.log(self.level, message)
+            self._logger.log(self._level, message)
 
     def flush(self):
         pass
@@ -74,9 +90,9 @@ def _redirect_stdout_stderr(logger):
     sys.stderr = _StreamRedirector(logger, logging.ERROR)
 
 
-# -------------------------------
-# Exception hook
-# -------------------------------
+# ------------------------------------------------------------
+# Uncaught exceptions
+# ------------------------------------------------------------
 
 def _install_exception_hook(logger):
     def excepthook(exc_type, exc_value, exc_tb):
@@ -86,9 +102,9 @@ def _install_exception_hook(logger):
     sys.excepthook = excepthook
 
 
-# -------------------------------
+# ------------------------------------------------------------
 # Qt message handler
-# -------------------------------
+# ------------------------------------------------------------
 
 _QT_LOG_LEVELS = {
     QtMsgType.QtDebugMsg: logging.DEBUG,

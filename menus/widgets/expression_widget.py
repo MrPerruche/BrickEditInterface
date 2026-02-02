@@ -78,7 +78,7 @@ REPLACEMENT_TABLE: list[tuple[str, str]] = [
 
 class ExpressionWidget(QWidget):
 
-    new_value = Signal(str)
+    editingFinished = Signal(str)
 
     def __init__(self,
         default: str,
@@ -102,7 +102,7 @@ class ExpressionWidget(QWidget):
         super().__init__(parent)
 
         # Store basic data
-        self.default = default
+        self.default = str(default)
         self.expression_type = expression_type
         self.clamps = clamps
         self.custom_restriction = custom_restriction
@@ -140,13 +140,31 @@ class ExpressionWidget(QWidget):
         return self.line_edit.text()
 
 
-    def get_value_str(self):
+    def get_value_str(self) -> str:
         text = self.get_text()
         if text == '':
             text = self.default
         for old_expr, new_expr in REPLACEMENT_TABLE:
             text = text.replace(old_expr, new_expr)
         return text
+
+
+    def value(self) -> int | float:
+        # Evaluated at runtime ?
+        if not self.expression_type.must_calc_immediately():
+            value = float(self.evaluate(force=True))
+        else:
+            value = self.get_value_str()
+            if self.expression_type == ExpressionType.INTEGER:
+                value = int(value)
+            elif self.expression_type == ExpressionType.FLOAT:
+                value = float(value)
+        return value
+
+
+    def setText(self, text: str):
+        self.line_edit.setText(text)
+        self.last_valid_line_edit_text = text
 
 
     def validate_new_input(self):
@@ -161,7 +179,7 @@ class ExpressionWidget(QWidget):
                 # Update contents because it may be calculated or reformatted
                 self.line_edit.setText(result)
                 self.last_valid_line_edit_text = result
-                self.new_value.emit(result)
+                self.editingFinished.emit(result)
                 return
 
             # Return to not trigger the fail logic
@@ -178,7 +196,9 @@ class ExpressionWidget(QWidget):
             )
 
 
-    def evaluate(self) -> str | None:
+    def evaluate(self, *args, force: bool = False) -> str | None:
+        """Force will evaluate even if it's an expression"""
+
 
         self.interpreter.symtable.clear()
         self.interpreter.symtable.update({sym.sym: sym.value_getter() for sym in self.sym})
@@ -199,8 +219,7 @@ class ExpressionWidget(QWidget):
                 raise ValueError("This input does not evaluate to a numerical value.")
 
             # If we do not calc immediately, interpreter is only good to check for errors
-            if not self.expression_type.must_calc_immediately():
-                # print("not immediate??? type is", str(self.expression_type.name))
+            if not self.expression_type.must_calc_immediately() and not force:
                 return self.get_value_str()
             # Cast to right type as str
             elif self.expression_type is ExpressionType.INTEGER:

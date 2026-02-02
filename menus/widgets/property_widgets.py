@@ -1,4 +1,4 @@
-from .float_line_edit import SafeMathLineEdit
+from .expression_widget import ExpressionWidget, ExpressionType
 
 from custom_validators import *
 
@@ -96,7 +96,7 @@ class AsciiPropertyWidget(PropertyWidget):
 class FloatPropertyWidget(PropertyWidget):
     def __init__(self, name: str, display_name: str, default_value: str, parent=None):
         super().__init__(name, display_name, default_value, parent)
-        self.input_le = SafeMathLineEdit(float(default_value))
+        self.input_le = ExpressionWidget(float(default_value), ExpressionType.FLOAT)
         self.master_layout.addWidget(self.input_le, 100)
 
     def get_text(self):
@@ -120,9 +120,9 @@ class Vec2PropertyWidget(PropertyWidget):
 
         x, y = default_value.strip().strip("()").split(",")
 
-        self.input_le_x = SafeMathLineEdit(float(x))
+        self.input_le_x = ExpressionWidget(float(x), ExpressionType.FLOAT)
         self.values_layout.addWidget(self.input_le_x)
-        self.input_le_y = SafeMathLineEdit(float(y))
+        self.input_le_y = ExpressionWidget(float(y), ExpressionType.FLOAT)
         self.values_layout.addWidget(self.input_le_y)
 
     def get_text(self):
@@ -149,11 +149,11 @@ class Vec3PropertyWidget(PropertyWidget):
 
         x, y, z = default_value.strip().strip("()").split(",")
 
-        self.input_le_x = SafeMathLineEdit(float(x))
+        self.input_le_x = ExpressionWidget(float(x), ExpressionType.FLOAT)
         self.values_layout.addWidget(self.input_le_x)
-        self.input_le_y = SafeMathLineEdit(float(y))
+        self.input_le_y = ExpressionWidget(float(y), ExpressionType.FLOAT)
         self.values_layout.addWidget(self.input_le_y)
-        self.input_le_z = SafeMathLineEdit(float(z))
+        self.input_le_z = ExpressionWidget(float(z), ExpressionType.FLOAT)
         self.values_layout.addWidget(self.input_le_z)
 
     def get_text(self):

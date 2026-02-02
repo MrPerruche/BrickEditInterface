@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QLabel, QHBoxLayout, QPushButton, QMessageBox
 from PySide6.QtGui import QIcon
 
-from .widgets import VehicleWidget, VehicleWidgetMode, SafeMathLineEdit, LargeLabel
+from .widgets import VehicleWidget, VehicleWidgetMode, LargeLabel, ExpressionWidget, ExpressionType
 from . import base
 
 from brickedit import *
@@ -110,9 +110,9 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.pos_offset_label = QLabel("Offset:")
         self.pos_layout.addWidget(self.pos_offset_label, 10)
         self.disabled_if_vehicle_not_loaded.append(self.pos_offset_label)
-        self.pos_x_le = SafeMathLineEdit(0)
-        self.pos_y_le = SafeMathLineEdit(0)
-        self.pos_z_le = SafeMathLineEdit(0)
+        self.pos_x_le = ExpressionWidget(0, ExpressionType.FLOAT)
+        self.pos_y_le = ExpressionWidget(0, ExpressionType.FLOAT)
+        self.pos_z_le = ExpressionWidget(0, ExpressionType.FLOAT)
         self.pos_layout.addWidget(self.pos_x_le, 10)
         self.disabled_if_vehicle_not_loaded.append(self.pos_x_le)
         self.pos_layout.addWidget(self.pos_y_le, 10)
@@ -136,9 +136,9 @@ class VehicleUpscalerMenu(base.BaseMenu):
         # self.rot_deg_layout.addWidget(self.rot_deg_label, 10)
         self.disabled_if_vehicle_not_loaded.append(self.rot_deg_label)
         # X Y Z inputs
-        self.rot_deg_x_le = SafeMathLineEdit(0)
-        self.rot_deg_y_le = SafeMathLineEdit(0)
-        self.rot_deg_z_le = SafeMathLineEdit(0)
+        self.rot_deg_x_le = ExpressionWidget(0, ExpressionType.FLOAT)
+        self.rot_deg_y_le = ExpressionWidget(0, ExpressionType.FLOAT)
+        self.rot_deg_z_le = ExpressionWidget(0, ExpressionType.FLOAT)
         # self.rot_deg_layout.addWidget(self.rot_deg_x_le, 10)
         self.disabled_if_vehicle_not_loaded.append(self.rot_deg_x_le)
         # self.rot_deg_layout.addWidget(self.rot_deg_y_le, 10)
@@ -157,9 +157,9 @@ class VehicleUpscalerMenu(base.BaseMenu):
         # self.rot_center_layout.addWidget(self.rot_center_label, 10)
         self.disabled_if_vehicle_not_loaded.append(self.rot_center_label)
         # X Y Z inputs
-        self.rot_center_x_le = SafeMathLineEdit(0)
-        self.rot_center_y_le = SafeMathLineEdit(0)
-        self.rot_center_z_le = SafeMathLineEdit(0)
+        self.rot_center_x_le = ExpressionWidget(0, ExpressionType.FLOAT)
+        self.rot_center_y_le = ExpressionWidget(0, ExpressionType.FLOAT)
+        self.rot_center_z_le = ExpressionWidget(0, ExpressionType.FLOAT)
         # self.rot_center_layout.addWidget(self.rot_center_x_le, 10)
         self.disabled_if_vehicle_not_loaded.append(self.rot_center_x_le)
         # self.rot_center_layout.addWidget(self.rot_center_y_le, 10)
@@ -180,7 +180,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.scale_mult_label = QLabel("Multiply by:")
         self.scale_mult_layout.addWidget(self.scale_mult_label, 10)
         self.disabled_if_vehicle_not_loaded.append(self.scale_mult_label)
-        self.scale_mult_le = SafeMathLineEdit(1)
+        self.scale_mult_le = ExpressionWidget(1, ExpressionType.FLOAT)
         self.scale_mult_le.editingFinished.connect(lambda: self.scale_input_updated(True))
         self.scale_mult_layout.addWidget(self.scale_mult_le, 30)
         
@@ -191,7 +191,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.scale_div_label = QLabel("Divide by:")
         self.scale_div_layout.addWidget(self.scale_div_label, 10)
         self.disabled_if_vehicle_not_loaded.append(self.scale_div_label)
-        self.scale_div_le = SafeMathLineEdit(1)
+        self.scale_div_le = ExpressionWidget(1, ExpressionType.FLOAT)
         self.scale_div_le.editingFinished.connect(lambda: self.scale_input_updated(False))
         self.scale_div_layout.addWidget(self.scale_div_le, 30)
         self.disabled_if_vehicle_not_loaded.append(self.scale_div_le)

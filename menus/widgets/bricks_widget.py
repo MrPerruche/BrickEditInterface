@@ -1,5 +1,5 @@
 from .square_widget import SquareWidget
-from .float_line_edit import SafeMathLineEdit
+from .expression_widget import ExpressionWidget, ExpressionType
 from .property_widgets import PropertyWidget, UnknownPropertyWidget
 
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox
@@ -75,9 +75,9 @@ class BrickWidget(SquareWidget):
 
         # Position
         self.position_layout = QHBoxLayout()
-        self.pos_x_spin = SafeMathLineEdit(self.brick.pos.x)
-        self.pos_y_spin = SafeMathLineEdit(self.brick.pos.y)
-        self.pos_z_spin = SafeMathLineEdit(self.brick.pos.z)
+        self.pos_x_spin = ExpressionWidget(self.brick.pos.x, ExpressionType.FLOAT)
+        self.pos_y_spin = ExpressionWidget(self.brick.pos.y, ExpressionType.FLOAT)
+        self.pos_z_spin = ExpressionWidget(self.brick.pos.z, ExpressionType.FLOAT)
         self.position_layout.addWidget(self.pos_x_spin)
         self.position_layout.addWidget(self.pos_y_spin)
         self.position_layout.addWidget(self.pos_z_spin)
@@ -85,9 +85,9 @@ class BrickWidget(SquareWidget):
 
         # Rotation
         self.rotation_layout = QHBoxLayout()
-        self.rot_x_spin = SafeMathLineEdit(self.brick.rot.x)
-        self.rot_y_spin = SafeMathLineEdit(self.brick.rot.y)
-        self.rot_z_spin = SafeMathLineEdit(self.brick.rot.z)
+        self.rot_x_spin = ExpressionWidget(self.brick.rot.x, ExpressionType.FLOAT)
+        self.rot_y_spin = ExpressionWidget(self.brick.rot.y, ExpressionType.FLOAT)
+        self.rot_z_spin = ExpressionWidget(self.brick.rot.z, ExpressionType.FLOAT)
         self.rotation_layout.addWidget(self.rot_x_spin)
         self.rotation_layout.addWidget(self.rot_y_spin)
         self.rotation_layout.addWidget(self.rot_z_spin)

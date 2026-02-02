@@ -6,7 +6,6 @@ from PySide6.QtCore import Qt
 
 from .square_widget import SquareWidget
 from .color_selector import ColorSelectorWidget
-from .float_line_edit import SafeMathLineEdit
 
 from utils import clear_layout
 
