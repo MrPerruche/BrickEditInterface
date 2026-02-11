@@ -1,4 +1,5 @@
 import os
+import sys
 import math
 from random import uniform
 from brickedit import *
@@ -53,10 +54,24 @@ def get_random_color(alpha: bool) -> QColor:
         return QColor.fromHsvF(h, s, v, 1)
 
 
-
 def get_vehicles_path():
-    return os.path.expanduser("~\\AppData\\Local\\BrickRigs\\SavedRemastered\\Vehicles")
-
+    if sys.platform.startswith("win"):
+        return os.path.expanduser("~\\AppData\\Local\\BrickRigs\\SavedRemastered\\Vehicles")
+    
+    elif sys.platform.startswith("linux"):
+        native_path = os.path.expanduser("~/.local/share/Steam/steamapps/compatdata/552100/pfx/drive_c/users/steamuser/AppData/Local/BrickRigs/SavedRemastered/Vehicles")
+        if os.path.exists(native_path):
+            return native_path
+        
+        flatpak_path = os.path.expanduser("~/.var/app/com.valvesoftware.Steam/data/Steam/steamapps/compatdata/552100/pfx/drive_c/users/steamuser/AppData/Local/BrickRigs/SavedRemastered/Vehicles")
+        if os.path.exists(flatpak_path):
+            return flatpak_path
+    
+    else:
+        QMessageBox.critical(None, "Unsupported Operating System",
+            "BrickEdit-Interface does not support this operating system."
+        )
+        return None
 
 def repr_file_size(size_bytes: int, digits: int = 2, unit_change_threshold: int = 1024):
     # If you're dealing with RiB or QiB wth are you doing playing Brick Rigs and using this sht "software" in 2200 ?
