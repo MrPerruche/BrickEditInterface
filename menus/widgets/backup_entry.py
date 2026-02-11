@@ -1,4 +1,6 @@
-from os import path, startfile
+from os import path
+import subprocess
+import sys
 import shutil
 
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QMessageBox
@@ -14,6 +16,14 @@ from brickedit import vhelper
 from typing import Callable, TYPE_CHECKING
 if TYPE_CHECKING:
     from mainwindow import BrickEditInterface
+
+def open_path(path):
+    if sys.platform.startswith("win"):
+        from os import startfile
+        startfile(path)
+        
+    if sys.platform.startswith("linux"):
+        subprocess.run(["xdg-open", path])
 
 class BackupEntry(SquareWidget):
     def __init__(self, mw: "BrickEditInterface", call_on_backup_deleted: Callable[[bool, str], None], vehicle_path, backup_path, parent=None):
@@ -71,7 +81,7 @@ class BackupEntry(SquareWidget):
         self.open_dir_button_icon = QIcon.fromTheme("folder-open")
         self.open_dir_button.setFixedSize(32, 32)
         self.open_dir_button.setIcon(self.open_dir_button_icon)
-        self.open_dir_button.clicked.connect(lambda: startfile(self.backup_path))
+        self.open_dir_button.clicked.connect(lambda: open_path(self.backup_path))
         self.buttons_layout.addWidget(self.open_dir_button)
 
         # Recover backup button

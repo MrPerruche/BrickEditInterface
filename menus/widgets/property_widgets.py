@@ -100,14 +100,14 @@ class FloatPropertyWidget(PropertyWidget):
         self.master_layout.addWidget(self.input_le, 100)
 
     def get_text(self):
-        return self.input_le.text()
+        return self.input_le.get_text()
 
     def set_value(self, value):
         self.input_le.setText(str(value))
 
     def get_value(self):
         try:
-            return float(self.input_le.text())
+            return self.input_le.value()
         except ValueError:
             return self.default_value
 
