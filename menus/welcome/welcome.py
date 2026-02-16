@@ -2,8 +2,8 @@ from PySide6.QtWidgets import QDialog, QTextEdit
 from PySide6.QtCore import QFile, QTextStream, QUrl
 from PySide6.QtGui import QIcon, QDesktopServices
 
-from . import base
-from .widgets import *
+from menus import base
+from ..shared_widgets import *
 
 from utils import VERSION, DEV_VERSION
 

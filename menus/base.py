@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QIcon
-from .widgets import LargeLabel
+from .shared_widgets import LargeLabel
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

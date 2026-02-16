@@ -4,9 +4,9 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout,
 from sidebar import Sidebar
 from menus import *
 from utils import VERSION, DEV_VERSION
-from settings_manager import SettingsManager
-from backup_system import BackupSystem
-from update_checker import UpdateChecker
+from systems.settings import SettingsManager
+from systems.backup import BackupSystem
+from systems.update import UpdateChecker
 
 
 class BrickEditInterface(QMainWindow):

@@ -58,7 +58,7 @@ FOR RELEASE (OPTIMIZED, LONGER TO COMPILE):
 python -m nuitka `
     --standalone `
     --windows-console-mode=disable `
-    --output-dir=release_build `
+    --output-dir=compiled_build `
     --windows-icon-from-ico="assets/icons/brickeditinterface.ico" `
     --enable-plugin=pyside6 `
     --remove-output `

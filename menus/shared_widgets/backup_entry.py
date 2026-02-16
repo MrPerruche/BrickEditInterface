@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QMe
 from PySide6.QtGui import QIcon, QColor, QPainter, QFont
 from PySide6.QtCore import QSize
 
-from backup_system import BackupSystem
+from systems.backup import BackupSystem
 
 from .square_widget import SquareWidget, SquareState
 

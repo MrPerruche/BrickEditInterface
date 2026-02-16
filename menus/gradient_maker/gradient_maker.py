@@ -2,8 +2,8 @@ from PySide6.QtWidgets import QRadioButton, QButtonGroup, QComboBox
 from PySide6.QtGui import QIcon
 from coloraide import Color
 
-from . import base
-from .widgets import *
+from menus import base
+from ..shared_widgets import *
 
 from enum import Enum
 from dataclasses import dataclass

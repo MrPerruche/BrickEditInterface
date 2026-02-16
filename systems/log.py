@@ -16,10 +16,10 @@ LOG_FILE_NAME = 'BrickEditInterface.log'
 # ------------------------------------------------------------
 
 def _get_log_dir():
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, 'frozen', False):  # Compiled
         base_dir = os.path.dirname(sys.executable)
-    else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+    else:  # Interpreted
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     log_dir = os.path.join(base_dir, LOG_DIR_NAME)
     os.makedirs(log_dir, exist_ok=True)

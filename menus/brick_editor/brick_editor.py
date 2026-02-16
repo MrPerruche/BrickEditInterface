@@ -2,8 +2,8 @@ from PySide6.QtWidgets import QPushButton, QMessageBox
 from PySide6.QtGui import QIcon
 from os import path, makedirs
 
-from . import base
-from .widgets import VehicleWidget, VehicleWidgetMode, ColorWidget, BrickListWidget
+from menus import base
+from ..shared_widgets import VehicleWidget, VehicleWidgetMode, ColorWidget, BrickListWidget
 
 from brickedit import *
 from utils import try_serialize

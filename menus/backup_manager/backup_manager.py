@@ -6,8 +6,8 @@ import shutil
 from send2trash import send2trash
 from pathlib import Path
 
-from . import base
-from .widgets import *
+from menus import base
+from ..shared_widgets import *
 
 from utils import repr_file_size, dir_size, get_vehicles_path, clear_layout
 
