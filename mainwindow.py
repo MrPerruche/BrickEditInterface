@@ -40,6 +40,7 @@ class BrickEditInterface(QMainWindow):
             VehicleUpscalerMenu(self),
         ]
         self.in_dev_menus = [
+            ImageImporter(self),
         ]
         if DEV_VERSION:
             self.menus.extend(self.in_dev_menus)
