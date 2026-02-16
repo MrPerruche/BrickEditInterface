@@ -8,3 +8,4 @@ from .property_widgets import *
 from .color_selector import *
 from .multi_color_selector import *
 from .expression_widget import *
+from .list_slider import *

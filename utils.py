@@ -1,6 +1,7 @@
 import os
 import sys
 import math
+import struct
 from random import uniform
 from brickedit import *
 
@@ -96,62 +97,22 @@ def clear_layout(layout):
             clear_layout(item.layout())
 
 
-def blockwise_exp(n, p=3, base=2):
-    r"""
-    Compute a stepwise accelerating integer value for a slider or similar control.
 
-    The function works like this:
-    - The output increases in blocks of width `p`.
-    - Within each block of `p` steps, the output increases by a constant amount (the "slope").
-    - Each new block has a larger slope than the previous one, multiplying by `base` each time.
-    - This produces a smooth, accelerating feel while keeping all outputs as integers.
+def _float32(value):
+    """Convert a Python float to single-precision float32."""
+    return struct.unpack('f', struct.pack('f', value))[0]
 
-    Args:
-        n (int): The current step or position (integer).
-        p (int, optional): The width of each block before the slope increases, by default 3.
-            Larger `p` makes the acceleration feel slower and smoother.
-        base (int, optional): The multiplier for slope growth at each new block, by default 2.
-            A larger base increases the acceleration more quickly.
-
-    Returns:
-        int
-            The integer value corresponding to step `n`.
-
-    Example:
-        With p=3 and base=2, the derivative of the output looks like:
-            0,0,0, 1,1,1, 2,2,2, 4,4,4, 8,8,8, ...
-        and the cumulative output (f(n)) increases accordingly.
-        
-        Paste the following statements in desmos to preview the function:
-        p\ =3
-        b\ =2
-        n=x
-        k=\operatorname{floor}\left(\frac{n}{p}\right)
-        r\ =\ n-kp
-        f\left(x\right)=p\frac{b^{k}-1}{b-1}+r\cdot b^{k}
+def max_float32_for_tolerance(tol: float) -> float:
     """
-    k = n // p
-    r = n - k * p
-    if base == 1:
-        return n  # linear case
-    return (base**k - 1) // (base - 1) * p + r * base**k
-
-
-
-def blockwise_exp_inverse(value, p=3, base=2):
+    Returns the largest float32 number where precision is still finer than `tol`.
     """
-    Given a value, find the slider step n that would produce it
-    using blockwise_exp.
-    """
-    if base == 1:
-        return value  # linear
+    # Machine epsilon for float32: 2^-23 ≈ 1.1920929e-7
+    eps = 2 ** -23
 
-    n = 0
-    while n < 10000:  # Safe limit
-        val = blockwise_exp(n, p, base)
-        if val > value:
-            return max(0, n - 1)
-        n += 1
+    # Maximum number where relative precision <= tol
+    max_val = tol / eps
+
+    return _float32(max_val)
 
 
 
