@@ -14,7 +14,7 @@ class BaseMenu(QWidget):
         self.main_window: "BrickEditInterface" = mw
         self.master_layout = QVBoxLayout(self)
         if header:
-            self.header_label = LargeLabel(self.get_menu_name(), 2)
+            self.header_label = LargeLabel(self.get_menu_name(), 2, margins_mult=0)
             self.master_layout.addWidget(self.header_label)
         self.setLayout(self.master_layout)
 

@@ -1,23 +1,23 @@
-from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QLabel, QComboBox, QCheckBox
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QLabel, QComboBox, QRadioButton, QButtonGroup, QStackedWidget
 from PySide6.QtGui import QIcon
 
 from PIL import Image
 
 from menus import base
-from ..shared_widgets import LargeLabel, ListSlider, ExpressionWidget, ExpressionType
+from ..shared_widgets import LargeLabel, ListSlider, ExpressionWidget, ExpressionType, VehicleWidget, VehicleWidgetMode
 from .widgets import ImageSelector
 
-from utils import max_float32_for_tolerance
+from utils import max_float32_for_tolerance, get_vehicles_path
 from . import image_utils
 
 from enum import Enum
+import os
 
 _LABEL_SIZE = 10
 
 _LS_SIZE = 15
 _LS_NEG = 10
 _LIST_SLIDER_OPTIONS = {2**(i-_LS_NEG): (f"1/{2**(_LS_NEG-i)}" if i < _LS_NEG else f"{2**(i-_LS_NEG)}") for i in range(_LS_SIZE)}
-
 
 
 class Quantization(Enum):
@@ -30,7 +30,7 @@ class Quantization(Enum):
         return [
             "No quantization",
             "Median cut",
-            "K-means++ (LAB)"
+            "K-means++ in OKLAB"
         ]
 
     def get_name(self):
@@ -164,10 +164,76 @@ class ImageImporter(base.BaseMenu):
         ]
 
 
+        # ----- IMPORT -----
+        self.import_ll = LargeLabel("Import image", 4)
+        self.master_layout.addWidget(self.import_ll)
+
+        # METHOD SELECTION
+        # Layout and label
+        self.import_method_lay = QHBoxLayout()
+        self.master_layout.addLayout(self.import_method_lay)
+        # self.import_method_l = QLabel("Import method")
+        # self.import_method_lay.addWidget(self.import_method_l, _LABEL_SIZE)
+
+        self.import_method_lay.addStretch(1)
+
+        # Radio buttons
+        self.import_method_new_rb = QRadioButton("Create new")
+        self.import_method_new_rb.setChecked(True)
+        self.import_method_lay.addWidget(self.import_method_new_rb)
+
+        self.import_method_lay.addStretch(1)
+
+        self.import_method_load_rb = QRadioButton("Replace bricks")
+        self.import_method_lay.addWidget(self.import_method_load_rb)
+
+        self.import_method_lay.addStretch(1)
+
+        # Make them mutually exclusive
+        self.import_method_group = QButtonGroup()
+        self.import_method_group.addButton(self.import_method_new_rb, id=0)
+        self.import_method_group.addButton(self.import_method_load_rb, id=1)
+        self.import_method_group.idClicked.connect(self.on_import_method_changed)
+        self.import_method_group.setExclusive(True)
+
+
+        # ----- NEW IMPORT -----
+        # CREATE NEW LAYOUT
+        self.nim_lay = QVBoxLayout()
+        self.nim_lay.setContentsMargins(0, 0, 0, 0)
+        self.nim_widget = QWidget()
+        self.nim_widget.setLayout(self.nim_lay)
+
+        self.nim_vehicle_selector = VehicleWidget(
+            VehicleWidgetMode.CREATION,
+            must_deserialize=False,
+            vehicle_name="bei-image"
+        )
+        self.nim_vehicle_selector.vehicle_name.editingFinished.connect(self.on_new_nim_vehicle)
+        self.nim_lay.addWidget(self.nim_vehicle_selector)
+
+        # ----- EDIT IMPORT -----
+        self.cim_lay = QVBoxLayout()
+        self.cim_lay.setContentsMargins(0, 0, 0, 0)
+        self.cim_widget = QWidget()
+        self.cim_widget.setLayout(self.cim_lay)
+
+        self.cim_vehicle_selector = VehicleWidget(
+            VehicleWidgetMode.SELECT_ONLY
+        )
+        self.cim_lay.addWidget(self.cim_vehicle_selector)
+
+        # ----- IMPORT SETTINGS -----
+        self.import_settings_sw = QStackedWidget()
+        self.import_settings_sw.addWidget(self.nim_widget)
+        self.import_settings_sw.addWidget(self.cim_widget)
+        self.master_layout.addWidget(self.import_settings_sw)
+
         # Update fusion / run load logic
         self.update_fusion_info()
         self.update_quantization_info()
         self.on_image_reload()
+        self.on_import_method_changed(self.import_method_group.checkedId())
         # Other
         self.master_layout.addStretch()
 
@@ -220,8 +286,9 @@ class ImageImporter(base.BaseMenu):
         raw_value = self.f3d_step_ls.get_value()
         value = raw_value * 0.000_1  # cm → km
         tol = max_float32_for_tolerance(value)
-        text = f"The image will Z-fight if you go further than {tol:.1f} km from origin."
+        text = f"The image will Z-fight if you go further than {tol:.1f} km from world center."
         self.f3d_step_info_l.setText(text)
+
 
     def update_quantization_info(self):
 
@@ -238,6 +305,19 @@ class ImageImporter(base.BaseMenu):
             return
         if self.image is None:
             self.image = Image.open(img_path)
+
+
+    def on_import_method_changed(self, idx: int):
+        self.import_settings_sw.setCurrentIndex(idx)
+
+
+    def on_new_nim_vehicle(self):
+        name = self.nim_vehicle_selector.vehicle_name.text()
+        self.nim_vehicle_selector.load_vehicle(
+            os.path.join(get_vehicles_path(), name),
+            silent=True
+        )
+
 
     # -------------
 

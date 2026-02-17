@@ -1,3 +1,4 @@
+from coloraide import Color
 import numpy as np
 from PIL import Image
 
@@ -16,7 +17,7 @@ def xy_idx(x: int, y: int, w: int) -> int:
     return y * w + x
 
 
-def image_bitmask(img: Image) -> list[tuple[tuple[int, int, int, int], list[int]]]:
+def image_bitmask(img: Image) -> list[tuple[tuple, list[int]]]:
     data = list(img.getdata())  # flat list, already row-major
     num_pixels = len(data)
 
@@ -29,3 +30,18 @@ def image_bitmask(img: Image) -> list[tuple[tuple[int, int, int, int], list[int]
         bitmasks[col][idx] = 1
 
     return list(bitmasks.items())
+
+
+
+def rgba255_to_oklaba(r, g, b, a = 255):
+    
+    # Convert to 0–1 range
+    c = Color("srgb", [r / 255, g / 255, b / 255], alpha=a / 255)
+
+    # Convert to OKLab
+    oklab = c.convert("oklab")
+
+    L, a_, b_ = oklab.coords()
+    alpha = oklab.alpha
+
+    return L, a_, b_, alpha
