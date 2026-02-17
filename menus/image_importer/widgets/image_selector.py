@@ -1,16 +1,13 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QLineEdit
-from PySide6.QtCore import Qt, QTimer, QDateTime
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
+from PySide6.QtCore import Qt, QTimer, QDateTime, Signal
 from PySide6.QtGui import QPixmap
 
 from PIL import Image
 
-from typing import Optional, Callable
 from os import path
-import traceback
-from enum import Enum, auto
 
-from utils import str_time_since, get_vehicles_path
-from brickedit import *  # TODO
+from utils import str_time_since
+from brickedit import *
 
 from menus.shared_widgets.square_widget import SquareWidget, SquareState
 
@@ -24,7 +21,9 @@ _logger = getLogger(__name__)
 
 class ImageSelector(SquareWidget):
     """Custom widget for image selection."""
-    
+
+    new_image_selected = Signal()
+
     def __init__(self, store_pil_img=True, parent=None):
         super().__init__(parent)
 
@@ -140,6 +139,8 @@ class ImageSelector(SquareWidget):
         self.img_path = img_path
         self.image_name_label.setText(path.split(img_path)[-1])
         self.set_icon(QPixmap(img_path))
+
+        self.new_image_selected.emit()
 
 
     def update_seconds_display(self):

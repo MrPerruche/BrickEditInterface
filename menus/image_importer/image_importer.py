@@ -1,11 +1,14 @@
-from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QLabel, QComboBox
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QLabel, QComboBox, QCheckBox
 from PySide6.QtGui import QIcon
+
+from PIL import Image
 
 from menus import base
 from ..shared_widgets import LargeLabel, ListSlider, ExpressionWidget, ExpressionType
 from .widgets import ImageSelector
 
 from utils import max_float32_for_tolerance
+from . import image_utils
 
 _LABEL_SIZE = 10
 
@@ -23,7 +26,9 @@ class ImageImporter(base.BaseMenu):
 
         # ----- IMAGE SELECTION -----
 
-        self.image_selector = ImageSelector()
+        self.image_selector = ImageSelector(store_pil_img=False)
+        self.image = None
+        self.image_selector.new_image_selected.connect(self.on_image_reload)
         self.master_layout.addWidget(self.image_selector)
 
 
@@ -101,10 +106,14 @@ class ImageImporter(base.BaseMenu):
         self.image_width_lay.addWidget(self.image_width_unit_l, 0)
         """
 
+        # QUANTIZATION SETTINGS
+        # Quantization checkbox
+        self.quantization_cb = QCheckBox(f"Reduce colors (current: N/A colors)")
+        self.master_layout.addWidget(self.quantization_cb)
 
-
-        # Update fusion
+        # Update fusion / run load logic
         self.update_fusion_info()
+        self.on_image_reload()
         # Other
         self.master_layout.addStretch()
 
@@ -122,6 +131,19 @@ class ImageImporter(base.BaseMenu):
         tol = max_float32_for_tolerance(value)
         text = f"The image will Z-fight if you go further than {tol:.1f} km from origin."
         self.f3d_step_info_l.setText(text)
+
+
+    def on_image_reload(self):
+        img_path = self.image_selector.img_path
+        if img_path is None:
+            return
+        if self.image is None:
+            self.image = Image.open(img_path)
+
+        # Num colors
+        num_colors = image_utils.count_colors(self.image)
+        quantize_cb_txt = f"Reduce colors (current: {num_colors} colors)"
+        self.quantization_cb.setText(quantize_cb_txt)
 
     # -------------
 
