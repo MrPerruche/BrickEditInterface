@@ -10,11 +10,31 @@ from .widgets import ImageSelector
 from utils import max_float32_for_tolerance
 from . import image_utils
 
+from enum import Enum
+
 _LABEL_SIZE = 10
 
 _LS_SIZE = 15
 _LS_NEG = 10
 _LIST_SLIDER_OPTIONS = {2**(i-_LS_NEG): (f"1/{2**(_LS_NEG-i)}" if i < _LS_NEG else f"{2**(i-_LS_NEG)}") for i in range(_LS_SIZE)}
+
+
+
+class Quantization(Enum):
+    NO = 0
+    MEDIAN_CUT = 1
+    KMEANSPP_LAB = 2
+
+    @staticmethod
+    def get_names():
+        return [
+            "No quantization",
+            "Median cut",
+            "K-means++ (LAB)"
+        ]
+
+    def get_name(self):
+        return Quantization.get_names()[self.value]
 
 
 
@@ -26,7 +46,7 @@ class ImageImporter(base.BaseMenu):
 
         # ----- IMAGE SELECTION -----
 
-        self.image_selector = ImageSelector(store_pil_img=False)
+        self.image_selector = ImageSelector(store_pil_img=True)
         self.image = None
         self.image_selector.new_image_selected.connect(self.on_image_reload)
         self.master_layout.addWidget(self.image_selector)
@@ -106,16 +126,87 @@ class ImageImporter(base.BaseMenu):
         self.image_width_lay.addWidget(self.image_width_unit_l, 0)
         """
 
-        # QUANTIZATION SETTINGS
-        # Quantization checkbox
-        self.quantization_cb = QCheckBox(f"Reduce colors (current: N/A colors)")
-        self.master_layout.addWidget(self.quantization_cb)
+        # QUANTIZATION ALGORITHM
+        # Layout
+        self.quant_alg_lay = QHBoxLayout()
+        self.master_layout.addLayout(self.quant_alg_lay)
+        # Label
+        self.quant_alg_l = QLabel("Quantization algorithm")
+        self.quant_alg_lay.addWidget(self.quant_alg_l, _LABEL_SIZE)
+        # Method checkbox
+        self.quant_alg_cb = QComboBox()
+        self.quant_alg_cb_opts = Quantization.get_names()
+        self.quant_alg_cb.addItems(self.quant_alg_cb_opts)
+        self.quant_alg_cb.setCurrentIndex(2)
+        self.quant_alg_cb.currentIndexChanged.connect(self.update_quantization_info)
+        self.quant_alg_lay.addWidget(self.quant_alg_cb, 25)
+
+        # QUANTIZATION METHOD SETTINGS
+        self.quant_no_lay = self.make_quant_no_layout()
+        self.quant_no = QWidget()
+        self.quant_no.setLayout(self.quant_no_lay)
+        self.master_layout.addWidget(self.quant_no)
+
+        self.quant_mc_lay = self.make_quant_mc_layout()
+        self.quant_mc = QWidget()
+        self.quant_mc.setLayout(self.quant_mc_lay)
+        self.master_layout.addWidget(self.quant_mc)
+
+        self.quant_km_lay = self.make_quant_km_layout()
+        self.quant_km = QWidget()
+        self.quant_km.setLayout(self.quant_km_lay)
+        self.master_layout.addWidget(self.quant_km)
+
+        self.quant_settings = [
+            self.quant_no,
+            self.quant_mc,
+            self.quant_km
+        ]
+
 
         # Update fusion / run load logic
         self.update_fusion_info()
+        self.update_quantization_info()
         self.on_image_reload()
         # Other
         self.master_layout.addStretch()
+
+
+
+    def make_quant_no_layout(self):
+        self.quant_no_lay = QVBoxLayout()
+        self.quant_no_lay.setContentsMargins(0, 0, 0, 0)
+        self.quant_no_l = QLabel("No quantization settings.")
+        self.quant_no_l.setEnabled(False)
+        self.quant_no_lay.addWidget(self.quant_no_l)
+        return self.quant_no_lay
+
+    def make_quant_mc_layout(self):
+        # Layout
+        self.quant_mc_lay = QHBoxLayout()
+        self.quant_mc_lay.setContentsMargins(0, 0, 0, 0)
+        # Label
+        self.quant_mc_l = QLabel("Colors")
+        self.quant_mc_lay.addWidget(self.quant_mc_l, _LABEL_SIZE)
+        # Input
+        MIN, DEF, MAX = 2, 16, 255
+        self.quant_mc_ew = ExpressionWidget(str(DEF), ExpressionType.INTEGER, (MIN, MAX))
+        self.quant_mc_lay.addWidget(self.quant_mc_ew, 25)
+        return self.quant_mc_lay
+
+    def make_quant_km_layout(self):
+        # Layout
+        self.quant_km_lay = QHBoxLayout()
+        self.quant_km_lay.setContentsMargins(0, 0, 0, 0)
+        # Label
+        self.quant_km_l = QLabel("Colors")
+        self.quant_km_lay.addWidget(self.quant_km_l, _LABEL_SIZE)
+        # Input
+        MIN, DEF, MAX = 2, 16, 255
+        self.quant_km_ew = ExpressionWidget(str(DEF), ExpressionType.INTEGER, (MIN, MAX))
+        self.quant_km_lay.addWidget(self.quant_km_ew, 25)
+        return self.quant_km_lay
+        
 
     # -------------
 
@@ -132,18 +223,34 @@ class ImageImporter(base.BaseMenu):
         text = f"The image will Z-fight if you go further than {tol:.1f} km from origin."
         self.f3d_step_info_l.setText(text)
 
+    def update_quantization_info(self):
+
+        # Show the right settings layout
+        current_mode_idx = self.quant_alg_cb.currentIndex()
+        for i, widget in enumerate(self.quant_settings):
+            widget.setVisible(i == current_mode_idx)
+
 
     def on_image_reload(self):
+        
         img_path = self.image_selector.img_path
         if img_path is None:
             return
         if self.image is None:
             self.image = Image.open(img_path)
 
-        # Num colors
-        num_colors = image_utils.count_colors(self.image)
-        quantize_cb_txt = f"Reduce colors (current: {num_colors} colors)"
-        self.quantization_cb.setText(quantize_cb_txt)
+    # -------------
+
+    def recover_og_image(self):
+        pil_img = self.image_selector.pil_img
+        if pil_img is None:
+            img_path = self.image_selector.img_path
+            if img_path is None:
+                return
+            self.image = Image.open(img_path)
+        else:
+            self.image = pil_img.copy()
+
 
     # -------------
 

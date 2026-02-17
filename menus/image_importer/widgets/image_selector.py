@@ -29,7 +29,7 @@ class ImageSelector(SquareWidget):
 
         self.img_path = None
         self.store_pil_img = store_pil_img
-        self.pil_img = None
+        self.pil_img: Image.Image | None = None
         
         # General purpose update timer
         self.last_loaded_time = QDateTime.currentDateTime()
