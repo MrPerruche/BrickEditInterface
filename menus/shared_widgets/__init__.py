@@ -9,3 +9,4 @@ from .color_selector import *
 from .multi_color_selector import *
 from .expression_widget import *
 from .list_slider import *
+from .tabmenu import *

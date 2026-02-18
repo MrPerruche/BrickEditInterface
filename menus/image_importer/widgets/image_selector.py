@@ -110,8 +110,7 @@ class ImageSelector(SquareWidget):
         folder_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Image",
-            "",
-            f"Image Files ({formats_str})"
+            filter=f"Image Files ({formats_str})"
         )
 
         if folder_path:  # User didn't cancel

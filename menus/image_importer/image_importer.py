@@ -98,7 +98,7 @@ class ImageImporter(base.BaseMenu):
         self.f3d_layers_l = QLabel("Max layers")
         self.f3d_layers_lay.addWidget(self.f3d_layers_l, _LABEL_SIZE)
         # Expression
-        self.f3d_layers_ew = ExpressionWidget("16", ExpressionType.INTEGER, (2, 100))
+        self.f3d_layers_ew = ExpressionWidget("32", ExpressionType.INTEGER, (2, 100))
         self.f3d_layers_ew.editingFinished.connect(self.update_fusion_info)
         self.f3d_layers_lay.addWidget(self.f3d_layers_ew, 25)
 

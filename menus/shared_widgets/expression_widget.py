@@ -206,7 +206,13 @@ class ExpressionWidget(QWidget):
         self.interpreter.error = []  # Clear the traceback
 
         try:
-            output = self.interpreter(self.get_value_str())
+            final_mult = 1
+            value_str = self.get_value_str()
+            if value_str.endswith('%'):
+                value_str = value_str[:-1]
+                final_mult /= 100
+            
+            output = self.interpreter(value_str)
             num_result = -1
 
             if self.interpreter.error:  # Traceback is not empty? Raise
@@ -228,6 +234,7 @@ class ExpressionWidget(QWidget):
                 num_result = float(output)
 
             assert num_result is not None, "Num result is None?"
+            num_result *= final_mult
 
             mn, mx = self.clamps
             if mn is not None and num_result < mn:

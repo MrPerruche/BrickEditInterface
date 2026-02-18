@@ -136,16 +136,15 @@ class VehicleWidget(SquareWidget):
 
 
     def on_select_vehicle(self):
-        """Open file explorer to select a vehicle folder."""
         default_path = get_vehicles_path()
-        folder_path = QFileDialog.getExistingDirectory(
-            self,
-            "Select Vehicle Folder",
-            default_path,  # Default directory (empty = user's home)
-            QFileDialog.ShowDirsOnly
-        )
 
-        if folder_path:  # User didn't cancel
+        dialog = QFileDialog(self, caption="Select Vehicle", directory=default_path)
+        dialog.setFileMode(QFileDialog.Directory)
+        dialog.setOption(QFileDialog.ShowDirsOnly, True)
+        dialog.setDirectory(default_path)  # FORCE directory
+
+        if dialog.exec():
+            folder_path = dialog.selectedFiles()[0]
             self.load_vehicle(folder_path)
 
 

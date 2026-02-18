@@ -41,6 +41,7 @@ class BrickEditInterface(QMainWindow):
         ]
         self.in_dev_menus = [
             ImageImporter(self),
+            DeveloperTestMenu(self),
         ]
         if DEV_VERSION:
             self.menus.extend(self.in_dev_menus)

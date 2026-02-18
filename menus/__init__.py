@@ -1,5 +1,6 @@
 from .base import *
 from .brick_editor import *
+from .developer_tests import *
 from .transformer import *
 from .welcome import *
 from .backup_manager import *
