@@ -41,7 +41,7 @@ class EditBrickMenu(base.BaseMenu):
         if brv is None:
             self.bricks_widget.update_brick_widgets([])
             return
-        
+
         matching_bricks = [(i, b) for i, b in enumerate(brv.bricks) if b.get_property(p.BRICK_COLOR) == self.color_selector.color]
         self.bricks_widget.update_brick_widgets(matching_bricks)
 

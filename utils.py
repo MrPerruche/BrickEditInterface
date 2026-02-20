@@ -3,7 +3,10 @@ import sys
 import math
 import struct
 from random import uniform
+import numpy as np
 from brickedit import *
+
+from typing import NoReturn
 
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor
@@ -55,7 +58,7 @@ def get_random_color(alpha: bool) -> QColor:
         return QColor.fromHsvF(h, s, v, 1)
 
 
-def get_vehicles_path():
+def get_vehicles_path() -> str | NoReturn:
     if sys.platform.startswith("win"):
         return os.path.expanduser("~\\AppData\\Local\\BrickRigs\\SavedRemastered\\Vehicles")
     
@@ -72,7 +75,7 @@ def get_vehicles_path():
         QMessageBox.critical(None, "Unsupported Operating System",
             "BrickEdit-Interface does not support this operating system."
         )
-        return None
+        sys.exit(1)
 
 def repr_file_size(size_bytes: int, digits: int = 2, unit_change_threshold: int = 1024):
     # If you're dealing with RiB or QiB wth are you doing playing Brick Rigs and using this sht "software" in 2200 ?
@@ -98,21 +101,19 @@ def clear_layout(layout):
 
 
 
-def _float32(value):
-    """Convert a Python float to single-precision float32."""
-    return struct.unpack('f', struct.pack('f', value))[0]
-
 def max_float32_for_tolerance(tol: float) -> float:
     """
     Returns the largest float32 number where precision is still finer than `tol`.
     """
-    # Machine epsilon for float32: 2^-23 ≈ 1.1920929e-7
+    """# Machine epsilon for float32: 2^-23 ≈ 1.1920929e-7
     eps = 2 ** -23
 
     # Maximum number where relative precision <= tol
     max_val = tol / eps
 
-    return _float32(max_val)
+    return _float32(max_val)"""
+    # With numpy
+    return tol / np.finfo(np.float32).eps
 
 
 

@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QLayout, QVBoxLayout, QHBoxLayout, QRadioButton, QButtonGroup, QStackedWidget
+from PySide6.QtWidgets import QWidget, QLayout, QVBoxLayout, QHBoxLayout, QRadioButton, QButtonGroup, QStackedWidget, QSizePolicy
 
 from typing import Hashable
 
@@ -8,6 +8,7 @@ class TabMenu(QWidget):
 
     def __init__(self, vertical: bool = False, parent=None):
         super().__init__(parent)
+        self.setContentsMargins(0, 0, 0, 0)
 
         self.vertical = vertical
 
@@ -53,6 +54,11 @@ class TabMenu(QWidget):
         else:
             raise ValueError(f"Element {element} is not a QWidget or QLayout")
 
+        self.menus_widgets[key].setSizePolicy(
+            QSizePolicy.Policy.Minimum,
+            QSizePolicy.Policy.Minimum
+        )
+
         # SAVING (MOST SENSITIVE) IS SUCCESSFUL, WE CAN DO OTHER STUFF
 
         self.menus_names[key] = name
@@ -78,27 +84,15 @@ class TabMenu(QWidget):
 
 
     def show_menu(self, key: Hashable):
-        for menu_key in self.idx_conversion_table.keys():
-            self.menus_widgets[menu_key].hide()
-
-        self.menus_widgets[key].show()
+        self.selectors_stack.setCurrentIndex(self.idx_conversion_table[key])
         self.selectors_rbs[key].setChecked(True)
 
 
-    def __getitem__(self, key: Hashable | slice) -> QWidget:
-        """
-        Syntax example:
-            tab_menu = TabMenu()
-            tab_menu.add_menu(0, QVBoxLayout())
-            tab_menu[0:] -> Widget of the first menu
-            tab_menu[0]  -> Layout of the first menu
-        """
-        if isinstance(key, slice):
-            return self.menus_widgets[key.start]
-        else:
-            return self.menus_layouts[key]
+    def __getitem__(self, key: Hashable | slice) -> QLayout:
+        return self.menus_layouts[key]
 
-    def __setitem__(self, key: Hashable, value: QWidget | QLayout):
-        if isinstance(key, slice):
-            key = key.start
-        self.add_menu(key, value)
+    def __setitem__(self, key: tuple[Hashable, str], value: QWidget | QLayout):
+        self.add_menu(key[0], key[1], value)
+
+    def get_widget(self, key):
+        return self.menus_widgets[key]

@@ -1,6 +1,7 @@
 from .square_widget import SquareWidget
 from .expression_widget import ExpressionWidget, ExpressionType
 from .property_widgets import PropertyWidget, UnknownPropertyWidget
+from .tabmenu import TabMenu
 
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox
 from PySide6.QtGui import QIcon
@@ -153,7 +154,7 @@ class BrickWidget(SquareWidget):
         return self.brick
 
 
-class BrickListWidget(SquareWidget):
+class LegacyBrickListWidget(SquareWidget):
 
     def __init__(self, bricks: list[Brick], parent=None):
         super().__init__(parent)
@@ -187,3 +188,22 @@ class BrickListWidget(SquareWidget):
         # No bricks? No label
         if not bricks:
             self.master_layout.addWidget(self.no_bricks_label)
+
+
+class BrickListWidget(SquareWidget):
+
+    def __init__(self, bricks: list[Brick], parent=None):
+        super().__init__(parent)
+
+        self.master_layout = QVBoxLayout(self)
+        self.setLayout(self.master_layout)
+
+        self.tabs = TabMenu()
+        self.master_layout.addWidget(self.tabs)
+        self.tabs.add_menu(0, "Individual", QVBoxLayout())
+        self.tabs.add_menu(1, "Per type", QVBoxLayout())
+
+        self.tabs[0].addWidget(QLabel("Test 1"))
+        self.tabs[1].addWidget(QLabel("Test 2"))
+
+        self.master_layout.addStretch()
