@@ -3,6 +3,23 @@ from PySide6.QtWidgets import QWidget, QLayout, QVBoxLayout, QHBoxLayout, QRadio
 from typing import Hashable
 
 
+class AdjustingStackedWidget(QStackedWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Force the stack to respect the size hint of the current child
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+
+    def sizeHint(self):
+        if self.currentWidget():
+            return self.currentWidget().sizeHint()
+        return super().sizeHint()
+
+    def minimumSizeHint(self):
+        if self.currentWidget():
+            return self.currentWidget().minimumSizeHint()
+        return super().minimumSizeHint()
+
+
 
 class TabMenu(QWidget):
 
@@ -20,7 +37,8 @@ class TabMenu(QWidget):
         self.selectors_lay = QVBoxLayout() if vertical else QHBoxLayout()
         self.selectors_bg = QButtonGroup()
         self.selectors_rbs: dict[Hashable, QRadioButton] = {}
-        self.selectors_stack = QStackedWidget()
+        self.selectors_stack = AdjustingStackedWidget()
+        self.selectors_stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
         self.master_layout = QVBoxLayout()
         self.master_layout.addLayout(self.selectors_lay)
@@ -55,8 +73,8 @@ class TabMenu(QWidget):
             raise ValueError(f"Element {element} is not a QWidget or QLayout")
 
         self.menus_widgets[key].setSizePolicy(
-            QSizePolicy.Policy.Minimum,
-            QSizePolicy.Policy.Minimum
+            QSizePolicy.Policy.Preferred, 
+            QSizePolicy.Policy.Maximum   # This prevents the widget from growing beyond its content
         )
 
         # SAVING (MOST SENSITIVE) IS SUCCESSFUL, WE CAN DO OTHER STUFF

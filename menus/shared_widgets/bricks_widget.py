@@ -3,11 +3,14 @@ from .expression_widget import ExpressionWidget, ExpressionType
 from .property_widgets import PropertyWidget, UnknownPropertyWidget
 from .tabmenu import TabMenu
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QSizePolicy
 from PySide6.QtGui import QIcon
 from brickedit import *
 
+from utils import clear_layout
+
 from copy import deepcopy
+from enum import Enum
 
 
 class UnknownBrickMeta(bt.BrickMeta):
@@ -15,14 +18,19 @@ class UnknownBrickMeta(bt.BrickMeta):
         return {}  # Not even base default properties, we do now know what we're dealing with.
 
 
+class BrickWidgetMode(Enum):
+    INDIVIDUAL_BRICK = 0
+    TYPE_REPRESENTATION = 1
+
 
 class BrickWidget(SquareWidget):
 
-    def __init__(self, idx: int, brick: Brick, parent=None):
+    def __init__(self, side_info: str | int, brick: Brick, brick_mode: BrickWidgetMode, parent=None):
         super().__init__(parent)
-        self.idx = idx
-        self.brick = brick
+        self.side_info = side_info if isinstance(side_info, str) else str(side_info)
+        self.brick = deepcopy(brick)
         self.og_brick = deepcopy(brick)
+        self.brick_mode = brick_mode
 
         self.master_layout = QVBoxLayout()  # no parent
         self.setLayout(self.master_layout)  # explicitly assign
@@ -58,7 +66,7 @@ class BrickWidget(SquareWidget):
         self.top_layout.addWidget(self.brick_type_le)
 
         # Index
-        self.brick_idx_label = QLabel(f"[{self.idx}]")
+        self.brick_idx_label = QLabel(f"[{self.side_info}]")
         self.top_layout.addWidget(self.brick_idx_label)
 
         # Reset
@@ -74,11 +82,16 @@ class BrickWidget(SquareWidget):
         # Local space settings
         # ====================
 
+        if self.brick_mode == BrickWidgetMode.INDIVIDUAL_BRICK:
+            expr_types = ExpressionType.FLOAT
+        else:
+            expr_types = ExpressionType.MATH_EXPR
+
         # Position
         self.position_layout = QHBoxLayout()
-        self.pos_x_spin = ExpressionWidget(self.brick.pos.x, ExpressionType.FLOAT)
-        self.pos_y_spin = ExpressionWidget(self.brick.pos.y, ExpressionType.FLOAT)
-        self.pos_z_spin = ExpressionWidget(self.brick.pos.z, ExpressionType.FLOAT)
+        self.pos_x_spin = ExpressionWidget(self.brick.pos.x, expr_types)
+        self.pos_y_spin = ExpressionWidget(self.brick.pos.y, expr_types)
+        self.pos_z_spin = ExpressionWidget(self.brick.pos.z, expr_types)
         self.position_layout.addWidget(self.pos_x_spin)
         self.position_layout.addWidget(self.pos_y_spin)
         self.position_layout.addWidget(self.pos_z_spin)
@@ -86,9 +99,9 @@ class BrickWidget(SquareWidget):
 
         # Rotation
         self.rotation_layout = QHBoxLayout()
-        self.rot_x_spin = ExpressionWidget(self.brick.rot.x, ExpressionType.FLOAT)
-        self.rot_y_spin = ExpressionWidget(self.brick.rot.y, ExpressionType.FLOAT)
-        self.rot_z_spin = ExpressionWidget(self.brick.rot.z, ExpressionType.FLOAT)
+        self.rot_x_spin = ExpressionWidget(self.brick.rot.x, expr_types)
+        self.rot_y_spin = ExpressionWidget(self.brick.rot.y, expr_types)
+        self.rot_z_spin = ExpressionWidget(self.brick.rot.z, expr_types)
         self.rotation_layout.addWidget(self.rot_x_spin)
         self.rotation_layout.addWidget(self.rot_y_spin)
         self.rotation_layout.addWidget(self.rot_z_spin)
@@ -140,6 +153,7 @@ class BrickWidget(SquareWidget):
         self.brick_type_le_last_in = new_name
         self.brick_type_le.setText(new_name)
 
+
     def get_modified_brick(self):
         # Update pos and rot
         self.brick.pos = Vec3(self.pos_x_spin.value(), self.pos_y_spin.value(), self.pos_z_spin.value())
@@ -152,6 +166,8 @@ class BrickWidget(SquareWidget):
             self.brick.set_property(pw.name, pw.get_value())
 
         return self.brick
+
+
 
 
 class LegacyBrickListWidget(SquareWidget):
@@ -199,6 +215,7 @@ class BrickListWidget(SquareWidget):
         self.setLayout(self.master_layout)
 
         self.tabs = TabMenu()
+        self.tabs.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.master_layout.addWidget(self.tabs)
         self.tabs.add_menu(0, "Individual", QVBoxLayout())
         self.tabs.add_menu(1, "Per type", QVBoxLayout())
@@ -206,4 +223,9 @@ class BrickListWidget(SquareWidget):
         self.tabs[0].addWidget(QLabel("Test 1"))
         self.tabs[1].addWidget(QLabel("Test 2"))
 
-        self.master_layout.addStretch()
+        self.update_bricks_widgets(bricks)
+
+        # self.master_layout.addStretch()
+
+    def update_bricks_widgets(self, bricks: list[tuple[int, Brick]]):
+        
