@@ -58,6 +58,13 @@ def get_random_color(alpha: bool) -> QColor:
         return QColor.fromHsvF(h, s, v, 1)
 
 
+def all_equal(iterable, key=lambda x: x):
+    if not iterable:
+        return True
+    first = key(next(iterable))
+    return all(first == key(x) for x in iterable)
+
+
 def get_vehicles_path() -> str | NoReturn:
     if sys.platform.startswith("win"):
         return os.path.expanduser("~\\AppData\\Local\\BrickRigs\\SavedRemastered\\Vehicles")

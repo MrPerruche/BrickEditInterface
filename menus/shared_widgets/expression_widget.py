@@ -109,7 +109,11 @@ class ExpressionWidget(QWidget):
         self.must_warn_user = must_warn_user
 
         # Build symbols list. Order of sym matters
-        self.sym = [ExpressionSymbol('x', lambda: float(self.default), None)]
+        has_custom_x = False
+        for csym in custom_sym:
+            if csym.sym == 'x':
+                has_custom_x = True
+        self.sym = [] if has_custom_x else [ExpressionSymbol('x', lambda: float(self.default), None)]
         if custom_sym is not None:
             self.sym.extend(custom_sym)
         self.sym.extend(DEFAULT_SYMBOLS)
@@ -149,16 +153,22 @@ class ExpressionWidget(QWidget):
         return text
 
 
-    def value(self) -> int | float:
+    def value(self, extra_sym: list[ExpressionSymbol] = None) -> int | float:
+
         # Evaluated at runtime ?
         if not self.expression_type.must_calc_immediately():
-            value = float(self.evaluate(force=True))
+
+            value = self.evaluate(force=True, extra_sym=[] if extra_sym is None else extra_sym)
+            if not self.expression_type == ExpressionType.PYTHON_EXPR:
+                value = float(value)
+
         else:
             value = self.get_value_str()
             if self.expression_type == ExpressionType.INTEGER:
                 value = int(value)
             elif self.expression_type == ExpressionType.FLOAT:
                 value = float(value)
+
         return value
 
 
@@ -196,16 +206,18 @@ class ExpressionWidget(QWidget):
             )
 
 
-    def evaluate(self, *args, force: bool = False) -> str | None:
+    def evaluate(self, *args, force: bool = False, extra_sym: list[ExpressionSymbol]) -> str | None:
         """Force will evaluate even if it's an expression"""
 
 
         self.interpreter.symtable.clear()
         self.interpreter.symtable.update({sym.sym: sym.value_getter() for sym in self.sym})
+        self.interpreter.symtable.update({sym.sym: sym.value_getter() for sym in extra_sym})
         # print(self.interpreter.symtable)
         self.interpreter.error = []  # Clear the traceback
 
         try:
+            # Percent support
             final_mult = 1
             value_str = self.get_value_str()
             if value_str.endswith('%'):
@@ -234,8 +246,9 @@ class ExpressionWidget(QWidget):
                 num_result = float(output)
 
             assert num_result is not None, "Num result is None?"
-            num_result *= final_mult
+            num_result *= final_mult  # Percent support
 
+            # Apply clamps
             mn, mx = self.clamps
             if mn is not None and num_result < mn:
                 num_result = mn

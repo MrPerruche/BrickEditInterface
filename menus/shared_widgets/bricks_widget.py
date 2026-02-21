@@ -1,13 +1,13 @@
 from .square_widget import SquareWidget
-from .expression_widget import ExpressionWidget, ExpressionType
-from .property_widgets import PropertyWidget, UnknownPropertyWidget
+from .expression_widget import ExpressionWidget, ExpressionType, ExpressionSymbol
+from .property_widgets import PropertyWidget, DynamicPropertyWidget, UnknownPropertyWidget
 from .tabmenu import TabMenu
 
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QMessageBox, QSizePolicy
 from PySide6.QtGui import QIcon
 from brickedit import *
 
-from utils import clear_layout
+from utils import all_equal, clear_layout
 
 from copy import deepcopy
 from enum import Enum
@@ -25,27 +25,16 @@ class BrickWidgetMode(Enum):
 
 class BrickWidget(SquareWidget):
 
-    def __init__(self, side_info: str | int, brick: Brick, brick_mode: BrickWidgetMode, parent=None):
+    def __init__(self, side_info: str | int, bricks: list[Brick], brick_mode: BrickWidgetMode, parent=None):
         super().__init__(parent)
         self.side_info = side_info if isinstance(side_info, str) else str(side_info)
-        self.brick = deepcopy(brick)
-        self.og_brick = deepcopy(brick)
+        self.bricks = deepcopy(bricks)
+        self.og_bricks = deepcopy(bricks)
         self.brick_mode = brick_mode
 
         self.master_layout = QVBoxLayout()  # no parent
         self.setLayout(self.master_layout)  # explicitly assign
         self.build_widget()
-
-
-    def clear_layout(self, layout=None):
-        if layout is None:
-            layout = self.master_layout
-        while layout.count():
-            item = layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
-            elif item.layout():
-                self.clear_layout(item.layout())
 
 
 
@@ -55,14 +44,17 @@ class BrickWidget(SquareWidget):
         # Internal name and reset button
         # ==============================
 
-        self.clear_layout()
+        clear_layout(self.master_layout)
         self.top_layout = QHBoxLayout()
+        
+        # Assert all internal names are equal
+        assert all_equal(self.bricks, lambda x: x.meta().name()), "All internal names must be equal"
         
         # Internal name
         self.brick_type_le = QLineEdit()
-        self.brick_type_le.setText(self.brick.meta().name())
+        self.brick_type_le.setText(self.bricks[0].meta().name())
         self.brick_type_le.editingFinished.connect(self.recieve_new_internal_name)
-        self.brick_type_le_last_in = self.brick.meta().name()
+        self.brick_type_le_last_in = self.bricks[0].meta().name()
         self.top_layout.addWidget(self.brick_type_le)
 
         # Index
@@ -82,16 +74,23 @@ class BrickWidget(SquareWidget):
         # Local space settings
         # ====================
 
-        if self.brick_mode == BrickWidgetMode.INDIVIDUAL_BRICK:
-            expr_types = ExpressionType.FLOAT
-        else:
-            expr_types = ExpressionType.MATH_EXPR
-
         # Position
         self.position_layout = QHBoxLayout()
-        self.pos_x_spin = ExpressionWidget(self.brick.pos.x, expr_types)
-        self.pos_y_spin = ExpressionWidget(self.brick.pos.y, expr_types)
-        self.pos_z_spin = ExpressionWidget(self.brick.pos.z, expr_types)
+        self.pos_x_spin = (
+            ExpressionWidget(self.bricks[0].pos.x, ExpressionType.FLOAT)
+            if all_equal(self.bricks, lambda x: x.pos.x) else
+            ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        )
+        self.pos_y_spin = (
+            ExpressionWidget(self.bricks[0].pos.y, ExpressionType.FLOAT)
+            if all_equal(self.bricks, lambda x: x.pos.y) else
+            ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        )
+        self.pos_z_spin = (
+            ExpressionWidget(self.bricks[0].pos.z, ExpressionType.FLOAT)
+            if all_equal(self.bricks, lambda x: x.pos.z) else
+            ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        )
         self.position_layout.addWidget(self.pos_x_spin)
         self.position_layout.addWidget(self.pos_y_spin)
         self.position_layout.addWidget(self.pos_z_spin)
@@ -99,9 +98,21 @@ class BrickWidget(SquareWidget):
 
         # Rotation
         self.rotation_layout = QHBoxLayout()
-        self.rot_x_spin = ExpressionWidget(self.brick.rot.x, expr_types)
-        self.rot_y_spin = ExpressionWidget(self.brick.rot.y, expr_types)
-        self.rot_z_spin = ExpressionWidget(self.brick.rot.z, expr_types)
+        self.rot_x_spin = (
+            ExpressionWidget(self.bricks[0].rot.x, ExpressionType.FLOAT)
+            if all_equal(self.bricks, lambda x: x.rot.x) else
+            ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        )
+        self.rot_y_spin = (
+            ExpressionWidget(self.bricks[0].rot.y, ExpressionType.FLOAT)
+            if all_equal(self.bricks, lambda x: x.rot.y) else
+            ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        )
+        self.rot_z_spin = (
+            ExpressionWidget(self.bricks[0].rot.z, ExpressionType.FLOAT)
+            if all_equal(self.bricks, lambda x: x.rot.z) else
+            ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        )
         self.rotation_layout.addWidget(self.rot_x_spin)
         self.rotation_layout.addWidget(self.rot_y_spin)
         self.rotation_layout.addWidget(self.rot_z_spin)
@@ -112,12 +123,16 @@ class BrickWidget(SquareWidget):
         self.properties_layout.setContentsMargins(0, 0, 0, 0)
         self.properties_layout.setSpacing(0)
         self.master_layout.addLayout(self.properties_layout)
-        self.property_widgets: list[PropertyWidget] = []
-        for prop, val in self.brick.get_all_properties().items():
-            pw = PropertyWidget.from_property(prop, val)
+        self.property_widgets: list[PropertyWidget | DynamicPropertyWidget] = []
+
+        for prop in self.bricks[0].get_all_properties().keys():
+            all_prop_equal = all_equal(self.bricks, lambda x: x.get_property(prop))
+            if all_prop_equal:
+                pw = PropertyWidget.from_property(prop, self.bricks[0].get_property(prop))
+            else:
+                pw = DynamicPropertyWidget.from_property(prop, self.bricks)
             self.property_widgets.append(pw)
             self.properties_layout.addWidget(pw)
-
 
 
     def recieve_new_internal_name(self):
@@ -154,7 +169,7 @@ class BrickWidget(SquareWidget):
         self.brick_type_le.setText(new_name)
 
 
-    def get_modified_brick(self):
+    def get_modified_bricks(self):
         # Update pos and rot
         self.brick.pos = Vec3(self.pos_x_spin.value(), self.pos_y_spin.value(), self.pos_z_spin.value())
         self.brick.rot = Vec3(self.rot_x_spin.value(), self.rot_y_spin.value(), self.rot_z_spin.value())
