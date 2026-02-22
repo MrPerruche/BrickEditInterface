@@ -30,7 +30,7 @@ class ColorWidget(SquareWidget):
         # Layout containing the color reset button and the copy buttons
         self.color_layout = QHBoxLayout()
         self.master_layout.addLayout(self.color_layout)
-        
+
         # ============================================================
         # Color button
         # ============================================================

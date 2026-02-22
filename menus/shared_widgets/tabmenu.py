@@ -59,6 +59,8 @@ class TabMenu(QWidget):
         # SAVE THE NEW MENU
 
         if isinstance(element, QWidget):
+            if edit_margins:
+                self.setContentsMargins(0, 0, 0, 0)
             self.menus_widgets[key] = element
             self.menus_layouts[key] = self.menus_widgets[key].layout()
 
@@ -92,7 +94,6 @@ class TabMenu(QWidget):
         self.selectors_bg.addButton(selector)
         self.selectors_rbs[key] = selector
         self.selectors_stack.addWidget(self.menus_widgets[key])
-        self.menus_widgets[key].hide()
 
         # FINAL STUFF
         # If this is the first menu, show it
@@ -114,3 +115,7 @@ class TabMenu(QWidget):
 
     def get_widget(self, key):
         return self.menus_widgets[key]
+
+
+    def current_index(self):
+        return self.selectors_stack.currentIndex()

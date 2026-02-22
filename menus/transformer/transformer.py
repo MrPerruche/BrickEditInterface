@@ -91,11 +91,11 @@ class VehicleUpscalerMenu(base.BaseMenu):
     def scale_input_updated(self, mult_has_priority: bool):
         if mult_has_priority:
             self.scale_div_le.blockSignals(True)
-            self.scale_div_le.setText(str(1 / float(self.scale_mult_le.text())))
+            self.scale_div_le.setText(str(1 / float(self.scale_mult_le.get_text())))
             self.scale_div_le.blockSignals(False)
         else:
             self.scale_mult_le.blockSignals(True)
-            self.scale_mult_le.setText(str(1 / float(self.scale_div_le.text())))
+            self.scale_mult_le.setText(str(1 / float(self.scale_div_le.get_text())))
             self.scale_mult_le.blockSignals(False)
 
 
@@ -123,10 +123,10 @@ class VehicleUpscalerMenu(base.BaseMenu):
         # Modify the brv
         brv = deepcopy(self.vehicle_selector.brv)
         
-        off_x = float(self.pos_x_le.text())
-        off_y = float(self.pos_y_le.text())
-        off_z = float(self.pos_z_le.text())
-        scale = float(self.scale_mult_le.text())
+        off_x = float(self.pos_x_le.get_text())
+        off_y = float(self.pos_y_le.get_text())
+        off_z = float(self.pos_z_le.get_text())
+        scale = float(self.scale_mult_le.get_text())
         
         must_offset = (off_x != 0) or (off_y != 0) or (off_z != 0)
         must_scale = scale != 1

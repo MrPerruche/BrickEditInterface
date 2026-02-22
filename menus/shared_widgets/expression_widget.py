@@ -109,11 +109,19 @@ class ExpressionWidget(QWidget):
         self.must_warn_user = must_warn_user
 
         # Build symbols list. Order of sym matters
-        has_custom_x = False
-        for csym in custom_sym:
-            if csym.sym == 'x':
-                has_custom_x = True
-        self.sym = [] if has_custom_x else [ExpressionSymbol('x', lambda: float(self.default), None)]
+        self.sym = []
+        try:  # Add default as x if x isn't defined and its possible
+            default_f = float(self.default)
+            has_custom_x = False
+            if custom_sym is not None:
+                for csym in custom_sym:
+                    if csym.sym == 'x':
+                        has_custom_x = True
+            if not has_custom_x:
+                self.sym.append(ExpressionSymbol('x', lambda: default_f, None))
+        except ValueError:
+            self.sym.append(ExpressionSymbol('x', lambda: 1, None))
+
         if custom_sym is not None:
             self.sym.extend(custom_sym)
         self.sym.extend(DEFAULT_SYMBOLS)
@@ -206,9 +214,11 @@ class ExpressionWidget(QWidget):
             )
 
 
-    def evaluate(self, *args, force: bool = False, extra_sym: list[ExpressionSymbol]) -> str | None:
+    def evaluate(self, *args, force: bool = False, extra_sym: list[ExpressionSymbol] | None = None) -> str | None:
         """Force will evaluate even if it's an expression"""
 
+        if extra_sym is None:
+            extra_sym = []
 
         self.interpreter.symtable.clear()
         self.interpreter.symtable.update({sym.sym: sym.value_getter() for sym in self.sym})

@@ -39,11 +39,11 @@ class EditBrickMenu(base.BaseMenu):
     def on_brv_reload(self):
         brv = self.vehicle_selector.brv
         if brv is None:
-            self.bricks_widget.update_brick_widgets([])
+            self.bricks_widget.update_bricks_widgets([])
             return
 
         matching_bricks = [(i, b) for i, b in enumerate(brv.bricks) if b.get_property(p.BRICK_COLOR) == self.color_selector.color]
-        self.bricks_widget.update_brick_widgets(matching_bricks)
+        self.bricks_widget.update_bricks_widgets(matching_bricks)
 
     def save_changes(self):
         # Create backup
@@ -58,8 +58,9 @@ class EditBrickMenu(base.BaseMenu):
 
         # Get the BRV with modified bricks
         brv = self.vehicle_selector.brv
-        for brick_widget in self.bricks_widget.brick_widgets:
-            brv.bricks[brick_widget.idx] = brick_widget.get_modified_brick()
+        changes = self.bricks_widget.get_modified_bricks()
+        for i, changed in changes:
+            brv.bricks[i] = changed
 
         # Serialize and save
         serialized = try_serialize(brv)

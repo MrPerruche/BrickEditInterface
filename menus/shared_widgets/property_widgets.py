@@ -203,12 +203,10 @@ class UnknownPropertyWidget(PropertyWidget):
 
 
 
-class DynamicPropertyWidget:
+class DynamicPropertyWidget(QWidget):
 
     def __init__(self, name: str, display_name: str, parent=None):
-        super().__init__(parent)
-
-        self.setContentsMargins(0, 0, 0, 0)
+        super().__init__(parent=parent)
 
         self.master_layout = QHBoxLayout(self)
         self.master_layout.setContentsMargins(2, 4, 2, 4)
@@ -229,11 +227,11 @@ class DynamicPropertyWidget:
         raise NotImplementedError
 
     @staticmethod
-    def from_property(prop, value):
+    def from_property(prop):
         
         pmeta = p.pmeta_registry.get(prop)
         if pmeta is None:
-            return UnknownPropertyWidget(prop, value)
+            return UnknownDynamicPropertyWidget(prop)
 
         display_name = prop
 
@@ -322,8 +320,8 @@ class Vec2DynamicPropertyWidget(DynamicPropertyWidget):
 
     def __init__(self, name: str, display_name: str, parent=None):
         super().__init__(name, display_name, parent)
-        self.input_le_x = ExpressionWidget("x", ExpressionType.FLOAT)
-        self.input_le_y = ExpressionWidget("x", ExpressionType.FLOAT)
+        self.input_le_x = ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        self.input_le_y = ExpressionWidget("x", ExpressionType.MATH_EXPR)
         self.values_layout = QHBoxLayout()
         self.values_layout.addWidget(self.input_le_x)
         self.values_layout.addWidget(self.input_le_y)
@@ -351,9 +349,9 @@ class Vec3DynamicPropertyWidget(DynamicPropertyWidget):
 
     def __init__(self, name: str, display_name: str, parent=None):
         super().__init__(name, display_name, parent)
-        self.input_le_x = ExpressionWidget("x", ExpressionType.FLOAT)
-        self.input_le_y = ExpressionWidget("x", ExpressionType.FLOAT)
-        self.input_le_z = ExpressionWidget("x", ExpressionType.FLOAT)
+        self.input_le_x = ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        self.input_le_y = ExpressionWidget("x", ExpressionType.MATH_EXPR)
+        self.input_le_z = ExpressionWidget("x", ExpressionType.MATH_EXPR)
         self.values_layout = QHBoxLayout()
         self.values_layout.addWidget(self.input_le_x)
         self.values_layout.addWidget(self.input_le_y)
@@ -383,11 +381,11 @@ class Vec3DynamicPropertyWidget(DynamicPropertyWidget):
 
 class UnknownDynamicPropertyWidget(DynamicPropertyWidget):
     
-    def __init__(self, name: str, property_display_name: str, default_value: str, parent=None):
-        super().__init__(name, property_display_name, default_value, parent)
+    def __init__(self, name: str, display_name: str, parent=None):
+        super().__init__(name, display_name, parent)
 
         self.input_le = QLineEdit()
-        self.input_le.setText(f"NS: {str(self.default_value)}")
+        self.input_le.setText(f"Not Supported")
         self.input_le.setReadOnly(True)
         self.input_le.setEnabled(False)
         self.master_layout.addWidget(self.input_le, 100)

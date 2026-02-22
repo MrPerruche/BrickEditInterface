@@ -59,10 +59,12 @@ def get_random_color(alpha: bool) -> QColor:
 
 
 def all_equal(iterable, key=lambda x: x):
-    if not iterable:
+    iterator = iter(iterable)
+    try:
+        first = key(next(iterator))
+    except StopIteration:
         return True
-    first = key(next(iterable))
-    return all(first == key(x) for x in iterable)
+    return all(first == key(x) for x in iterator)
 
 
 def get_vehicles_path() -> str | NoReturn:

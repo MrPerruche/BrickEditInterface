@@ -29,8 +29,8 @@ class SquareWidget(QWidget):
 
         # Hard-coded semantic colors
         # Normal is intentionally lighter than the background
-        self._normal_fill = QColor(48, 48, 48, 72)
-        self._normal_border = QColor(48, 48, 48)
+        self._normal_fill = QColor(92, 92, 92, 24)
+        self._normal_border = QColor(56, 56, 56)
 
         self._severe_fill = QColor(192, 24, 36, 72)
         self._severe_border = QColor(192, 24, 36)

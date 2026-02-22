@@ -7,10 +7,11 @@ import resources_rc  # your compiled Qt resources
 from systems.log import setup_logging
 
 from mainwindow import BrickEditInterface
-
+import os
 
 def main():
     setup_logging()
+    os.environ["QT_QPA_PLATFORM"] = "windows:darkmode=2"
 
     app = QApplication(argv)
 
