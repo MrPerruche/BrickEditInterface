@@ -61,7 +61,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.scale_mult_label = QLabel("Multiply by:")
         self.scale_mult_layout.addWidget(self.scale_mult_label, 10)
         self.disabled_if_vehicle_not_loaded.append(self.scale_mult_label)
-        self.scale_mult_le = ExpressionWidget(1, ExpressionType.FLOAT)
+        self.scale_mult_le = ExpressionWidget(1, ExpressionType.DOUBLE)
         self.scale_mult_le.editingFinished.connect(lambda: self.scale_input_updated(True))
         self.scale_mult_layout.addWidget(self.scale_mult_le, 30)
         
@@ -72,7 +72,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.scale_div_label = QLabel("Divide by:")
         self.scale_div_layout.addWidget(self.scale_div_label, 10)
         self.disabled_if_vehicle_not_loaded.append(self.scale_div_label)
-        self.scale_div_le = ExpressionWidget(1, ExpressionType.FLOAT)
+        self.scale_div_le = ExpressionWidget(1, ExpressionType.DOUBLE)
         self.scale_div_le.editingFinished.connect(lambda: self.scale_input_updated(False))
         self.scale_div_layout.addWidget(self.scale_div_le, 30)
         self.disabled_if_vehicle_not_loaded.append(self.scale_div_le)
