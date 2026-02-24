@@ -13,7 +13,7 @@ from PySide6.QtGui import QColor
 
 
 VERSION = "1.2.0"
-DEV_VERSION = True
+DEV_VERSION = False
 
 
 def str_time_since(seconds):
