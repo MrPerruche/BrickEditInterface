@@ -2,8 +2,17 @@ from .expression_widget import ExpressionWidget, ExpressionType,  ExpressionSymb
 
 from custom_validators import *
 
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QWidget, QCheckBox, QComboBox
 from brickedit import p, vec, Brick
+
+
+def _is_true(s: str):
+    s = s.lower().strip()
+    bs = s in ("false", "0")  # Check for things that evaluate true by bool(...) but are actually false
+    if bs:
+        return False
+    return bool(s)
+
 
 
 class PropertyWidget(QWidget):
@@ -41,6 +50,8 @@ class PropertyWidget(QWidget):
         display_name = prop
 
         # TODO: use a registry instead
+        if isinstance(pmeta, type) and issubclass(pmeta, p.BooleanMeta):
+            return BooleanPropertyWidget(prop, display_name, str(value))
         if isinstance(pmeta, type) and issubclass(pmeta, p.TextMeta):
             return TextPropertyWidget(prop, display_name, str(value))
         if isinstance(pmeta, type) and issubclass(pmeta, p.EnumMeta):
@@ -49,13 +60,35 @@ class PropertyWidget(QWidget):
             return FloatPropertyWidget(prop, display_name, str(value))
         if isinstance(pmeta, type) and issubclass(pmeta, p.Vec2Meta):
             return Vec2PropertyWidget(prop, display_name, str(value.as_tuple()))
-        if isinstance(pmeta, type) and issubclass(pmeta, p.BrickSize):
+        if isinstance(pmeta, type) and issubclass(pmeta, (p.BrickSize, p.ExitLocation)):
             return Vec3PropertyWidget(prop, display_name, str(value.as_tuple()))
+        if isinstance(pmeta, type) and issubclass(pmeta, p.NumFractionalDigits):
+            return Integer8PropertyWidget(prop, display_name, str(value))
 
         return UnknownPropertyWidget(prop, display_name, str(value))
 
     def get_dict_pair(self):
         return {self.name: self.get_value()}
+
+
+
+class BooleanPropertyWidget(PropertyWidget):
+
+
+    def __init__(self, name: str, display_name: str, default_value: str, parent=None):
+        super().__init__(name, display_name, default_value, parent)
+        self.input_cb = QCheckBox()
+        self.input_cb.setChecked(_is_true(default_value))
+        self.master_layout.addWidget(self.input_cb)
+
+    def get_text(self):
+        return "True" if self.input_cb.isChecked() else "False"
+
+    def set_value(self, value):
+        self.input_cb.setChecked(_is_true(value))
+
+    def get_value(self):
+        return True if self.input_cb.isChecked() else False
 
 
 class TextPropertyWidget(PropertyWidget):
@@ -172,6 +205,26 @@ class Vec3PropertyWidget(PropertyWidget):
         return vec.Vec3(self.input_le_x.value(), self.input_le_y.value(), self.input_le_z.value())
 
 
+class Integer8PropertyWidget(PropertyWidget):
+
+    def __init__(self, name: str, display_name: str, default_value: str, parent=None):
+        super().__init__(name, display_name, default_value, parent)
+        self.input_le = ExpressionWidget(int(default_value), ExpressionType.INTEGER, clamps=(-128, 127))
+        self.master_layout.addWidget(self.input_le, 100)
+
+    def get_text(self):
+        return self.input_le.get_text()
+
+    def set_value(self, value):
+        self.input_le.setText(str(value))
+
+    def get_value(self):
+        try:
+            return self.input_le.value()
+        except ValueError:
+            return self.default_value
+
+
 class UnknownPropertyWidget(PropertyWidget):
     
     def __init__(self, name: str, property_display_name: str, default_value: str, parent=None):
@@ -236,6 +289,8 @@ class DynamicPropertyWidget(QWidget):
         display_name = prop
 
         # TODO: use a registry instead
+        if isinstance(pmeta, type) and issubclass(pmeta, p.BooleanMeta):
+            return BooleanDynamicPropertyWidget(prop, display_name)
         if isinstance(pmeta, type) and issubclass(pmeta, p.TextMeta):
             return TextDynamicPropertyWidget(prop, display_name)
         if isinstance(pmeta, type) and issubclass(pmeta, p.EnumMeta):
@@ -246,9 +301,37 @@ class DynamicPropertyWidget(QWidget):
             return Vec2DynamicPropertyWidget(prop, display_name)
         if isinstance(pmeta, type) and issubclass(pmeta, p.BrickSize):
             return Vec3DynamicPropertyWidget(prop, display_name)
+        if isinstance(pmeta, type) and issubclass(pmeta, p.NumFractionalDigits):
+            return Integer8DynamicPropertyWidget(prop, display_name)
 
         return UnknownDynamicPropertyWidget(prop, display_name)
 
+
+
+class BooleanDynamicPropertyWidget(DynamicPropertyWidget):
+
+    _OPT_IDX_TO_ACTION = {
+        0: lambda x: x,
+        1: lambda x: not x,
+        2: lambda _: True,
+        3: lambda _: False
+    }
+
+    def __init__(self, name: str, display_name: str, parent=None):
+        super().__init__(name, display_name, parent)
+        self.input_cb = QComboBox()
+        self.input_cb.addItems(["Keep as-is", "Invert", "True (On)", "False (Off)"])
+        self.input_cb.setCurrentIndex(0)
+        self.master_layout.addWidget(self.input_cb, 100)
+
+    def get_text(self):
+        return self.input_cb.currentText()
+
+    def set_value(self, value):
+        self.input_cb.setCurrentIndex(self._OPT_IDX_TO_ACTION.index(value))
+
+    def get_value(self, brick_x: Brick):
+        return self._OPT_IDX_TO_ACTION[self.input_cb.currentIndex()](brick_x.get_property(self.name))
 
 
 class TextDynamicPropertyWidget(DynamicPropertyWidget):
@@ -376,6 +459,35 @@ class Vec3DynamicPropertyWidget(DynamicPropertyWidget):
             self.input_le_y.value([ExpressionSymbol("x", lambda: brick_x.get_property(self.name).y, None)]),
             self.input_le_z.value([ExpressionSymbol("x", lambda: brick_x.get_property(self.name).z, None)])
         )
+
+
+
+class Integer8DynamicPropertyWidget(DynamicPropertyWidget):
+
+    def __init__(self, name: str, display_name: str, parent=None):
+        super().__init__(name, display_name, parent)
+        self.input_le = ExpressionWidget("x", ExpressionType.MATH_EXPR, clamps=(-128, 127))
+        self.master_layout.addWidget(self.input_le, 100)
+
+    def get_text(self):
+        return self.input_le.text()
+
+    def set_value(self, value):
+        self.input_le.setText(str(value))
+
+    def get_value(self, brick_x: Brick):
+        value = self.input_le.value([
+            ExpressionSymbol('x', lambda: brick_x.get_property(self.name), None)
+        ])
+        match value:
+            case float('inf'):
+                return 127
+            case float('-inf'):
+                return -128
+            case float('nan'):
+                return 0
+            case _:
+                return int(value)
 
 
 
