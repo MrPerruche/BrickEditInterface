@@ -21,12 +21,13 @@ class UnknownBrickMeta(bt.BrickMeta):
 
 class BrickWidget(SquareWidget):
 
-    def __init__(self, side_info: str | int, idx: list[int], bricks: list[Brick], parent=None):
+    def __init__(self, side_info: str | int, idx: list[int], bricks: list[Brick], editable_name: bool = True, parent=None):
         super().__init__(parent)
         self.side_info = side_info if isinstance(side_info, str) else str(side_info)
         self.idx = idx
         self.bricks = deepcopy(bricks)
         self.og_bricks = deepcopy(bricks)
+        self.editable_name = editable_name
 
         self.master_layout = QVBoxLayout()  # no parent
         self.setLayout(self.master_layout)  # explicitly assign
@@ -49,7 +50,7 @@ class BrickWidget(SquareWidget):
         
         # Internal name
         self.brick_type_le = QLineEdit()
-        if self.names_equal:
+        if self.names_equal and self.editable_name:
             self.brick_type_le.setText(self.bricks[0].meta().name())
             self.brick_type_le.editingFinished.connect(self.recieve_new_internal_name)
             self.brick_type_le_last_in = self.bricks[0].meta().name()
@@ -166,7 +167,8 @@ class BrickWidget(SquareWidget):
                 brick_meta = UnknownBrickMeta(new_name)
 
         # Now we have a valid meta. We can recreate the brick
-        self.brick = Brick(self.brick.ref, brick_meta, self.brick.pos, self.brick.rot, self.brick.ppatch)
+        for i, brick in enumerate(self.bricks):
+            self.bricks[i] = Brick(brick.ref, brick_meta, brick.pos, brick.rot, brick.ppatch)
         self.brick_type_le_last_in = new_name
         self.brick_type_le.setText(new_name)
 
@@ -320,7 +322,8 @@ class BrickListWidget(SquareWidget):
             bw = BrickWidget(
                 str(len(pairs)),
                 [pair[0] for pair in pairs],
-                [pair[1] for pair in pairs]
+                [pair[1] for pair in pairs],
+                editable_name=False
             )
             self.brick_widgets_per_class.append(bw)
             self.tabs[2].addWidget(bw)
