@@ -1,4 +1,5 @@
 import math
+import numpy as np
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Callable
@@ -13,8 +14,12 @@ class ExpressionType(Enum):
 
     INTEGER = auto()
     FLOAT = auto()
+    DOUBLE = auto()
     MATH_EXPR = auto()
     PYTHON_EXPR = auto()
+
+    def is_py_float(self) -> bool:
+        return self in (ExpressionType.FLOAT, ExpressionType.DOUBLE)
 
     def must_calc_immediately(self) -> bool:
         return self not in (ExpressionType.MATH_EXPR, ExpressionType.PYTHON_EXPR)
@@ -87,6 +92,7 @@ class ExpressionWidget(QWidget):
         custom_sym: list[ExpressionSymbol] | None = None,
         custom_restriction: Callable[[str], bool] | None = None,
         must_warn_user: bool = True,
+        display_round_digits: int = 3,
 
         parent = None
     ):
@@ -102,14 +108,22 @@ class ExpressionWidget(QWidget):
         super().__init__(parent)
 
         # Store basic data
-        self.default = str(default)
         self.expression_type = expression_type
+        self.default: str = str(default)
+        self.full_value: float | int | None = None
+        if self.expression_type.is_py_float():
+            try:
+                self.full_value = float(self.default)
+            except ValueError:
+                self.full_value = None
+
         self.clamps = clamps
         self.custom_restriction = custom_restriction
         self.must_warn_user = must_warn_user
+        self.display_round_digits = display_round_digits
 
         # Build symbols list. Order of sym matters
-        self.sym = []
+        self.sym: list[ExpressionSymbol] = []
         try:  # Add default as x if x isn't defined and its possible
             default_f = float(self.default)
             has_custom_x = False
@@ -130,7 +144,6 @@ class ExpressionWidget(QWidget):
             minimal=True,
             builtins_readonly=True,
             no_import=True,
-            # readonly_symbols=True,
         )
 
 
@@ -143,17 +156,94 @@ class ExpressionWidget(QWidget):
         self.line_edit.setText(self.default)
         self.line_edit.setPlaceholderText(self.default)
         self.line_edit.editingFinished.connect(self.validate_new_input)
+        self.line_edit.focusInEvent = self._focus_in_event
         self.last_valid_line_edit_text = self.default
+        if self.expression_type.is_py_float() and self.full_value is not None:
+            self._display_rounded()
 
         self.master_layout.addWidget(self.line_edit)
 
 
-    def get_text(self):
+    # FOCUS METHODS FOR THE LINE EDIT
+    def _focus_in_event(self, event):
+        QLineEdit.focusInEvent(self.line_edit, event)
+        self._display_full_precision()
+
+    def focusOutEvent(self, event):
+        super().focusOutEvent(event)
+        if self.expression_type.is_py_float() and self.full_value is not None:
+            self._display_rounded()
+
+
+    # DISPLAY METHODS FOR FOCUS IN / OUT
+    def _ulp(self, value: float) -> float:
+        if self.expression_type == ExpressionType.FLOAT:
+            v32 = np.float32(value)
+            return float(np.spacing(v32))
+        else:
+            return math.ulp(value)
+    
+    
+    def _display_full_precision(self):
+        if not self.expression_type.is_py_float():
+            return
+
+        if self.full_value is None:
+            return
+
+        if self.expression_type == ExpressionType.FLOAT:
+            value = float(np.float32(self.full_value))
+            text = f"{value:.8g}"
+        else:
+            text = str(self.full_value)
+
+        # Only update if different
+        if self._get_raw_text() != text:
+            self.line_edit.setText(text)
+
+
+    def _format_float_for_display(self, value: float) -> str:
+        digits = self.display_round_digits
+
+        # Convert to medium precision first
+        if self.expression_type == ExpressionType.FLOAT:
+            medium_value = float(np.float32(value))
+        else:
+            medium_value = value
+
+        rounded = round(medium_value, digits)
+
+        # Compute tolerance based on representable precision
+        tol = 2 * self._ulp(medium_value)
+
+        # If difference is within floating representation error, treat as exact
+        text = f"{rounded:.{digits}f}"
+        if abs(medium_value - rounded) <= tol:
+            text = text.rstrip('0').rstrip('.')
+
+        return text
+
+    def _display_rounded(self):
+        if self.expression_type.is_py_float() and self.full_value is not None:
+            self.line_edit.setText(
+                self._format_float_for_display(self.full_value)
+            )
+
+
+    # GETTERS
+    def _get_raw_text(self):
         return self.line_edit.text()
 
 
+    def get_text(self):
+        if self.expression_type == ExpressionType.FLOAT:
+            return f"{self.full_value}"
+        #else:
+        return self._get_raw_text()
+
+
     def get_value_str(self) -> str:
-        text = self.get_text()
+        text = self._get_raw_text()
         if text == '':
             text = self.default
         for old_expr, new_expr in REPLACEMENT_TABLE:
@@ -170,12 +260,11 @@ class ExpressionWidget(QWidget):
             if not self.expression_type == ExpressionType.PYTHON_EXPR:
                 value = float(value)
 
-        else:
-            value = self.get_value_str()
-            if self.expression_type == ExpressionType.INTEGER:
-                value = int(value)
-            elif self.expression_type == ExpressionType.FLOAT:
-                value = float(value)
+        elif self.expression_type.is_py_float():
+            value = float(self.full_value)
+
+        else:  # self.expression_type == ExpressionType.INTEGER
+            value = int(self.get_value_str())
 
         return value
 
@@ -194,10 +283,21 @@ class ExpressionWidget(QWidget):
         try:
             result = self.evaluate()
             if result is not None:
-                # Update contents because it may be calculated or reformatted
-                self.line_edit.setText(result)
-                self.last_valid_line_edit_text = result
-                self.editingFinished.emit(result)
+
+                if self.expression_type.is_py_float():
+                    numeric = float(result)
+                    self.full_value = numeric
+
+                    self._display_rounded()
+
+                    self.last_valid_line_edit_text = self._get_raw_text()
+                    self.editingFinished.emit(str(numeric))
+
+                else:
+                    self.line_edit.setText(result)
+                    self.last_valid_line_edit_text = result
+                    self.editingFinished.emit(result)
+
                 return
 
             # Return to not trigger the fail logic

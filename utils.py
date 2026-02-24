@@ -53,7 +53,7 @@ def get_random_color(alpha: bool) -> QColor:
     s = uniform(0.5, 1)
     v = uniform(0.2, 0.9)
     if alpha:
-        return QColor.fromHsvF(h, s, v, uniform(0.6, 1))
+        return QColor.fromHsvF(h, s, v, uniform(0.85, 1))
     else:
         return QColor.fromHsvF(h, s, v, 1)
 
