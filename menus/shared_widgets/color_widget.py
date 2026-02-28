@@ -112,7 +112,7 @@ class ColorWidget(SquareWidget):
             )
         )
 
-        self.ue_copy_label = QLabel("FColorBrickProperty(...)")
+        self.ue_copy_label = QLabel("FColorBrickProperty=(...)")
 
         self.ue_copy_layout.addWidget(self.ue_copy_button)
         self.ue_copy_layout.addWidget(self.ue_copy_label)

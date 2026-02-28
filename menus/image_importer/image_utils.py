@@ -35,7 +35,7 @@ def image_bitmask(img: Image) -> list[tuple[tuple, list[int]]]:
 
 def rgba255_to_oklaba(r, g, b, a = 255):
     
-    # Convert to 0–1 range
+    # Convert to 0 - 1 range
     c = Color("srgb", [r / 255, g / 255, b / 255], alpha=a / 255)
 
     # Convert to OKLab
