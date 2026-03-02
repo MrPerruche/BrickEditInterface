@@ -12,8 +12,8 @@ from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor
 
 
-VERSION = "1.3.0"
-DEV_VERSION = True
+VERSION = "1.2.1"
+DEV_VERSION = False
 
 
 def str_time_since(seconds):
