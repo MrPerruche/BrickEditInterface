@@ -61,7 +61,8 @@ class PropertyWidget(QWidget):
         if isinstance(pmeta, type) and issubclass(pmeta, p.Vec2Meta):
             return Vec2PropertyWidget(prop, display_name, str(value.as_tuple()))
         if isinstance(pmeta, type) and issubclass(pmeta, (p.BrickSize, p.ExitLocation)):
-            return Vec3PropertyWidget(prop, display_name, str(value.as_tuple()))
+            if value is not None:
+                return Vec3PropertyWidget(prop, display_name, str(value.as_tuple()))
         if isinstance(pmeta, type) and issubclass(pmeta, p.NumFractionalDigits):
             return Integer8PropertyWidget(prop, display_name, str(value))
 
