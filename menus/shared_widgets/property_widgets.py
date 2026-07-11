@@ -50,27 +50,20 @@ class PropertyWidget(QWidget):
         display_name = prop
 
         # TODO: use a registry instead
-        if isinstance(pmeta, type) and issubclass(pmeta, p.BooleanMeta):
-            if value is not None:
-                return BooleanPropertyWidget(prop, display_name, str(value))
-        if isinstance(pmeta, type) and issubclass(pmeta, p.TextMeta):
-            if value is not None:
-                return TextPropertyWidget(prop, display_name, str(value))
-        if isinstance(pmeta, type) and issubclass(pmeta, p.EnumMeta):
-            if value is not None:
-                return AsciiPropertyWidget(prop, display_name, str(value))
-        if isinstance(pmeta, type) and issubclass(pmeta, p.Float32Meta):
-            if value is not None:
-                return FloatPropertyWidget(prop, display_name, str(value))
-        if isinstance(pmeta, type) and issubclass(pmeta, p.Vec2Meta):
-            if value is not None:
-                return Vec2PropertyWidget(prop, display_name, str(value.as_tuple()))
-        if isinstance(pmeta, type) and issubclass(pmeta, (p.BrickSize, p.ExitLocation)):
-            if value is not None:
-                return Vec3PropertyWidget(prop, display_name, str(value.as_tuple()))
-        if isinstance(pmeta, type) and issubclass(pmeta, p.NumFractionalDigits):
-            if value is not None:
-                return Integer8PropertyWidget(prop, display_name, str(value))
+        if isinstance(pmeta, type) and issubclass(pmeta, p.BooleanMeta) and value is not None:
+            return BooleanPropertyWidget(prop, display_name, str(value))
+        if isinstance(pmeta, type) and issubclass(pmeta, p.TextMeta) and value is not None:
+            return TextPropertyWidget(prop, display_name, str(value))
+        if isinstance(pmeta, type) and issubclass(pmeta, p.EnumMeta) and value is not None:
+            return AsciiPropertyWidget(prop, display_name, str(value))
+        if isinstance(pmeta, type) and issubclass(pmeta, p.Float32Meta) and value is not None:
+            return FloatPropertyWidget(prop, display_name, str(value))
+        if isinstance(pmeta, type) and issubclass(pmeta, p.Vec2Meta) and value is not None:
+            return Vec2PropertyWidget(prop, display_name, str(value.as_tuple()))
+        if isinstance(pmeta, type) and issubclass(pmeta, (p.BrickSize, p.ExitLocation)) and value is not None:
+            return Vec3PropertyWidget(prop, display_name, str(value.as_tuple()))
+        if isinstance(pmeta, type) and issubclass(pmeta, p.NumFractionalDigits) and value is not None:
+            return Integer8PropertyWidget(prop, display_name, str(value))
 
         return UnknownPropertyWidget(prop, display_name, str(value))
 
