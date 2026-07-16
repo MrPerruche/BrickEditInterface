@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor
 
 
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 DEV_VERSION = False
 
 
@@ -126,9 +126,9 @@ def max_float32_for_tolerance(tol: float) -> float:
 
 
 
-def try_serialize(brv: BRVFile) -> bytearray | None:
+def try_serialize(brv: BRVFile, allow_unknown: bool = True) -> bytearray | None:
     try:
-        return brv.serialize()
+        return brv.serialize(allow_unknown=allow_unknown)
 
     # Message box in case of bugs
     except PermissionError as e:

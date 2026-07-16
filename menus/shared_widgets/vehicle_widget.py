@@ -186,7 +186,7 @@ class VehicleWidget(SquareWidget):
                 # Load
             
                 brv = BRVFile(version)
-                brv.deserialize(file)
+                brv.deserialize(file, allow_unknown=True)
 
             # Oh no, something went wrong
             except BrickError as e:

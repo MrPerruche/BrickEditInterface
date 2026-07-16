@@ -10,13 +10,6 @@ from brickedit import *
 from utils import all_equal, clear_layout
 
 from copy import deepcopy
-from enum import Enum
-
-
-class UnknownBrickMeta(bt.BrickMeta):
-    def base_properties(self):
-        return {}  # Not even base default properties, we do now know what we're dealing with.
-
 
 
 class BrickWidget(SquareWidget):
@@ -164,7 +157,7 @@ class BrickWidget(SquareWidget):
                 return
             # Create a new brick type
             else:
-                brick_meta = UnknownBrickMeta(new_name)
+                brick_meta = bt.UnknownBrickMeta(new_name)
 
         # Now we have a valid meta. We can recreate the brick
         for i, brick in enumerate(self.bricks):
