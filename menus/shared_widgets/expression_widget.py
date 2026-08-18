@@ -32,10 +32,15 @@ class ExpressionSymbol:
     user_desc: str | None
 
 
-def safe_fact(n):
+def safe_fact(n: int):
     if n > 1000:
         return math.nan
     return math.factorial(n)
+
+def input_scale(size_x: float, size_y: float, newtons: float) -> float:
+    print(mainwindow.findChildren(Vec3PropertyWidget))
+    return (9 * newtons) / (2000 * size_x * size_y)
+
 
 
 DEFAULT_SYMBOLS: list[ExpressionSymbol] = [
@@ -48,18 +53,36 @@ DEFAULT_SYMBOLS: list[ExpressionSymbol] = [
     ExpressionSymbol("log10", lambda: math.log10, None),
     # Other
     ExpressionSymbol("fact", lambda: math.factorial, None),
+    ExpressionSymbol("min", lambda: min, None),
+    ExpressionSymbol("max", lambda: max, None),
+    ExpressionSymbol("clamp", lambda: lambda x, minv, maxv: max(minv, min(x, maxv)) , None),
+    # Exponents
     ExpressionSymbol("exp", lambda: math.exp, None),
+    ExpressionSymbol("pow", lambda: lambda x, y: x ** y, None),
     # Trigonometry
     ExpressionSymbol("sin", lambda: math.sin, None),
     ExpressionSymbol("cos", lambda: math.cos, None),
     ExpressionSymbol("tan", lambda: math.tan, None),
+    ExpressionSymbol("csc", lambda: lambda x: 1.0 / math.sin(x), None),
+    ExpressionSymbol("sec", lambda: lambda x: 1.0 / math.cos(x), None),
+    ExpressionSymbol("cot", lambda: lambda x: 1.0 / math.tan(x), None),
     ExpressionSymbol("asin", lambda: math.asin, None),
-    ExpressionSymbol("asinh", lambda: math.asinh, None),
     ExpressionSymbol("acos", lambda: math.acos, None),
-    ExpressionSymbol("acosh", lambda: math.acosh, None),
     ExpressionSymbol("atan", lambda: math.atan, None),
     ExpressionSymbol("atan2", lambda: math.atan2, None),
+    ExpressionSymbol("acsc", lambda: lambda x: math.asin(1.0 / x), None),
+    ExpressionSymbol("asec", lambda: lambda x: math.acos(1.0 / x), None),
+    ExpressionSymbol("acot", lambda: lambda x: math.atan(1.0 / x), None),
+    # Hyperbolic
+    ExpressionSymbol("sinh", lambda: math.sinh, None),
+    ExpressionSymbol("cosh", lambda: math.cosh, None),
+    ExpressionSymbol("tanh", lambda: math.tanh, None),
+    ExpressionSymbol("asinh", lambda: math.asinh, None),
+    ExpressionSymbol("acosh", lambda: math.acosh, None),
     ExpressionSymbol("atanh", lambda: math.atanh, None),
+    ExpressionSymbol("acsch", lambda: lambda x: math.asinh(1.0 / x), None),
+    ExpressionSymbol("asech", lambda: lambda x: math.acosh(1.0 / x), None),
+    ExpressionSymbol("acoth", lambda: lambda x: math.atanh(1.0 / x), None),
     # Numbers
     ExpressionSymbol("inf", lambda: math.inf, None),
     ExpressionSymbol("nan", lambda: math.nan, None),
@@ -72,6 +95,8 @@ DEFAULT_SYMBOLS: list[ExpressionSymbol] = [
     ExpressionSymbol("floor", lambda: math.floor, None),
     ExpressionSymbol("sign", lambda: lambda x: (1 if x > 0 else -1 if x < 0 else 0), None),
     ExpressionSymbol("nextafter", lambda: math.nextafter, None),
+    # Conversions
+    ExpressionSymbol("input_scale", lambda: input_scale, None)
 ]
 
 REPLACEMENT_TABLE: list[tuple[str, str]] = [
