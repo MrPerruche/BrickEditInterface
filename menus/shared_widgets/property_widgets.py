@@ -234,7 +234,6 @@ class UnknownPropertyWidget(PropertyWidget):
 
         self.input_le = QLineEdit()
         self.input_le.setText(f"NS: {str(self.default_value)}")
-        self.input_le.setReadOnly(True)
         self.input_le.setEnabled(False)
         self.master_layout.addWidget(self.input_le, 100)
 
