@@ -80,12 +80,13 @@ class ColorFilter(BaseFilter):
 
     def is_allowed(self, brick) -> FilterResult:
         col_tuple = self.color.red(), self.color.green(), self.color.blue(), self.color.alpha()
+        col_num = col_tuple[0] << 24 | col_tuple[1] << 16 | col_tuple[2] << 8 | col_tuple[3]
         try:
             col_brick = brick.get_property(brickedit.p.BRICK_COLOR)
         except brickedit.BrickError:
             return self.mode.filter_did_not_match()
 
-        if col_tuple == col_brick:
+        if col_num == col_brick:
             return self.mode.filter_matched()
         #else:
         return self.mode.filter_did_not_match()

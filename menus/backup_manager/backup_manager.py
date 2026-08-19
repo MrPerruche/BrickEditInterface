@@ -12,7 +12,7 @@ from menus import base
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Surface, SurfaceStyle, Slider, LineEdit, ToolButton
 from ui.models import TooltipContents
 
-from utils import repr_file_size, dir_size, get_vehicles_path, clear_layout
+from utils import repr_file_size, dir_size, get_vehicles_path, wipe_layout
 from menus.backup_manager.widgets.backup_entry import BackupEntry
 
 from typing import TYPE_CHECKING
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class SettingsAndBackupsMenu(base.BaseMenu):
 
     MAX_BACKUP_COUNT = 20
-    MAX_BACKUP_SIZE_KB = 32728
+    MAX_BACKUP_SIZE_KB = 32768
     BACKUP_SIZE_STEP_KB = 256
 
     def __init__(self, mw: 'BrickEditInterface'):
@@ -36,7 +36,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         # Warning
         self.warning_widget = Surface(surface_style=SurfaceStyle.ACCENT)
         self.warning_widget_layout = self.warning_widget.layout()
-        self.warning_widget_label = Label("BrickEdit-Interface backups are here to help you experiement with your creations and recover from mistakes made using this software.\nDeleting a vehicle will also delete its backups.")
+        self.warning_widget_label = Label("BrickEdit-Interface backups are here to help you experiment with your creations and recover from mistakes made using this software.\nDeleting a vehicle will also delete its backups.")
         self.warning_widget_layout.addWidget(self.warning_widget_label)
         self.master_layout.addWidget(self.warning_widget)
 
@@ -191,7 +191,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
     def update_backup_recovery_entries(self):
         # Make sure it is a blank slate
-        clear_layout(self.backup_entries_layout)
+        wipe_layout(self.backup_entries_layout)
 
         # MANUAL USER INPUTS
         # Label

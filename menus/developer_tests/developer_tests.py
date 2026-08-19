@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel
 from PySide6.QtGui import QIcon, QRegularExpressionValidator
 
-from ui.widgets import Label, Button, Slider, ComboBox, LineEdit, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle, Switcher
+from ui.widgets import Label, Button, Slider, ComboBox, LineEdit, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle, Switcher, SwitcherEntry
+from ui.dialogs import CorruptStateDialog
 import ui.theme as theme
 from ui.models import TooltipContents
 
@@ -18,6 +19,7 @@ class DeveloperTestMenu(base.BaseMenu):
 
 
         layout1 = QVBoxLayout()
+        layout1.setContentsMargins(0, 0, 0, 0)
 
         nce11 = NumberChannelEdit()
         nce11.set_placeholder("Float 32, no clamps")
@@ -38,8 +40,9 @@ class DeveloperTestMenu(base.BaseMenu):
         nce14.set_placeholder("Int, [-128, 127]")
         layout1.addWidget(nce14)
 
-        switcher11 = Switcher(["First", "Second", "Third", "Fourth", "Last"])
-        layout1.addWidget(switcher11)
+        button11 = Button("Open Corrupt State Dialog")
+        button11.clicked.connect(self.button11_clicked)
+        layout1.addWidget(button11)
 
         layout1.addStretch()
 
@@ -47,7 +50,8 @@ class DeveloperTestMenu(base.BaseMenu):
         # --------------------- LAYOUT 2 ----------------------
 
         layout2 = QVBoxLayout()
-        label21 = Label("Hello, World")
+        layout2.setContentsMargins(0, 0, 0, 0)
+        label21 = Label("Hello, World ☆")
         layout2.addWidget(label21)
         label22 = Label("Hello, World 2")
         label22.set_tooltip(TooltipContents("hello", "world world world world"))
@@ -86,13 +90,17 @@ class DeveloperTestMenu(base.BaseMenu):
 
         layout2.addStretch()
 
-        self.tab_menu = TabMenu()
-        self.tab_menu.add_menu(0, "Hello", layout1)
-        self.tab_menu.add_menu(1, "World", layout2)
-        self.master_layout.addWidget(self.tab_menu)
+        self.switcher = Switcher([
+            SwitcherEntry("Layout 1", layout=layout1),
+            SwitcherEntry("Layout 2", layout=layout2)
+        ])
+        self.master_layout.addWidget(self.switcher)
 
 
         self.master_layout.addStretch()
+
+    def button11_clicked(self):
+        CorruptStateDialog.create(None).exec(blocking=False)
 
     def button21_clicked(self):
         self.theme_idx = (self.theme_idx + 1) % len(self.themes)

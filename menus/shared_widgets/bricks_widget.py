@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLi
 from PySide6.QtGui import QIcon
 from brickedit import *
 
-from utils import all_equal, clear_layout
+from utils import all_equal, wipe_layout
 
 from copy import deepcopy
 
@@ -34,7 +34,7 @@ class BrickWidget(SquareWidget):
         # Internal name and reset button
         # ==============================
 
-        clear_layout(self.master_layout)
+        wipe_layout(self.master_layout)
         self.top_layout = QHBoxLayout()
         
         # Assert all internal names are equal
@@ -245,7 +245,7 @@ class BrickListWidget(SquareWidget):
 
     def update_individual_widgets(self, bricks: list[tuple[int, Brick]]):
         self.brick_widgets_individual = []
-        clear_layout(self.tabs[0])
+        wipe_layout(self.tabs[0])
 
         # Quick check if none
         if not bricks:
@@ -263,7 +263,7 @@ class BrickListWidget(SquareWidget):
 
     def update_per_type_widgets(self, bricks: list[tuple[int, Brick]]):
         self.brick_widgets_per_type = []
-        clear_layout(self.tabs[1])
+        wipe_layout(self.tabs[1])
         type_to_pairs: dict[str, Any] = {}
 
         # Quick check if none
@@ -294,7 +294,7 @@ class BrickListWidget(SquareWidget):
 
     def update_per_class_widgets(self, bricks: list[tuple[int, Brick]]):
         self.brick_widgets_per_class = []
-        clear_layout(self.tabs[2])
+        wipe_layout(self.tabs[2])
         class_to_pairs: dict[type, Any] = {}
 
         # Quick check if none

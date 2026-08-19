@@ -36,8 +36,6 @@ class ToolButton(Widget):
         self.tint_icon = tint_icon
         self.muted = muted
         self.enabled = True
-        if icon:
-            self.set_icon(icon)
         self.set_button_size(26)
         
         register_has_theme_and_apply(self)
@@ -47,7 +45,7 @@ class ToolButton(Widget):
             self.qt_widget.setIcon(QIcon())
         else:
             self.og_icon = icon
-            register_has_theme_and_apply(self)
+            reapply_theme(self)
 
     def set_icon_from_theme(self, *names: str):
         for name in names:
@@ -78,6 +76,16 @@ class ToolButton(Widget):
             reapply_theme(self)
 
 
+    def set_checkable(self, checkable: bool):
+        self.qt_widget.setCheckable(checkable)
+
+    def set_checked(self, checked: bool):
+        self.qt_widget.setChecked(checked)
+
+    def is_checked(self) -> bool:
+        return self.qt_widget.isChecked()
+
+
     def _apply_theme(self, theme: Theme):
     
         self.setStyleSheet(f"""
@@ -104,6 +112,7 @@ class ToolButton(Widget):
 
         QToolButton:checked {{
             background-color: {theme.accent.color};
+            border-color: {theme.accent_border.color};
         }}
 
         QToolButton:disabled {{

@@ -211,7 +211,7 @@ class VehicleSelectionDrawer(Widget):
         self.loaded_brvfile_data = VehicleData(brvfile)
 
 
-    def save_brv(self, brv: brickedit.BRVFile | bytearray, warn_if_fail: bool = True) -> bool:
+    def save_brv(self, brv: brickedit.BRVFile | bytearray, warn_if_fail: bool = True, description: str | None = None) -> bool:
         # First, serialize
         try:
             if isinstance(brv, brickedit.BRVFile):
@@ -221,8 +221,15 @@ class VehicleSelectionDrawer(Widget):
 
             # Make missing dirs
             os.makedirs(os.path.dirname(self.loaded_vehicle_path), exist_ok=True)
+
+            # Make backup
+            if description is not None:
+                self.mw.backups.full_backup_procedure(self.loaded_vehicle_path, description)
+            else:
+                self.mw.backups.full_backup_procedure(self.loaded_vehicle_path)
+
             # Then save
-            with open(self.loaded_vehicle_path, 'wb') as f:
+            with open(os.path.join(self.loaded_vehicle_path, 'Vehicle.brv'), 'wb') as f:
                 f.write(brv)
 
             return True

@@ -297,7 +297,7 @@ BR_VIOLET = Theme(name="br_violet", display_name="BR Violet theme", is_highcontr
     danger_border=ThemeColor("#ac191eff")
 )
 
-DEV_TEST = Theme(name="dev", display_name="Developer test", is_highcontrast=False,
+DEV_TEST = Theme(name="dev", display_name="Debug theme", is_highcontrast=False,
     background=ThemeColor("#000040ff"),
     sidebar=ThemeColor("#000080ff"),
     surface=ThemeColor("#8080ff30"),
@@ -366,3 +366,6 @@ def register_has_theme_and_apply(target: SupportsTheme, theme_manager: Theme = t
     """Registers anything which supports themes """
     theme_manager.theme_changed.connect(target._apply_theme)
     target._apply_theme(theme_manager.current())
+
+def unregister(target: SupportsTheme, theme_manager: Theme = theme_manager):
+    theme_manager.theme_changed.disconnect(target._apply_theme)

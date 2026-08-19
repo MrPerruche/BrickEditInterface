@@ -34,6 +34,10 @@ class Sentinel:
         return f"<{self.name}>"
 
 
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
+
+
 def str_time_since(seconds):
     MINUTE, HOUR, DAY, MONTH, YEAR = 60, 60 * 60, 24 * 60 * 60, 30 * 24 * 60 * 60, 365 * 24 * 60 * 60
     if seconds < MINUTE:
@@ -137,14 +141,19 @@ def repr_file_size(size_bytes: int, digits: int = 2, unit_change_threshold: int 
         return f"{round(size_bytes, digits)} {size_names[i]}"
 
 
-def clear_layout(layout):
+def wipe_layout(layout, delete_widgets: bool = True):
     while layout.count():
         item = layout.takeAt(0)
-        if item.widget():
-            item.widget().setParent(None)
-        elif item.layout():
-            clear_layout(item.layout())
-
+        widget = item.widget()
+        if widget:
+            if delete_widgets:
+                widget.deleteLater()
+            else:
+                widget.hide()
+        else:
+            child_layout = item.layout()
+            if child_layout:
+                wipe_layout(child_layout, delete_widgets)
 
 
 def max_float32_for_tolerance(tol: float) -> float:
@@ -280,32 +289,38 @@ def oklch_to_oklab(L, C, h):
     b = C * math.sin(rad)
     return (L, a, b)
 
+
+
+_tint_cache: dict[tuple[int, str, int, int], QIcon] = {}
+
 def tint_icon(icon: QIcon, color: str, size: tuple[int, int] | None = None) -> QIcon:
-    """Color format: '#RRGGBB' or '#RRGGBBAA'."""
     if size is None:
-        idx_max = -1
-        current_max = 0
-        for idx, size in enumerate(icon.availableSizes()):
-            if size.width() > current_max:
-                current_max = size.width()
-                idx_max = idx
-        if idx_max != -1:  # Some icons can rarely have no available sizes
-            size_x, size_y = icon.availableSizes()[idx_max].width(), icon.availableSizes()[idx_max].height()
-        else:
-            size_x, size_y = 128, 128
+        idx_max, current_max = -1, 0
+        for idx, s in enumerate(icon.availableSizes()):
+            if s.width() > current_max:
+                current_max, idx_max = s.width(), idx
+        size_x, size_y = (icon.availableSizes()[idx_max].width(), icon.availableSizes()[idx_max].height()) if idx_max != -1 else (64, 64)
     else:
         size_x, size_y = size, size
+
+    key = (icon.cacheKey(), color, size_x, size_y)
+    cached = _tint_cache.get(key)
+    if cached is not None:
+        return cached
+
     pixmap = icon.pixmap(size_x, size_y)
     out = QPixmap(size_x, size_y)
     out.fill(Qt.transparent)
-
     painter = QPainter(out)
     painter.drawPixmap(0, 0, pixmap)
     painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
     painter.fillRect(out.rect(), QColor(color))
     painter.end()
 
-    return QIcon(out)
+    result = QIcon(out)
+    _tint_cache[key] = result
+    return result
+
 
 
 def stack_color(bottom: QColor, top: QColor) -> QColor:

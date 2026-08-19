@@ -8,6 +8,6 @@ from .label import Label, LabelStyle, StyledLabel
 from .line_edit import LineEdit
 from .number_channel import NumberChannelEdit, ChannelMode, ChannelModel, ChannelValidator, FormulaChannelEdit, FormulaChannelModel, FormulaChannelValidator
 from .tool_button import ToolButton
-from .switcher import Switcher
+from .switcher import Switcher, SwitcherEntry
 from .surface import Surface, SurfaceStyle, SurfaceRole, SurfaceState
 from .slider import Slider

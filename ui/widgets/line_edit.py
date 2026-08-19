@@ -96,6 +96,10 @@ class LineEdit(Widget):
         repolish(self.qt_widget)
 
 
+    def set_enabled(self, enabled: bool):
+        self.qt_widget.setEnabled(enabled)
+
+
 
     def select_all(self):
         self.qt_widget.selectAll()

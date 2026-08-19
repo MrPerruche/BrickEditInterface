@@ -8,7 +8,7 @@ from ui.widgets import Widget, Surface, Button, Label
 from ui.components.brick_filter.filter_selector import FilterSelector
 from ui.components.brick_filter.filters import FilterMode, FilterResult, BaseFilter, ColorFilter
 
-from utils import clear_layout
+from utils import wipe_layout
 
 import brickedit
 
@@ -72,7 +72,7 @@ class BrickSelector(Widget):
 
     def set_filters(self, filters: list[BaseFilter]):
         self.filters = filters
-        clear_layout(self.filters_layout)
+        wipe_layout(self.filters_layout)
 
         if filters:
             self.no_filters_label.hide()
@@ -146,8 +146,13 @@ class BrickSelector(Widget):
         return matches_one_filter and not has_been_vetoed
 
 
+    def get_frozen_properties(self) -> set[str]:
+        return {brickedit.p.BRICK_COLOR} if any([isinstance(f, ColorFilter) for f in self.filters]) else set()
+
+
     def is_property_editable(self, property_name: str) -> bool:
-        return not (property_name == brickedit.p.BRICK_COLOR and any([isinstance(f, ColorFilter) for f in self.filters]))
+        return property_name in self.get_frozen_properties()
+        # return not (property_name == brickedit.p.BRICK_COLOR and any([isinstance(f, ColorFilter) for f in self.filters]))
 
 
     def open_filter_selector(self):

@@ -1,13 +1,16 @@
-from PySide6.QtWidgets import QPushButton, QMessageBox
 from PySide6.QtGui import QIcon
-from os import path, makedirs
 
 from menus import base
 
+from ui.dialogs import VehicleLoadingIssueDialog
+from ui.widgets import Button
 from ui.components import BrickSelector, VehicleBricksEditor
 
 from brickedit import *
-from utils import try_serialize
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class EditBrickMenu(base.BaseMenu):
@@ -28,7 +31,8 @@ class EditBrickMenu(base.BaseMenu):
         self.vbe = VehicleBricksEditor(mw, self.brick_selector)
         self.master_layout.addWidget(self.vbe)
 
-        self.save_button = QPushButton("Save changes")
+        self.save_button = Button("Save changes")
+        self.save_button.clicked.connect(self.save_changes)
         self.master_layout.addWidget(self.save_button)
 
         self.master_layout.addStretch()
@@ -38,6 +42,14 @@ class EditBrickMenu(base.BaseMenu):
 
     def get_icon(self) -> base.MenuIconInfo:
         return base.MenuIconInfo(QIcon(":/assets/icons/BrickEditorIcon.png"), True)
+
+    def save_changes(self):
+        if not self.main_window.vehicle_selector_banner.is_vehicle_loaded():
+            VehicleLoadingIssueDialog.create(True).exec()
+            return
+        logger.info("Saving changes in Brick Editor...")
+        self.vbe.build_modified_brvfile(True, {'description': f"Modified using the {self.get_menu_name()}."})
+        logger.info("Saving changes in Brick Editor complete")
 
     # def on_brv_reload(self):
     #     brv = self.vehicle_selector.brv

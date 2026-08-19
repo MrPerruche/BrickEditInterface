@@ -73,7 +73,7 @@ class BackupEntry(Surface):
         self.info_layout = QVBoxLayout()
         self.dt_text_label = Label(backup_dt_text, font_weight=1000)
         self.info_layout.addWidget(self.dt_text_label)
-        self.info_and_buttons_layout.addLayout(self.info_layout)
+        self.info_and_buttons_layout.addLayout(self.info_layout, stretch=1)
 
         # Buttons layout
         self.buttons_layout = QHBoxLayout()

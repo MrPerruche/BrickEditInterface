@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt
 from .square_widget import SquareWidget
 from .color_selector import ColorSelectorWidget
 
-from utils import clear_layout
+from utils import wipe_layout
 
 
 
@@ -73,7 +73,7 @@ class MultiColorSelectorWidget(SquareWidget):
 
 
     def rebuild_elements_layout(self):
-        clear_layout(self.scroll_layout)
+        wipe_layout(self.scroll_layout)
 
         for i, widget in enumerate(self.color_widgets):
             is_first = i == 0

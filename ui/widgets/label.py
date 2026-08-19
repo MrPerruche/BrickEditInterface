@@ -191,8 +191,8 @@ class Label(Widget):
 
         self.qt_widget.setProperty('muted', self.is_muted)
 
-        if self.info_icon is None:
-            self.info_icon = QIcon(':/assets/icons/Information.png')
+        if Label.info_icon is None:
+            Label.info_icon = QIcon(':/assets/icons/Information.png')
 
         register_has_theme_and_apply(self)
 

@@ -236,7 +236,7 @@ class ChannelModel:
         self.minimum = minimum
         self.maximum = maximum
 
-        self._aeval = Interpreter(minimal=True)
+        self._aeval = Interpreter(minimal=True, with_ifexp=True)
         self._aeval.symtable.update(pi=math.pi, e=math.e, inf=math.inf, nan=math.nan)
         self._aeval.symtable.update(_global_defines)
         # Names that survive reset() - the built-ins above, plus anything

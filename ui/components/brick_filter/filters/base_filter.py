@@ -35,7 +35,6 @@ class FilterMode(Enum):
             FilterMode.MUST_NOT: ("Must not", "must not"),
         }[self]
 
-    @staticmethod
     def filter_matched(self) -> FilterResult:
         # If positive, then matching allows
         if self in (FilterMode.SHOULD, FilterMode.MUST):
@@ -43,7 +42,6 @@ class FilterMode(Enum):
         # If of type should then tolerate, else veto
         return FilterResult.IGNORE if self == FilterMode.SHOULD_NOT else FilterResult.VETOED
 
-    @staticmethod
     def filter_did_not_match(self) -> FilterResult:
         # If negative, then matching allows
         if self in (FilterMode.SHOULD_NOT, FilterMode.MUST_NOT):

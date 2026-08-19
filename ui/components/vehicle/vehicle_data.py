@@ -3,12 +3,13 @@ import brickedit
 
 BEI_GROUP_ID_PREFIX = 'bei#'
 GROUP_ID_LEN_LIMIT = 100
+FORBIDDEN_PREFIX = "*"  # Symbol for non user defined groups. User defined groups cannot start with this letter
 assert GROUP_ID_LEN_LIMIT >= 13
 
 
 def get_group_id(raw_str: str) -> str | None:
     """Turns a raw input into the group id OR None if there is no bei group id """
-    raw_str = raw_str.strip()
+    raw_str = raw_str.strip().rstrip('')
     if not raw_str.startswith(BEI_GROUP_ID_PREFIX):
         return None
 
