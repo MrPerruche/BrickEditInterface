@@ -1,9 +1,11 @@
+from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtGui import QIcon
 
 from menus import base
 
 from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle
 from ui.dialogs import VehicleLoadingIssueDialog
+from ui.models import TooltipContents
 
 from brickedit import *
 
@@ -35,6 +37,10 @@ class DowngradeVehicleMenu(base.BaseMenu):
         for version in self.supported_versions:
             self.to_version.add_item(version)
         self.to_version.item_changed.connect(self.update_can_downgrade)
+        self.to_version.item_changed.connect(self.update_downgrade_preferences)
+
+        self.downgrade_preferences_layout = QVBoxLayout()
+        self.master_layout.addLayout(self.downgrade_preferences_layout)
 
         self.downgrade_button = Button("Downgrade vehicle")
         self.downgrade_button.clicked.connect(self.downgrade_vehicle)
@@ -43,7 +49,27 @@ class DowngradeVehicleMenu(base.BaseMenu):
 
         self.disabled_if_vehicle_not_loaded = [self.downgrade_button]
 
-        self.main_window.vehicle_selector_banner.vehicle_loaded.connect(self.on_reload)
+        self.main_window.vehicle_selector_banner.vehicle_loaded.connect(self.on_reloaded)
+
+
+        # greater operation handling
+        self.greater_handling_label = StyledLabel("GREATER HANDLING", style=LabelStyle.SUBTEXT_1)
+        self.downgrade_preferences_layout.addWidget(self.greater_handling_label)
+        self.greater_handling_label.setVisible(False)
+
+        self.greater_handling = ComboBox()
+        self.downgrade_preferences_layout.addWidget(self.greater_handling)
+        self.greater_handling.setVisible(False)
+
+        self.greater_options = ("Set to Greater (Recommended)", "Set to Greater and change color")
+        for option in self.greater_options:
+            self.greater_handling.add_item(option)
+        self.greater_handling.set_tooltip(TooltipContents(text='Greater handling', description="""How 'Greater equal' math bricks get handled.
+        The 'Greater' operation was tweaked in 1.11, which results in it not having a true equal operation in 1.10. You can use this option to set how the math brick will get handled
+        <hr>
+        Set to Greater - Closest equivalent to the 1.11 operation
+        Set to Greater and change color - Lets you easily find the affected math bricks
+        """))
 
         self.master_layout.addStretch()
 
@@ -57,6 +83,11 @@ class DowngradeVehicleMenu(base.BaseMenu):
     def int_to_version(v: int):
         return "1.11" if v == 18 else "1.10" if v == 17 else None
 
+    def get_versions(self) -> tuple[int, int]:
+        """Returns the current version and the version to downgrade to as a tuple"""
+        return (self.version_to_int(self.current_version.get_current_text()) if self.current_version.get_current_text() != "---" else 0,
+        self.version_to_int(self.to_version.get_current_text()))
+
     def get_menu_name(self) -> str:
         return "Vehicle Downgrader"
 
@@ -65,39 +96,58 @@ class DowngradeVehicleMenu(base.BaseMenu):
 
     def update_can_downgrade(self):
         self.downgrade_button.set_disabled(
-            self.current_version.get_current_text() == '---' or
-            self.version_to_int(self.current_version.get_current_text()) <= self.version_to_int(self.to_version.get_current_text())
+            self.get_versions()[0] == '---' or
+            self.get_versions()[0] <= self.get_versions()[1]
             )
         if self.main_window.vehicle_selector_banner.get_brvfile_ref() is None:
             self.downgrade_button.set_enabled(False)
             self.current_version.set_current_text(0, '---')
-
-    def unload_vehicle(self):
-        self.current_version.set_current_text(0, '---')
-        self.update_can_downgrade()
     
-    def on_reload(self):
+    def on_reloaded(self):
+        self.update_downgrade_preferences()
         for widget in self.disabled_if_vehicle_not_loaded:
             widget.set_enabled(self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None)
         if self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None:
             version = self.main_window.vehicle_selector_banner.get_brvfile_ref().version
             self.current_version.set_current_text(0, self.int_to_version(version))
         self.update_can_downgrade()
+        self.update_downgrade_preferences
 
     def update_downgrade_preferences(self):
-        pass
+        if self.get_versions()[0] > self.get_versions()[1]:
+            if self.get_versions()[1] < 18:
+                brvf = self.main_window.vehicle_selector_banner.get_brvfile_copy()
+                if brvf is None:
+                    VehicleLoadingIssueDialog.create(True).exec()
+                    return
+                for brick in brvf.bricks:
+                    if brick.meta().name() == bt.MATH_BRICK.name():
+                        if brick.get_property("Operation") == p.Operation.GT:
+                                self.greater_handling_label.setVisible(True)
+                                self.greater_handling.setVisible(True)
+                        else:
+                            self.greater_handling_label.setVisible(False)
+                            self.greater_handling.setVisible(False)
+            else:
+                self.greater_handling_label.setVisible(False)
+                self.greater_handling.setVisible(False)
+
+
     
     def downgrade_vehicle(self):
+        self.update_downgrade_preferences()
         brvfile = self.main_window.vehicle_selector_banner.get_brvfile_copy()  # Faster and respects user intentionally not reloading the vehicle
         if brvfile is None:
             VehicleLoadingIssueDialog.create(True).exec()
             return
-        brvfile.version = self.version_to_int(self.to_version.get_current_text())
-        if self.to_version.get_current_text == self.supported_versions[1] and self.current_version.get_current_text == supported_versions[0]:
+        brvfile.version = self.get_versions()[1]
+
+        if self.get_versions()[1] == self.supported_versions[1] and self.get_version()[0] == supported_versions[0]:
             for brick in brvfile.bricks:
-                if bt.MATH_BRICK.name() == brick.meta().name():
-                    if brick.get_property(p.OPERATION) == p.Operation.GREATER_EQUAL:
-                        brick.set_property(p.OPERATION, p.Operation.GREATER)
-        logger.info(f"Downgrading vehicle from {self.current_version.get_current_text()} to {self.to_version.get_current_text()}")
-        self.main_window.vehicle_selector_banner.save_brv(brvfile, description=f"Downgraded using the {self.get_menu_name()} from {self.current_version.get_current_text} to {self.to_version.get_current_text()}.")
-        logger.info(f"Vehicle downgraded from {self.current_version.get_current_text()} to {self.to_version.get_current_text()}")
+                if brick.meta().name() == bt.MATH_BRICK.name():
+                    if brick.get_property("Operation") == p.Operation.GE:
+                        brick.set_property("Operation", p.Operation.GT)
+        
+        logger.info(f"Downgrading vehicle from {self.get_versions()[0]} to {self.get_versions()[1]}")
+        self.main_window.vehicle_selector_banner.save_brv(brvfile, description=f"Downgraded using the {self.get_menu_name()} from {self.get_versions()[0]} to {self.get_versions()[1]}.")
+        logger.info(f"Vehicle downgraded from {self.get_versions()[0]} to {self.get_versions()[1]}")
