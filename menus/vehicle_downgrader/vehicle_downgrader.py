@@ -83,11 +83,14 @@ class DowngradeVehicleMenu(base.BaseMenu):
             version = self.main_window.vehicle_selector_banner.get_brvfile_ref().version
             self.current_version.set_current_text(0, self.int_to_version(version))
         self.update_can_downgrade()
+
+    def update_downgrade_preferences(self):
+        pass
     
     def downgrade_vehicle(self):
         brvfile = self.main_window.vehicle_selector_banner.get_brvfile_copy()  # Faster and respects user intentionally not reloading the vehicle
         if brvfile is None:
-            VehicleLoadingIssueDialog.create(True).exec()  # nothing to do with exec(...) which is unsafe
+            VehicleLoadingIssueDialog.create(True).exec()
             return
         brvfile.version = self.version_to_int(self.to_version.get_current_text())
         if self.to_version.get_current_text == self.supported_versions[1] and self.current_version.get_current_text == supported_versions[0]:
