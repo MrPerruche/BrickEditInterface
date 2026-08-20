@@ -65,9 +65,19 @@ class BrickSelector(Widget):
         self.filters_layout.setContentsMargins(0, 0, 0, 0)
         self.master_layout.addLayout(self.filters_layout)
 
+        self.must_reload_label = Label("Vehicle must be reloaded in order to apply filter changes.")
+        self.master_layout.addWidget(self.must_reload_label)
+        mw.vehicle_selector_banner.vehicle_loaded.connect(self.on_reload)
+
         # filters
         self.filters = filters if filters is not None else [ColorFilter(mw, FilterMode.SHOULD)]
         self.set_filters(self.filters)
+
+        self.must_reload_label.hide()
+
+
+    def on_reload(self):
+        self.must_reload_label.hide()
 
 
     def set_filters(self, filters: list[BaseFilter]):
@@ -82,7 +92,7 @@ class BrickSelector(Widget):
         for f in self.filters:
             self._add_filter_widget(f)
 
-        self.filters_changed.emit()
+        self.filter_changed()
 
 
     def add_filter(self, filter: BaseFilter):
@@ -92,7 +102,7 @@ class BrickSelector(Widget):
         self.filters.append(filter)
         self._add_filter_widget(filter)
 
-        self.filters_changed.emit()
+        self.filter_changed()
 
 
     def remove_filter(self, filter: BaseFilter):
@@ -102,14 +112,17 @@ class BrickSelector(Widget):
         if not self.filters:
             self.no_filters_label.show()
 
-        self.filters_changed.emit()
+        self.filter_changed()
 
 
-    def filter_changed(self, filter: BaseFilter):
+    def filter_changed(self):
+        if self.mw.vehicle_selector_banner.is_vehicle_loaded():
+            self.must_reload_label.show()
         self.filters_changed.emit()
 
 
     def _add_filter_widget(self, filter: BaseFilter):
+        filter.filter_edited.connect(self.filter_changed)
         filter.remove_requested.connect(self.remove_filter)
         self.filters_layout.addWidget(filter)
 

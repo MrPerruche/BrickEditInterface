@@ -95,6 +95,11 @@ class BasePropertyWidget(Widget):
         """default_value parameter is used if the widget was never edited or if formulas are used."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement get_value()")
 
+    @classmethod
+    def get_example_value(cls) -> T:
+        """gives a value that is valid for this widget."""
+        raise NotImplementedError(f"Subclass {cls.__name__} must implement get_example_value()")
+
 
 
 class TextPropertyWidget(BasePropertyWidget):
@@ -155,6 +160,10 @@ class TextPropertyWidget(BasePropertyWidget):
             return self.input_le.get_text() if self.edit_button.is_checked() else default_value
         return self.input_le.get_text()
 
+    @classmethod
+    def get_example_value(cls) -> str:
+        return ""
+
 
 
 class AsciiPropertyWidget(TextPropertyWidget):
@@ -200,6 +209,10 @@ class BooleanPropertyWidget(BasePropertyWidget):
         idx = self.setting_widget.get_idx()
         return self.FORMULA_MODE_ACTIONS[idx](default_value) if self.formula_mode else bool(idx)
 
+    @classmethod
+    def get_example_value(cls) -> bool:
+        return False
+
 
 
 class FloatPropertyWidget(BasePropertyWidget):
@@ -234,6 +247,10 @@ class FloatPropertyWidget(BasePropertyWidget):
 
     def get_value(self, default_value: float):
         return self.value_input.evaluate_at(x=default_value) if self.formula_mode else self.value_input.value()
+
+    @classmethod
+    def get_example_value(cls) -> float:
+        return 0.0
 
 
 
@@ -283,6 +300,10 @@ class Vec2PropertyWidget(BasePropertyWidget):
             x=self.x_widget.value(),
             y=self.y_widget.value()
         )
+
+    @classmethod
+    def get_example_value(cls) -> brickedit.Vec2:
+        return brickedit.Vec2(0, 0)
 
 
 
@@ -342,6 +363,10 @@ class Vec3PropertyWidget(BasePropertyWidget):
             z=self.z_widget.value()
         )
 
+    @classmethod
+    def get_example_value(cls) -> brickedit.Vec3:
+        return brickedit.Vec3(0, 0, 0)
+
 
 
 class Integer8PropertyWidget(BasePropertyWidget):
@@ -386,8 +411,10 @@ class Integer8PropertyWidget(BasePropertyWidget):
     def get_value(self, default_value: int) -> int:
         return self.value_input.evaluate_at(x=default_value) if self.formula_mode else self.value_input.value()
 
+    @classmethod
+    def get_example_value(cls) -> int:
+        return 0
 
-import colorsys
 
 
 class ColorPropertyWidget(BasePropertyWidget):
@@ -618,6 +645,12 @@ class ColorPropertyWidget(BasePropertyWidget):
         return self._pack_rgba(r, g, b, a)
 
 
+    @classmethod
+    def get_example_value(cls) -> int:
+        return 0xbcbcbcff
+
+
+
 def format_bin(data: bytes):
     return " ".join(f"{byte:02X}" for byte in data)
 
@@ -633,7 +666,9 @@ class UnknownTypePropertyWidget(BasePropertyWidget):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
         self.input_le: LineEdit = LineEdit()
         self.input_le.set_validator(BINARY_HEX_VALIDATOR_65535_MAX)
-        self.set_value('' if formula_mode else initial_value)
+        # if isinstance(initial_value, int):
+        #     print(f"{property_name} is int!: {initial_value}")
+        self.set_value(b'' if formula_mode else initial_value)
         self.master_layout.addWidget(self.input_le)
         self.formula_mode_value = ""
 
@@ -683,10 +718,38 @@ class UnknownTypePropertyWidget(BasePropertyWidget):
             return from_bin(self.input_le.get_text()) if self.edit_button.is_checked() else default_value
         return from_bin(self.input_le.get_text())
 
+    @classmethod
+    def get_example_value(cls) -> bytes:
+        return b""
+
 
 # ----------
 
 
+
+def get_property_widget_cls(property_name: str, allow_unknown: bool = True) -> type[BasePropertyWidget] | None:
+    property_meta_cls = brickedit.p.pmeta_registry.get(property_name, brickedit.p.UnknownPropertyMeta)
+    if not isinstance(property_meta_cls, type):
+        return None
+
+    if issubclass(property_meta_cls, brickedit.p.EnumMeta):
+        return AsciiPropertyWidget
+    elif issubclass(property_meta_cls, brickedit.p.TextMeta):
+        return TextPropertyWidget
+    elif issubclass(property_meta_cls, brickedit.p.BooleanMeta):
+        return BooleanPropertyWidget
+    elif issubclass(property_meta_cls, brickedit.p.Float32Meta):
+        return FloatPropertyWidget
+    elif issubclass(property_meta_cls, brickedit.p.Vec2Meta):
+        return Vec2PropertyWidget
+    elif issubclass(property_meta_cls, brickedit.p.BrickSize):
+        return Vec3PropertyWidget
+    elif issubclass(property_meta_cls, brickedit.p.NumFractionalDigits):
+        return Integer8PropertyWidget
+    elif issubclass(property_meta_cls, (brickedit.p.Color3ChannelsMeta, brickedit.p.Color4ChannelsMeta)):
+        return ColorPropertyWidget
+
+    return UnknownTypePropertyWidget if allow_unknown else None
 
 
 def get_property_widget(
@@ -698,39 +761,18 @@ def get_property_widget(
     show_text: bool = True
 ) -> BasePropertyWidget | None:
 
-    property_meta_cls = brickedit.p.pmeta_registry.get(property_name, brickedit.p.UnknownPropertyMeta)
-    if not isinstance(property_meta_cls, type):
+    widget_cls = get_property_widget_cls(property_name, allow_unknown=True)
+
+    if widget_cls is None:
         return None
 
-    if issubclass(property_meta_cls, brickedit.p.EnumMeta):
-        return AsciiPropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif issubclass(property_meta_cls, brickedit.p.TextMeta):
-        return TextPropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif issubclass(property_meta_cls, brickedit.p.BooleanMeta):
-        return BooleanPropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif issubclass(property_meta_cls, brickedit.p.Float32Meta):
-        return FloatPropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif issubclass(property_meta_cls, brickedit.p.Vec2Meta):
-        return Vec2PropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif issubclass(property_meta_cls, brickedit.p.BrickSize):
-        return Vec3PropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif issubclass(property_meta_cls, (brickedit.p.Color3ChannelsMeta, brickedit.p.Color4ChannelsMeta)):
-        return ColorPropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif issubclass(property_meta_cls, brickedit.p.NumFractionalDigits):
-        return Integer8PropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-
-    elif all([isinstance(test_value, bytes) for test_value in test_values]):
-        try:
-            return UnknownTypePropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
-        except (TypeError, ValueError):
+    if issubclass(widget_cls, UnknownTypePropertyWidget):
+        if all([isinstance(test_value, bytes) for test_value in test_values]):
+            try:
+                return UnknownTypePropertyWidget(property_name, test_values, formula_mode, initial_value, enabled, show_text)
+            except (TypeError, ValueError):
+                return None
+        else:
             return None
 
-    return None
-
+    return widget_cls(property_name, test_values, formula_mode, initial_value, enabled, show_text)

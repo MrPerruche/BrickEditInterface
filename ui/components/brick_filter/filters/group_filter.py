@@ -81,8 +81,14 @@ class BaseGroupFilter(BaseFilter):
 class EditorGroupFilter(BaseGroupFilter):
 
     def is_allowed(self, brick: Brick) -> FilterResult:
+
         vehicle_data = self.mw.vehicle_selector_banner.get_brvfile_ref_data()
-        return FilterResult.IGNORE
+        target_group = self.combo_box.get_current_text()
+
+        brick_group = vehicle_data.editor_be_to_bei.get(brick.ref.editor, None)
+
+        match = brick_group is not None and target_group == brick_group
+        return self.mode.filter_matched() if match else self.mode.filter_did_not_match()
 
     @classmethod
     def get_filter_name(cls, mode: FilterMode):
@@ -100,7 +106,14 @@ class EditorGroupFilter(BaseGroupFilter):
 class WeldGroupFilter(BaseGroupFilter):
 
     def is_allowed(self, brick: Brick) -> FilterResult:
-        return FilterResult.IGNORE
+
+        vehicle_data = self.mw.vehicle_selector_banner.get_brvfile_ref_data()
+        target_group = self.combo_box.get_current_text()
+
+        brick_group = vehicle_data.weld_be_to_bei.get(brick.ref.weld, None)
+
+        match = brick_group is not None and target_group == brick_group
+        return self.mode.filter_matched() if match else self.mode.filter_did_not_match()
 
     @classmethod
     def get_filter_name(cls, mode: FilterMode):
