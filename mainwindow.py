@@ -56,6 +56,7 @@ class BrickEditInterface(QMainWindow):
             EditBrickMenu(self),
             GradientMaker(self),
             VehicleUpscalerMenu(self),
+            DowngradeVehicleMenu(self),
         ]
         self.in_dev_menus = [
             ImageImporter(self),

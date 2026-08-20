@@ -107,6 +107,8 @@ class TextPropertyWidget(BasePropertyWidget):
     EDIT_ICON = None
 
     def __init__(self, property_name: str, test_values: tuple[str, ...], formula_mode: bool, initial_value: str, enabled: bool = True, show_text: bool = True):
+        if initial_value is None: return
+
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
         self.input_le: LineEdit = LineEdit()
@@ -186,7 +188,7 @@ class BooleanPropertyWidget(BasePropertyWidget):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
         self.setting_widget = Switcher([name for name, _ in self.FORMULA_MODE_ACTIONS] if formula_mode else ["Off", "On"])
-        self.set_value(0 if formula_mode else int(initial_value))  # If in formula mode, set value to 0 for "Same"
+        self.set_value(0 if formula_mode else int(initial_value)) # If in formula mode, set value to 0 for "Same"
         self.setting_widget.index_changed.connect(self.on_value_changed)
 
         self.master_layout.addWidget(self.setting_widget)

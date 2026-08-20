@@ -82,6 +82,9 @@ class Button(Widget):
     def set_enabled(self, enabled: bool):
         self.qt_widget.setEnabled(enabled)
 
+    def set_disabled(self, disabled: bool):
+        self.qt_widget.setDisabled(disabled)
+
     def set_checkable(self, checkable: bool):
         self.qt_widget.setCheckable(checkable)
 

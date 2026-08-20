@@ -156,7 +156,6 @@ class VehicleWidget(SquareWidget):
 
 
     def load_vehicle(self, folder_path, silent=False):
-        
         # Before accepting it, make sure the BRV exists and is deserilizable
         brv_file = path.join(folder_path, "Vehicle.brv")
         if not path.exists(brv_file) and self.must_deserialize:

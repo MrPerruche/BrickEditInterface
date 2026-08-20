@@ -135,6 +135,9 @@ class ComboBox(Widget):
     def set_current_idx(self, idx: int):
         self.qt_widget.setCurrentIndex(idx)
 
+    def set_current_text(self, idx: int, text: str):
+        self.qt_widget.setItemText(idx, text)
+
     def clear_items(self):
         self.qt_widget.clear()
 
