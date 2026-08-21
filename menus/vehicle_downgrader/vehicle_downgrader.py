@@ -193,7 +193,7 @@ class DowngradeVehicleMenu(base.BaseMenu):
         return "Vehicle Downgrader"
 
     def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(":/assets/icons/ArrowLeftSmallIcon.png"), True)
+        return base.MenuIconInfo(QIcon(":/assets/icons/DowngradeIcon.png"), True)
 
     def update_can_downgrade(self):
         self.downgrade_button.set_disabled(
@@ -267,7 +267,7 @@ class DowngradeVehicleMenu(base.BaseMenu):
 
                         self.sq_to_c_handling_color.setVisible(self.sq_to_c_handling.get_current_idx() == 2 and has_sq_to_c_brick)
                         self.sq_to_qc_handling_color.setVisible(self.sq_to_qc_handling.get_current_idx() == 2 and has_sq_to_qc_brick)
-                        print(has_sq_to_c_brick)
+                        # print(has_sq_to_c_brick)
 
         else: return
 
