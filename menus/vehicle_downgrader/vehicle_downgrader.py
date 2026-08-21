@@ -4,8 +4,10 @@ from PySide6.QtGui import QIcon
 from menus import base
 
 from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle
+from ui.components.brick.property_widgets import ColorPropertyWidget
 from ui.dialogs import VehicleLoadingIssueDialog
 from ui.models import TooltipContents
+
 
 from brickedit import *
 
@@ -60,15 +62,20 @@ class DowngradeVehicleMenu(base.BaseMenu):
         self.greater_handling = ComboBox()
         self.downgrade_preferences_layout.addWidget(self.greater_handling)
         self.greater_handling.setVisible(False)
+        self.greater_handling.item_changed.connect(self.update_downgrade_preferences)
 
-        self.greater_options = ("Set to Greater (Recommended)", "Set to Greater and change color")
+        self.greater_handling_color = ColorPropertyWidget("Set to color", (0, 0, 0, 0,), False, 0xbcbcbcff)
+        self.downgrade_preferences_layout.addWidget(self.greater_handling_color)
+        self.greater_handling_color.hide()
+
+        self.greater_options = ("Keep operation (Recommended)", "Keep operation and change color")
         for option in self.greater_options:
             self.greater_handling.add_item(option)
-        self.greater_handling.set_tooltip(TooltipContents(text='Greater handling', description="""How 'Greater equal' math bricks get handled.
+        self.greater_handling.set_tooltip(TooltipContents(text='Greater handling', description="""How 'Greater' math bricks get handled.
         The 'Greater' operation was tweaked in 1.11, which results in it not having a true equal operation in 1.10. You can use this option to set how the math brick will get handled
         <hr>
-        Set to Greater - Closest equivalent to the 1.11 operation
-        Set to Greater and change color - Lets you easily find the affected math bricks
+        Keep operation - Closest equivalent to the 1.11 operation
+        Keep operation and change color - Lets you easily find the affected math bricks
         """))
 
         self.master_layout.addStretch()
@@ -84,9 +91,13 @@ class DowngradeVehicleMenu(base.BaseMenu):
         return "1.11" if v == 18 else "1.10" if v == 17 else None
 
     def get_versions(self) -> tuple[int, int]:
-        """Returns the current version and the version to downgrade to as a tuple"""
+        """Returns the current version and the version to downgrade to as a tuple of ints"""
         return (self.version_to_int(self.current_version.get_current_text()) if self.current_version.get_current_text() != "---" else 0,
         self.version_to_int(self.to_version.get_current_text()))
+
+    def get_versions_str(self) -> tuple[int, int]:
+        """Returns the current version and the version to downgrade to as a tuple of strings"""
+        return (self.current_version.get_current_text(), self.to_version.get_current_text())
 
     def get_menu_name(self) -> str:
         return "Vehicle Downgrader"
@@ -104,14 +115,13 @@ class DowngradeVehicleMenu(base.BaseMenu):
             self.current_version.set_current_text(0, '---')
     
     def on_reloaded(self):
-        self.update_downgrade_preferences()
         for widget in self.disabled_if_vehicle_not_loaded:
             widget.set_enabled(self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None)
         if self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None:
             version = self.main_window.vehicle_selector_banner.get_brvfile_ref().version
             self.current_version.set_current_text(0, self.int_to_version(version))
         self.update_can_downgrade()
-        self.update_downgrade_preferences
+        self.update_downgrade_preferences()
 
     def update_downgrade_preferences(self):
         if self.get_versions()[0] > self.get_versions()[1]:
@@ -122,15 +132,18 @@ class DowngradeVehicleMenu(base.BaseMenu):
                     return
                 for brick in brvf.bricks:
                     if brick.meta().name() == bt.MATH_BRICK.name():
-                        if brick.get_property("Operation") == p.Operation.GT:
-                                self.greater_handling_label.setVisible(True)
-                                self.greater_handling.setVisible(True)
-                        else:
-                            self.greater_handling_label.setVisible(False)
-                            self.greater_handling.setVisible(False)
-            else:
-                self.greater_handling_label.setVisible(False)
-                self.greater_handling.setVisible(False)
+                            self.greater_handling_label.setVisible(brick.get_property(p.OPERATION) == p.Operation.GT)
+                            self.greater_handling.setVisible(brick.get_property(p.OPERATION) == p.Operation.GT)
+                            self.greater_handling_color.setVisible(self.greater_handling.get_current_idx() == 1 and
+                            brick.get_property(p.OPERATION) == p.Operation.GT)
+                            if self.greater_handling.get_current_idx() == 1:
+                                self.greater_handling_color.setVisible(brick.get_property(p.OPERATION) == p.Operation.GT)
+                            else:
+                                self.greater_handling_color.hide()
+        else:
+            self.greater_handling_label.hide()
+            self.greater_handling.hide()
+            self.greater_handling_color.hide()
 
 
     
@@ -142,12 +155,14 @@ class DowngradeVehicleMenu(base.BaseMenu):
             return
         brvfile.version = self.get_versions()[1]
 
-        if self.get_versions()[1] == self.supported_versions[1] and self.get_version()[0] == supported_versions[0]:
+        if self.get_versions_str()[1] == self.supported_versions[1] and self.get_versions_str()[0] == self.supported_versions[0]:
             for brick in brvfile.bricks:
                 if brick.meta().name() == bt.MATH_BRICK.name():
-                    if brick.get_property("Operation") == p.Operation.GE:
-                        brick.set_property("Operation", p.Operation.GT)
+                    if brick.get_property(p.OPERATION) == p.Operation.GT and self.greater_handling.get_current_idx() == 1:
+                        brick.set_property(p.BRICK_COLOR, self.greater_handling_color.get_value(0xbcbcbcff))
+                    if brick.get_property(p.OPERATION) == p.Operation.GE:
+                        brick.set_property(p.OPERATION, p.Operation.GT)
         
-        logger.info(f"Downgrading vehicle from {self.get_versions()[0]} to {self.get_versions()[1]}")
-        self.main_window.vehicle_selector_banner.save_brv(brvfile, description=f"Downgraded using the {self.get_menu_name()} from {self.get_versions()[0]} to {self.get_versions()[1]}.")
-        logger.info(f"Vehicle downgraded from {self.get_versions()[0]} to {self.get_versions()[1]}")
+        logger.info(f"Downgrading vehicle from {self.get_versions_str()[0]} to {self.get_versions_str()[1]}")
+        self.main_window.vehicle_selector_banner.save_brv(brvfile, description=f"Downgraded using the {self.get_menu_name()} from {self.get_versions_str()[0]} to {self.get_versions_str()[1]}.")
+        logger.info(f"Vehicle downgraded from {self.get_versions_str()[0]} to {self.get_versions_str()[1]}")
