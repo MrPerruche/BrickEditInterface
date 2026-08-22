@@ -12,4 +12,4 @@ class TooltipContents:
             return f"<html>{text_br}</html>"
 
         description_br = self.description.replace('\n', '<br>')
-        return f"<b>{text_br}</b><br><br>{description_br}"
+        return f"<b>{text_br}</b><br>{description_br}"

@@ -63,7 +63,7 @@ class HomeMenu(base.BaseMenu):
         # --- TITLE + VERSION BLOCK ---------------------------------
 
         title_text = "BrickEdit-Interface"
-        version_text = f"{'Dev ' if DEV_VERSION else ''}Version {VERSION} by @perru_"  # Remove author when there will be contributors
+        version_text = f"{'Dev ' if DEV_VERSION else ''}Version {VERSION}"
 
 
         self.bei_text_label = Label(title_text, 16, 900)

@@ -51,6 +51,7 @@ class ToolButton(Widget):
         for name in names:
             icon = QIcon.fromTheme(name)
             if not icon.isNull():
+                self.og_icon = icon
                 self.qt_widget.setIcon(icon)
                 return True
         return False
@@ -120,8 +121,11 @@ class ToolButton(Widget):
             background-color: {theme.surface.muted};
             border-color: {theme.border.muted};
         }}""")
-            
-        # if self.og_icon is None, then None is passed to set_icon which will remove icon if it exists
+
+        if self.og_icon == None:
+            self.set_icon(None)
+            return
+
         icon = self.og_icon if (not self.tint_icon) or self.og_icon is None else tint_icon(self.og_icon, theme.text.color_hex_argb)
 
         if self.muted or not self.enabled:

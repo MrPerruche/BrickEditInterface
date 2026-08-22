@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from PySide6.QtGui import QColor
 from PySide6.QtCore import QObject, Signal
 from typing import Protocol
 
@@ -108,6 +109,8 @@ class ThemeColor:
     def color_hex_rgba(self) -> str: return f"#{self._r:02x}{self._g:02x}{self._b:02x}{self._a:02x}"
     @property
     def color_hex_argb(self) -> str: return f"#{self._a:02x}{self._r:02x}{self._g:02x}{self._b:02x}"
+    @property
+    def color_qcolor(self) -> QColor: return QColor(self._r, self._g, self._b, self._a)
 
     @property
     def muted(self) -> str: return f"rgba({self._mr}, {self._mg}, {self._mb}, {self._ma})"
@@ -115,6 +118,8 @@ class ThemeColor:
     def muted_hex_rgba(self) -> str: return f"#{self._mr:02x}{self._mg:02x}{self._mb:02x}{self._ma:02x}"
     @property
     def muted_hex_argb(self) -> str: return f"#{self._ma:02x}{self._mr:02x}{self._mg:02x}{self._mb:02x}"
+    @property
+    def muted_qcolor(self) -> QColor: return QColor(self._mr, self._mg, self._mb, self._ma)
 
     @property
     def color_double(self) -> str:
@@ -133,12 +138,20 @@ class ThemeColor:
         else:
             return f"rgba({self._r}, {self._g}, {self._b}, {alpha})"
 
+    def color_qcolor_advenced(self, alpha_stack: int = 1):
+        alpha = calculate_alpha_stack(*[self._a for _ in range(alpha_stack)]) if alpha_stack != 1 else self._a
+        return QColor(self._r, self._g, self._b, alpha)
+
     def muted_advanced(self, alpha_stack: int = 1, hex: bool = False):
         alpha = calculate_alpha_stack(*[self._ma for _ in range(alpha_stack)]) if alpha_stack != 1 else self._ma
         if hex:
             return f"#{alpha:02x}{self._mr:02x}{self._mg:02x}{self._mb:02x}"
         else:
             return f"rgba({self._mr}, {self._mg}, {self._mb}, {alpha})"
+
+    def muted_qcolor_advenced(self, alpha_stack: int = 1):
+        alpha = calculate_alpha_stack(*[self._ma for _ in range(alpha_stack)]) if alpha_stack != 1 else self._ma
+        return QColor(self._mr, self._mg, self._mb, alpha)
 
 
 @dataclass(frozen=True)

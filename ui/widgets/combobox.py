@@ -183,6 +183,12 @@ class ComboBox(Widget):
                 background-color: {theme.surface.muted};
             }}
 
+            QComboBox:disabled {{
+                background-color: {theme.surface.muted};
+                border-color: {theme.border.muted};
+                color: {theme.text.muted};
+            }}
+
             QComboBox::drop-down {{
                 width: 22px;
                 border: none;
@@ -204,6 +210,10 @@ class ComboBox(Widget):
             }}
 
             QComboBox QAbstractItemView::item {{
-                height: 26px;
+                height: 28px;
+            }}
+
+            QLabel {{
+                font-size: 13px;
             }}
         """)
