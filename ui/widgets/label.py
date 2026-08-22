@@ -74,7 +74,8 @@ class _QLabel(QLabel):
         if last_line is None:
             return 0
 
-        return int(last_line.cursorToX(last_line.textLength())[0])
+        end_pos = last_line.textStart() + last_line.textLength()
+        return int(last_line.cursorToX(end_pos)[0])
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -130,9 +131,11 @@ class _QLabel(QLabel):
         else:  # Top (default)
             text_top = cr.top()
 
+        
+        end_pos = last.textStart() + last.textLength()
         x = (
             cr.left()
-            + int(last.cursorToX(last.textLength())[0])
+            + int(last.cursorToX(end_pos)[0])
             + self.ICON_TEXT_MARGIN
         )
 
@@ -274,6 +277,12 @@ class LabelStyle:
     HEADER_4: ClassVar["LabelStyle"]
     HEADER_5: ClassVar["LabelStyle"]
 
+    LARGE_3: ClassVar["LabelStyle"]
+    LARGE_4: ClassVar["LabelStyle"]
+    LARGE_5: ClassVar["LabelStyle"]
+
+    DEFAULT: ClassVar["LabelStyle"]
+
     SUBTEXT_0: ClassVar["LabelStyle"]
     SUBTEXT_1: ClassVar["LabelStyle"]
 
@@ -282,6 +291,12 @@ LabelStyle.HEADER_2 = LabelStyle(22, 700, (None, 10, None, None), False)
 LabelStyle.HEADER_3 = LabelStyle(18, 700, (None, 8, None, None), False)
 LabelStyle.HEADER_4 = LabelStyle(16, 650, (None, 7, None, None), False)
 LabelStyle.HEADER_5 = LabelStyle(14, 600, (None, 6, None, None), False)
+
+LabelStyle.LARGE_3 = LabelStyle(18, 700, (None, None, None, None), False)
+LabelStyle.LARGE_4 = LabelStyle(16, 650, (None, None, None, None), False)
+LabelStyle.LARGE_5 = LabelStyle(14, 600, (None, None, None, None), False)
+
+LabelStyle.DEFAULT = LabelStyle(13, 400, (None, None, None, None), False)
 
 LabelStyle.SUBTEXT_0 = LabelStyle(11, 400, (None, 0, None, None), False)
 LabelStyle.SUBTEXT_1 = LabelStyle(9, 500, (None, 0, None, -4), True)

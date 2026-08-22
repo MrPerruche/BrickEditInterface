@@ -1,3 +1,4 @@
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtGui import QIcon
 
 from PIL import Image
@@ -5,7 +6,7 @@ from PIL import Image
 from menus import base
 
 from .widgets import ImageSelector
-from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Slider
+from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface
 from ui.components.brick.property_widgets import FloatPropertyWidget
 from ui.models import TooltipContents
 
@@ -38,6 +39,32 @@ class Quantization(Enum):
     def get_name(self):
         return Quantization.get_names()[self.value]
 
+    @staticmethod
+    def from_idx(self, idx):
+        return [
+            Quantization.NO,
+            Quantization.MEDIAN_CUT,
+            Quantization.KMEANSPP_LAB
+        ][idx]
+
+
+
+WHAT_IS_ZFIGHTING = TooltipContents(
+    "What is Z-fighting?",
+    "When objects are too far from world center, the game can't tell "
+    "which one is in front. This issue causes visual glitches (flickering)."
+)
+STACKING_3D_OPTIMIZATION = TooltipContents(
+    "3D Stacking consist in dividing the image into layers which are "
+    "stacked on top of each other. Doing this may reduce brick count "
+    "very significantly but has cons."
+)
+WHAT_IS_QUANTIZATION = TooltipContents(
+    "What is quantization?",
+    "Quantization reduces the number of color in an image. "
+    "Having less colors makes optimizations MUCH more efficient (if any is selected).\n"
+    "Tip: K-means++ in OKLAB will typically give the best results."    
+)
 
 
 class ImageImporter(base.BaseMenu):
@@ -48,7 +75,7 @@ class ImageImporter(base.BaseMenu):
 
         # ----- IMAGE SELECTION -----
 
-        self.image_selector = ImageSelector(store_pil_img=True)
+        self.image_selector = ImageSelector(store_pil_img=True)  # TODO REMAKE THIS WIDGET
         self.image = None
         #self.image_selector.new_image_selected.connect(self.on_image_reload)
         self.master_layout.addWidget(self.image_selector)
@@ -61,67 +88,131 @@ class ImageImporter(base.BaseMenu):
             "3D stacking (slow)"
         )
 
-        self.optimization_label = StyledLabel("Brick optimization", LabelStyle.HEADER_5)
+        self.optimization_label = StyledLabel("Optimization settings", LabelStyle.HEADER_3)
         self.master_layout.addWidget(self.optimization_label)
 
-        self.optimization_method_label = StyledLabel("OPTIMIZATION METHOD", LabelStyle.SUBTEXT_1)
-        self.master_layout.addWidget(self.optimization_method_label)
+        # OPTIMIZATION METHOD
+        self.optimization_method_layout = QHBoxLayout()
+        self.optimization_method_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.optimization_method_layout)
+
+        self.optimization_method_label = Label("Optimization method")
+        self.optimization_method_layout.addWidget(self.optimization_method_label)
 
         self.optimization_method: ComboBox = ComboBox()
         for method in self.optimization_methods:
             self.optimization_method.add_item(method)
-        self.master_layout.addWidget(self.optimization_method)
-        self.optimization_method.item_changed.connect(self.update_fpe_info_visible)
+        self.optimization_method.item_changed.connect(self.on_optimization_method_changed)
+        self.optimization_method_layout.addWidget(self.optimization_method)
 
-        self.fpe_info = StyledLabel("The image will Z-fight if you go further than x km from world center.", LabelStyle.SUBTEXT_0)
-        self.master_layout.addWidget(self.fpe_info)
-        self.fpe_info.hide()
-        #self.fpe_slider = Slider(range)
+
+
+        # OPTIMIZATION METHOD SETTINGS
+        self.oms3d_widget = Surface()
+        self.master_layout.addWidget(self.oms3d_widget)
+        self.oms3d_widget.hide()
+        self.oms3d_layout = self.oms3d_widget.layout()
+        self.oms3d_title = StyledLabel("Optimization method settings", LabelStyle.LARGE_5)
+        self.oms3d_layout.addWidget(self.oms3d_title)
+
 
         # Max layers
         self.max_layers: int = 24
-        self.max_layers_label = StyledLabel("MAX LAYERS", LabelStyle.SUBTEXT_1)
-        self.master_layout.addWidget(self.max_layers_label)
-        self.max_layers_slider = Slider(range(2, 100), 24)
-        self.master_layout.addWidget(self.max_layers_slider)
-        self.update_max_layers()
-        self.max_layers_slider.value_changed.connect(self.update_max_layers)
+        self.max_layers_label = Label("Max layers")
+        self.max_layers_label.set_tooltip(STACKING_3D_OPTIMIZATION)
+        self.oms3d_layout.addWidget(self.max_layers_label)
 
-        # Quantization
-        self.quantization_label = StyledLabel("QUANTIZATON ALGORITHM", LabelStyle.SUBTEXT_1)
-        self.master_layout.addWidget(self.quantization_label)
+        self.max_layers_slider = Slider(range(2, 100), 24)
+        self.oms3d_layout.addWidget(self.max_layers_slider)
+        self.max_layers_slider.value_changed.connect(self.update_max_layers)
+        self.update_max_layers()
+
+        # Layer thickness
+        self.layer_thicknes_label = Label("Layer thickness")
+        self.layer_thicknes_label.set_tooltip(STACKING_3D_OPTIMIZATION)
+        self.oms3d_layout.addWidget(self.layer_thicknes_label)
+
+        self.layer_thickness_slider = Slider(list(_LIST_SLIDER_OPTIONS.keys()), _LS_NEG//2+1)
+        self.layer_thickness_slider.value_changed.connect(self.update_layer_thickness)
+        self.oms3d_layout.addWidget(self.layer_thickness_slider)
+        self.update_layer_thickness()
+
+
+        # Z-fighting notice
+        self.fpe_info = Label("The image will Z-fight if you go further than x km from world center.")
+        self.fpe_info.set_tooltip(WHAT_IS_ZFIGHTING)
+        self.oms3d_layout.addWidget(self.fpe_info)
+        #self.fpe_slider = Slider(range)
+
+
+
+        # QUANTIZATION SETTINGS
+        self.quantization_layout = QHBoxLayout()
+        self.quantization_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.quantization_layout)
+
+        self.quantization_label = Label("Quantization")
+        self.quantization_label.set_tooltip(WHAT_IS_QUANTIZATION)
+        self.quantization_layout.addWidget(self.quantization_label)
+
         self.quantization_algorithm = ComboBox()
         for algorithm in Quantization.get_names():
             self.quantization_algorithm.add_item(algorithm)
-        self.master_layout.addWidget(self.quantization_algorithm)
-        self.quantization_algorithm.item_changed.connect(self.update_colors_option_visible)
+        self.quantization_algorithm.item_changed.connect(self.on_quantization_algorithm_changed)
+        self.quantization_layout.addWidget(self.quantization_algorithm)
+
+
+
+        # QUANTIZATION METHOD SETTINGS
+        self.quantization_settings_widget = Surface()
+        self.master_layout.addWidget(self.quantization_settings_widget)
+        self.quantization_settings_layout = self.quantization_settings_widget.layout()
+        self.quantization_settings_title = StyledLabel("Quantization settings", LabelStyle.LARGE_5)
+        self.quantization_settings_layout.addWidget(self.quantization_settings_title)
 
         self.color_count: int = 24
-        self.colors_label = StyledLabel("COLOR COUNT", LabelStyle.SUBTEXT_1)
-        self.master_layout.addWidget(self.colors_label)
         self.colors_slider = Slider(range(2, 255), 24)
-        self.master_layout.addWidget(self.colors_slider)
+        self.quantization_settings_layout.addWidget(self.colors_slider)
         self.colors_slider.value_changed.connect(self.update_color_count)
-        self.colors_slider.hide()
-        self.colors_label.hide()
         self.update_color_count()
 
+
+        # CHANGE SETTINGS
+        self.optimization_method.set_current_idx(1)
+        self.quantization_algorithm.set_current_idx(2)
+
+
         self.master_layout.addStretch()
+
+
+
+    def on_optimization_method_changed(self):
+        idx = self.optimization_method.get_current_idx()
+        if idx in (0, 1):
+            self.oms3d_widget.hide()
+        else:
+            self.oms3d_widget.show()
+
+
+    def on_quantization_algorithm_changed(self):
+        idx = self.quantization_algorithm.get_current_idx()
+        if idx == 0:
+            self.quantization_settings_widget.hide()
+        else:
+            self.quantization_settings_widget.show()
+
+
 
     def update_max_layers(self):
         self.max_layers = self.max_layers_slider.get_value()
         self.max_layers_slider.set_text(f"{self.max_layers}", 25)
 
-    def update_fpe_info_visible(self):
-        self.fpe_info.setVisible(self.optimization_method.get_current_idx() not in (0, 1))
-
-    def update_colors_option_visible(self):
-        self.colors_slider.setVisible(self.quantization_algorithm.get_current_idx() != 0)
-        self.colors_label.setVisible(self.quantization_algorithm.get_current_idx() != 0)
+    def update_layer_thickness(self):
+        self.layer_thickness_slider.set_text(f"{_LIST_SLIDER_OPTIONS[self.layer_thickness_slider.get_value()]} cm", 62)
 
     def update_color_count(self):
         self.color_count = self.colors_slider.get_value()
-        self.colors_slider.set_text(f"{self.color_count}", 25)
+        self.colors_slider.set_text(f"{self.color_count} Colors", 62)
 
     def get_menu_name(self):
         return "Image Importer"
