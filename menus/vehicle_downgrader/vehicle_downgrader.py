@@ -169,11 +169,11 @@ class DowngradeVehicleMenu(base.BaseMenu):
 
     @staticmethod
     def version_to_int(version: str) -> int | None:
-        return 18 if version == "1.11" else 17 if version == "1.10" else None
+        return 18 if version == "1.11" else 17 if version == "1.10" else 0
 
     @staticmethod
     def int_to_version(v: int) -> str | None:
-        return "1.11" if v == 18 else "1.10" if v == 17 else None
+        return "1.11" if v == 18 else "1.10" if v == 17 else "other"
 
     def get_versions(self) -> tuple[int, int]:
         """Returns the current version and the version to downgrade to as a tuple of ints"""
