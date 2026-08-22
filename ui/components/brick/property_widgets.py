@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, QSize
 
 from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button
 from ui.validators import ASCII_TEXT_ONLY, BINARY_HEX_VALIDATOR_65535_MAX
@@ -184,16 +184,16 @@ class BooleanPropertyWidget(BasePropertyWidget):
         ('On', lambda _: True)
     ]
 
-    def __init__(self, property_name: str, test_values: tuple[bool, ...], formula_mode: bool, initial_value: bool, enabled: bool = True, show_text: bool = True):
+    def __init__(self, property_name: str, test_values: tuple[bool, ...], formula_mode: bool, initial_value: bool | None, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
         self.setting_widget = Switcher([name for name, _ in self.FORMULA_MODE_ACTIONS] if formula_mode else ["Off", "On"])
-        self.set_value(0 if formula_mode else int(initial_value)) # If in formula mode, set value to 0 for "Same"
+        self.set_value(0 if formula_mode or initial_value is None else int(initial_value)) # If in formula mode, set value to 0 for "Same"
         self.setting_widget.index_changed.connect(self.on_value_changed)
 
         self.master_layout.addWidget(self.setting_widget)
 
-        self.set_enabled(enabled)
+        self.set_enabled(enabled if initial_value is not None else False)
 
 
     def set_enabled(self, enabled: bool):
@@ -261,26 +261,52 @@ class Vec2PropertyWidget(BasePropertyWidget):
     def __init__(self, property_name: str, test_values: tuple[brickedit.Vec2, ...], formula_mode: bool, initial_value: brickedit.Vec2, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
+        self._is_called_by_function_flag: bool = False
+        self.is_locked: bool = False
+
+        self.lock_button = ToolButton(QIcon(":/assets/icons/Unlocked.png"), True)
+        self.lock_button.set_checkable(True)
         self.x_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
         self.y_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
         self.set_value(initial_value)
-        if formula_mode:
-            self.x_widget.formula_changed.connect(self.on_value_changed)
-            self.y_widget.formula_changed.connect(self.on_value_changed)
-        else:
-            self.x_widget.value_changed.connect(self.on_value_changed)
-            self.y_widget.value_changed.connect(self.on_value_changed)
 
+        self.lock_button.clicked.connect(self.on_lock_toggled)
+        if formula_mode:
+            self.x_widget.formula_changed.connect(lambda value: self.on_value_changed(value, 0))
+            self.y_widget.formula_changed.connect(lambda value: self.on_value_changed(value, 1))
+        else:
+            self.x_widget.value_changed.connect(lambda value: self.on_value_changed(value, 0))
+            self.y_widget.value_changed.connect(lambda value: self.on_value_changed(value, 1))
+
+        self.master_layout.addWidget(self.lock_button)
         self.master_layout.addWidget(self.x_widget)
         self.master_layout.addWidget(self.y_widget)
 
         self.set_enabled(enabled)
 
+    def on_lock_toggled(self):
+        self.is_locked = not self.is_locked
+        self.lock_button.set_icon(QIcon(":/assets/icons/Locked.png" if self.is_locked else ":/assets/icons/Unlocked.png"))
+        self.lock_button.set_checked(self.is_locked)
 
     def set_enabled(self, enabled: bool):
         self.x_widget.set_enabled(enabled)
         self.y_widget.set_enabled(enabled)
         self.enabled = enabled
+
+    def on_value_changed(self, value, w: int):
+        if self._is_called_by_function_flag:
+            return
+        self._is_called_by_function_flag = True
+
+        self.dirty = True
+        self.value_changed.emit(self.get_text())
+        if self.is_locked:
+                self.set_value(brickedit.Vec2(
+                    value if w == 0 else self.get_value(brickedit.Vec2(0.0, 0.0)).y,
+                    self.get_value(brickedit.Vec2(0.0, 0.0)).x if w == 0 else value
+                    ))
+        self._is_called_by_function_flag = False
 
     def get_text(self):
         return (self.x_widget.get_text(), self.y_widget.get_text())
@@ -314,25 +340,53 @@ class Vec3PropertyWidget(BasePropertyWidget):
     def __init__(self, property_name: str, test_values: tuple[brickedit.Vec3, ...], formula_mode: bool, initial_value: brickedit.Vec3, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
+        self._is_called_by_function_flag: bool = False
+        self.is_locked: bool = False
+
+        self.lock_button = ToolButton(QIcon(":/assets/icons/Unlocked.png"), True)
+        self.lock_button.set_checkable(True)
         self.x_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
         self.y_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
         self.z_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
         self.set_value(initial_value)
-        if formula_mode:
-            self.x_widget.formula_changed.connect(self.on_value_changed)
-            self.y_widget.formula_changed.connect(self.on_value_changed)
-            self.z_widget.formula_changed.connect(self.on_value_changed)
-        else:
-            self.x_widget.value_changed.connect(self.on_value_changed)
-            self.y_widget.value_changed.connect(self.on_value_changed)
-            self.z_widget.value_changed.connect(self.on_value_changed)
 
+        self.lock_button.clicked.connect(self.on_lock_toggled)
+        if formula_mode:
+            self.x_widget.formula_changed.connect(lambda value: self.on_value_changed(value, 0))
+            self.y_widget.formula_changed.connect(lambda value: self.on_value_changed(value, 1))
+            self.z_widget.formula_changed.connect(lambda value: self.on_value_changed(value, 2))
+        else:
+            self.x_widget.value_changed.connect(lambda value: self.on_value_changed(value, 0))
+            self.y_widget.value_changed.connect(lambda value: self.on_value_changed(value, 1))
+            self.z_widget.value_changed.connect(lambda value: self.on_value_changed(value, 2))
+
+        self.master_layout.addWidget(self.lock_button)
         self.master_layout.addWidget(self.x_widget)
         self.master_layout.addWidget(self.y_widget)
         self.master_layout.addWidget(self.z_widget)
 
         self.set_enabled(enabled)
 
+
+    def on_lock_toggled(self):
+        self.is_locked = not self.is_locked
+        self.lock_button.set_icon(QIcon(":/assets/icons/Locked.png" if self.is_locked else ":/assets/icons/Unlocked.png"))
+        self.lock_button.set_checked(self.is_locked)
+
+    def on_value_changed(self, value, w: int):
+        if self._is_called_by_function_flag:
+            return
+        self._is_called_by_function_flag = True
+
+        self.dirty = True
+        self.value_changed.emit(self.get_text())
+        if self.is_locked:
+                self.set_value(brickedit.Vec3(
+                    value if w == 0 else self.get_value(brickedit.Vec3(0.0, 0.0, 0.0)).y if w == 1 else self.get_value(brickedit.Vec3(0.0, 0.0, 0.0)).z,
+                    self.get_value(brickedit.Vec3(0.0, 0.0, 0.0)).x if w == 0 else value if w == 1 else self.get_value(brickedit.Vec3(0.0, 0.0, 0.0)).z,
+                    self.get_value(brickedit.Vec3(0.0, 0.0, 0.0)).x if w == 0 else self.get_value(brickedit.Vec3(0.0, 0.0, 0.0)).y if w == 1 else value
+                    ))
+        self._is_called_by_function_flag = False
 
     def set_enabled(self, enabled: bool):
         self.x_widget.set_enabled(enabled)
