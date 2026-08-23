@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QLayout, QVBoxLayout
 from PySide6.QtCore import Qt, Signal
 
 from ui.widgets import Widget
@@ -31,6 +31,7 @@ class Surface(Widget):
         surface_style: SurfaceStyle = SurfaceStyle.REGULAR,
         highlight: bool = True,
         role: SurfaceRole = SurfaceRole.PANEL,
+        inner_layout_cls: type[QLayout] = QVBoxLayout,
         parent=None
     ):
         super().__init__(parent=parent)
@@ -41,7 +42,7 @@ class Surface(Widget):
         self.role = role
         self.state = SurfaceState.NORMAL
 
-        self.qt_layout = QVBoxLayout(self)
+        self.qt_layout: QLayout = inner_layout_cls(self)
         self.setLayout(self.qt_layout)
 
         self.setAttribute(Qt.WA_StyledBackground, True)

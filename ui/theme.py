@@ -222,7 +222,7 @@ HIGH_CONTRAST = Theme(name="highcontrast", display_name="High contrast theme", i
     text=ThemeColor("#ffffffff"),
     accent=ThemeColor("#dd4433ff"),
     accent_surface=ThemeColor("#dd443350"),
-    accent_border=ThemeColor("#ffc0b8ff"),
+    accent_border=ThemeColor("#ff8866ff"),
     danger=ThemeColor("#ee2830ff"),
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")

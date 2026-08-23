@@ -211,7 +211,7 @@ class VehicleSelectionDrawer(Widget):
         self.loaded_brvfile_data = VehicleData(brvfile)
 
 
-    def save_brv(self, brv: brickedit.BRVFile | bytearray, warn_if_fail: bool = True, description: str | None = None) -> bool:
+    def save_brv(self, brv: brickedit.BRVFile | bytearray, show_dialogs: bool = True, description: str | None = None) -> bool:
         # First, serialize
         try:
             if isinstance(brv, brickedit.BRVFile):
@@ -243,7 +243,7 @@ class VehicleSelectionDrawer(Widget):
             return False
 
         except Exception as e:
-            if not warn_if_fail:
+            if not show_dialogs:
                 return False
 
             if str(e) == 'too long':

@@ -3,6 +3,7 @@ from PySide6.QtGui import QIcon, QColor
 from ui.components.gradient.editor import GradientEditor
 from ui.widgets import Button, ComboBox, Label, Surface, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle
 from ui.models import TooltipContents
+from ui.dialogs import VehicleLoadingIssueDialog
 from menus import base
 
 import os
@@ -70,43 +71,17 @@ class GradientMaker(base.BaseMenu):
 
     def create_vehicle(self):
 
+        # Make sure we can create the vehicle
+        if self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None:
+            VehicleLoadingIssueDialog.create(False).exec()
+            return
+
         # Get values
         num_bricks = self.brick_count
-        colors: list[tuple[QColor, float]] = self.gradient_editor.get_colors_pos()  # pos between 0 and 100
-        longer_hue: bool = self.gradient_editor.current_long_hue()
-        colorspace = self.gradient_editor.current_space()[0]
-
-        # Make a backup
-        description = f"Created using the {self.get_menu_name()}: {num_bricks}-bricks {colorspace} gradient"
-        
-        # CREATE VEHICLE
         # SET THE LIST OF COLORS MAKING THE GRADIENT
-        brick_colors = []
-        for i in range(num_bricks):
-            # Get the linear interpolant
-            x = i / (num_bricks-1)
+        brick_colors = [self.gradient_editor.get_color_at_pos(i / (num_bricks-1) * 100) for i in range(num_bricks)]
 
-            # Find the index of col2
-            color_idx = 0
-            while colors[color_idx][1] < x*100:
-                color_idx += 1
-                if color_idx == len(colors):
-                    break
-            
-            # Get the two colors and the local linear interpolant
-            col1_tuple, col2_tuple = colors[color_idx-1], colors[color_idx]
-            col1, col2 = col1_tuple[0], col2_tuple[0]
-            col1_x, col2_x = col1_tuple[1], col2_tuple[1]
-            local_x = (x - col1_x/100) / (col2_x/100 - col1_x/100)
-            
-            # Interpolate the two colors to get the final color and append to the list
-            brick_colors.append(interpolate_color(
-                local_x,
-                col1, col2,
-                colorspace,
-                longer_hue
-            ))
-
+        # CREATE VEHICLE
         brv = BRVFile(FILE_MAIN_VERSION)
         vh = vhelper.ValueHelper(FILE_MAIN_VERSION)
 
@@ -150,29 +125,9 @@ class GradientMaker(base.BaseMenu):
                     }
                 ))
 
-        serialized = try_serialize(brv)
-        if serialized is None:
-            return
 
-        os.makedirs(path, exist_ok=True)
-        with open(os.path.join(path, "Vehicle.brv"), "wb") as f:
-            f.write(serialized)
+        colorspace = self.gradient_editor.current_space().label
+        description = f"Created using the {self.get_menu_name()}: {num_bricks}-bricks {colorspace} gradient"
+        self.main_window.vehicle_selector_banner.save_brv(brv, description=description)
 
 
-        # Metadata
-        brm = BRMFile(FILE_MAIN_VERSION, brv)
-        serialized_brm = try_serialize_metadata(
-            brm,
-            self.vehicle_selector.vehicle_name.text(),
-            description,
-            num_bricks,
-            tags=[]
-        )
-
-        with open(os.path.join(path, "MetaData.brm"), "wb") as f:
-            f.write(serialized_brm)
-
-
-        self.reload_vehicle()
-
-        QMessageBox.information(self, "Gradient Maker", "Successfully created vehicle.")

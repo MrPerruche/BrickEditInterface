@@ -116,6 +116,9 @@ class GradientEditor(_BaseWidget):
     def get_colors(self) -> list:
         return self.bar.get_colors()
 
+    def get_color_at_pos(self, pos: float):
+        return self.bar.get_color_at_pos(pos)
+
     def set_colors_pos(self, values: list[tuple]) -> None:
         self.bar.set_colors_pos(values)
 

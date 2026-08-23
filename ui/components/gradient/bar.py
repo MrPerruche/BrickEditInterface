@@ -104,6 +104,9 @@ class GradientBar(_BaseWidget):
         self._drag_id = None
         self._refresh()
 
+    def get_color_at_pos(self, pos: float) -> QColor:
+        return sample_gradient(self._sorted_stops(), pos, self._space, self._long_hue)
+
     # -- color space / hue direction ------------------------------------------ #
 
     def space(self) -> ColorSpace:
