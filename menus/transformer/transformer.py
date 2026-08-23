@@ -1,14 +1,15 @@
-from PySide6.QtWidgets import QLabel, QHBoxLayout, QPushButton, QMessageBox
 from PySide6.QtGui import QIcon
 
-from ..shared_widgets import VehicleWidget, VehicleWidgetMode, LargeLabel, ExpressionWidget, ExpressionType
 from menus import base
 
-from brickedit import *
-from utils import try_serialize
+from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface, NumberChannelEdit
+from ui.dialogs import VehicleLoadingIssueDialog
+from ui.components.brick.property_widgets import Vec3PropertyWidget
 
-from copy import deepcopy
-from os import path, makedirs
+from brickedit import *
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class VehicleUpscalerMenu(base.BaseMenu):
@@ -17,126 +18,98 @@ class VehicleUpscalerMenu(base.BaseMenu):
     def __init__(self, mw):
         super().__init__(mw)
 
-        self.vehicle_selector = VehicleWidget(VehicleWidgetMode.SELECTION, [self.update_vehicle_is_reloaded])
-        self.master_layout.addWidget(self.vehicle_selector)
+        self.mw = mw
 
-        # Info label
-        self.info_label = QLabel("Actions are performed in the UI order. The vehicle is first moved, then scaled")
-        self.info_label.setWordWrap(True)
-        self.master_layout.addWidget(self.info_label)
+        mw.vehicle_selector_banner.vehicle_loaded.connect(self.vehicle_reloaded)
 
+        self.pos_widget = Surface()
+        self.pos_layout = self.pos_widget.layout()
+        self.master_layout.addWidget(self.pos_widget)
 
-        self.disabled_if_vehicle_not_loaded = []
+        self.pos_title = StyledLabel("Position", LabelStyle.LARGE_5)
+        self.pos_layout.addWidget(self.pos_title)
 
+        self.pos_label = Label("Offset by")
+        self.pos_layout.addWidget(self.pos_label)
 
-        # Position modificiation
-        self.pos_label = LargeLabel("Position", 4)
-        self.master_layout.addWidget(self.pos_label)
-        self.pos_layout = QHBoxLayout()
-        self.master_layout.addLayout(self.pos_layout)
-        self.pos_offset_label = QLabel("Offset:")
-        self.pos_layout.addWidget(self.pos_offset_label, 10)
-        self.disabled_if_vehicle_not_loaded.append(self.pos_offset_label)
-        self.pos_x_le = ExpressionWidget(0, ExpressionType.FLOAT)
-        self.pos_y_le = ExpressionWidget(0, ExpressionType.FLOAT)
-        self.pos_z_le = ExpressionWidget(0, ExpressionType.FLOAT)
-        self.pos_layout.addWidget(self.pos_x_le, 10)
-        self.disabled_if_vehicle_not_loaded.append(self.pos_x_le)
-        self.pos_layout.addWidget(self.pos_y_le, 10)
-        self.disabled_if_vehicle_not_loaded.append(self.pos_y_le)
-        self.pos_layout.addWidget(self.pos_z_le, 10)
-        self.disabled_if_vehicle_not_loaded.append(self.pos_z_le)
+        self.pos_vec_widget = Vec3PropertyWidget('', (Vec3(0.0, 0.0, 0.0),), False, Vec3(0.0, 0.0, 0.0), show_text=False)
+        self.pos_layout.addWidget(self.pos_vec_widget)
 
+        self.scale_widget = Surface()
+        self.scale_layout = self.scale_widget.layout()
+        self.master_layout.addWidget(self.scale_widget)
 
-        # Scale
-        self.scale_label = LargeLabel("Scale", 4)
-        self.master_layout.addWidget(self.scale_label)
-        self.rot_connection_warning = QLabel("Warning: modifying these settings will likely mess up connections.\nThis will not affect welded bricks.")
-        self.rot_connection_warning.setWordWrap(True)
-        self.master_layout.addWidget(self.rot_connection_warning)
-        # Scale modification
-        self.scale_mult_layout = QHBoxLayout()
-        self.master_layout.addLayout(self.scale_mult_layout)
-        # Multiplier
-        self.scale_mult_label = QLabel("Multiply by:")
-        self.scale_mult_layout.addWidget(self.scale_mult_label, 10)
-        self.disabled_if_vehicle_not_loaded.append(self.scale_mult_label)
-        self.scale_mult_le = ExpressionWidget(1, ExpressionType.DOUBLE)
-        self.scale_mult_le.editingFinished.connect(lambda: self.scale_input_updated(True))
-        self.scale_mult_layout.addWidget(self.scale_mult_le, 30)
-        
-        self.disabled_if_vehicle_not_loaded.append(self.scale_mult_le)
-        # Divisor
-        self.scale_div_layout = QHBoxLayout()
-        self.master_layout.addLayout(self.scale_div_layout)
-        self.scale_div_label = QLabel("Divide by:")
-        self.scale_div_layout.addWidget(self.scale_div_label, 10)
-        self.disabled_if_vehicle_not_loaded.append(self.scale_div_label)
-        self.scale_div_le = ExpressionWidget(1, ExpressionType.DOUBLE)
-        self.scale_div_le.editingFinished.connect(lambda: self.scale_input_updated(False))
-        self.scale_div_layout.addWidget(self.scale_div_le, 30)
-        self.disabled_if_vehicle_not_loaded.append(self.scale_div_le)
+        self.scale_title = StyledLabel("Scale", LabelStyle.LARGE_5)
+        self.scale_layout.addWidget(self.scale_title)
 
+        self.scale_mul_label = Label("Multiply by")
+        self.scale_layout.addWidget(self.scale_mul_label)
 
-        # Save button
-        self.save_button = QPushButton("Save changes")
-        self.save_button.clicked.connect(self.save_changes)
-        self.master_layout.addWidget(self.save_button)
+        self.scale_mul_widget = NumberChannelEdit(allow_inf=False, allow_nan=False)
+        self.scale_layout.addWidget(self.scale_mul_widget)
+        self.scale_mul_widget.setValue(1.0)
+        self.scale_mul_widget.value_changed.connect(lambda: self.scale_input_updated(True))
 
+        self.scale_div_label = Label("Divide by")
+        self.scale_layout.addWidget(self.scale_div_label)
 
-        self.update_vehicle_is_reloaded()
+        self.scale_div_widget = NumberChannelEdit(allow_inf=False, allow_nan=False)
+        self.scale_layout.addWidget(self.scale_div_widget)
+        self.scale_div_widget.setValue(1.0)
+        self.scale_div_widget.value_changed.connect(lambda: self.scale_input_updated(False))
 
+        # TODO: add rounding to brick positions
+
+        self.transform_vehicle_button = Button("Set vehicle transform")
+        self.master_layout.addWidget(self.transform_vehicle_button)
+        self.transform_vehicle_button.clicked.connect(self.save_changes)
+
+        self.vehicle_reloaded()
         self.master_layout.addStretch()
 
-    def scale_input_updated(self, mult_has_priority: bool):
-        if mult_has_priority:
-            self.scale_div_le.blockSignals(True)
-            self.scale_div_le.setText(str(1 / float(self.scale_mult_le.get_text())))
-            self.scale_div_le.blockSignals(False)
+    def scale_input_updated(self, from_mul: bool):
+        if from_mul:
+            self.scale_div_widget.blockSignals(True)
+            self.scale_div_widget.setValue(1.0 / float(self.scale_mul_widget.get_text()))
+            self.scale_div_widget.blockSignals(False)
         else:
-            self.scale_mult_le.blockSignals(True)
-            self.scale_mult_le.setText(str(1 / float(self.scale_div_le.get_text())))
-            self.scale_mult_le.blockSignals(False)
+            self.scale_mul_widget.blockSignals(True)
+            self.scale_mul_widget.setValue(1.0 / float(self.scale_div_widget.get_text()))
+            self.scale_mul_widget.blockSignals(False)
 
 
-    def update_vehicle_is_reloaded(self):
-        if self.vehicle_selector.brv_file is None:
-            for widget in self.disabled_if_vehicle_not_loaded:
-                widget.setDisabled(True)
-            return
-        # else:
-        for widget in self.disabled_if_vehicle_not_loaded:
-            widget.setDisabled(False)
+    def vehicle_reloaded(self):
+        brv = self.mw.vehicle_selector_banner.get_brvfile_ref()
+        disabled_when_vehicle_unloaded = [self.pos_widget, self.scale_widget, self.transform_vehicle_button]
+        for widget in disabled_when_vehicle_unloaded:
+            widget.setDisabled(brv is None)
 
+    def get_menu_name(self) -> str:
+        return "Vehicle Transformer"
+
+    def get_icon(self) -> base.MenuIconInfo:
+        return base.MenuIconInfo(QIcon(":/assets/icons/GizmoIcon.png"), True)
 
     def save_changes(self):
-        if self.vehicle_selector.brv_file is None:
-            QMessageBox.warning(self, "No vehicle selected", "No vehicle selected. Please select a vehicle before saving changes.")
-            return
-        vehicle_dir = path.dirname(self.vehicle_selector.brv_file)
-        self.main_window.backups.full_backup_procedure(vehicle_dir, f"Modified using the {self.get_menu_name()}.")
+        brvfile = self.mw.vehicle_selector_banner.get_brvfile_copy()
+        if brvfile is None:
+            VehicleLoadingIssueDialog.create(True).exec(); return
 
-        # Save (and make sure the path exists)
-        makedirs(path.dirname(self.vehicle_selector.brv_file), exist_ok=True)
+        # Apply transform
+        off_x = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).x)
+        off_y = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).y)
+        off_z = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).z)
+        scale = float(self.scale_mul_widget.get_text())
         
-        
-        # Modify the brv
-        brv = deepcopy(self.vehicle_selector.brv)
-        
-        off_x = float(self.pos_x_le.get_text())
-        off_y = float(self.pos_y_le.get_text())
-        off_z = float(self.pos_z_le.get_text())
-        scale = float(self.scale_mult_le.get_text())
-        
-        must_offset = (off_x != 0) or (off_y != 0) or (off_z != 0)
-        must_scale = scale != 1
+        must_offset = (off_x != 0.0) or (off_y != 0.0) or (off_z != 0.0)
+        must_scale = scale != 1.0
 
         if must_offset:
-            for brick in brv.bricks:
+            for brick in brvfile.bricks:
                 brick.pos += Vec3(off_x, off_y, off_z)
 
         if must_scale:
-            for brick in brv.bricks:
+            for brick in brvfile.bricks:
                 # Position
                 brick.pos *= scale
                 # Modify properties
@@ -151,20 +124,6 @@ class VehicleUpscalerMenu(base.BaseMenu):
                     ):
                         brick.set_property(prop, val * scale)
 
-
-
-        serialized = try_serialize(brv)
-        if serialized is None:
-            return
-        with open(self.vehicle_selector.brv_file, "wb") as f:
-            f.write(serialized)
-
-        QMessageBox.information(self, "BrickEdit-Interface", "Successfully saved changes.")
-
-
-
-    def get_menu_name(self) -> str:
-        return "Vehicle Transformer"
-
-    def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(":/assets/icons/GizmoIcon.png"), True)
+        logger.info(f"Transforming vehicle with scale {scale}" if must_scale else "Transforming vehicle")
+        self.mw.vehicle_selector_banner.save_brv(brvfile, description=f"Transformed using scale {scale}.")
+        logger.info(f"Vehicle transformed with scale {scale}" if must_scale else "Transforming vehicle")

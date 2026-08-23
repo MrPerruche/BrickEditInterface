@@ -3,7 +3,7 @@ from PySide6.QtGui import QIcon
 
 from menus import base
 
-from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface, Switcher, SwitcherEntry
+from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface, Switcher
 from ui.components.brick.property_widgets import ColorPropertyWidget
 from ui.dialogs import VehicleLoadingIssueDialog
 from ui.models import TooltipContents

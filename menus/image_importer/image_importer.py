@@ -7,10 +7,9 @@ from menus import base
 
 from .widgets import ImageSelector
 from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface
-from ui.components.brick.property_widgets import FloatPropertyWidget
 from ui.models import TooltipContents
 
-from utils import max_float32_for_tolerance, get_vehicles_path
+from utils import max_float32_for_tolerance
 from . import image_utils
 
 from enum import Enum
