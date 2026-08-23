@@ -1,6 +1,4 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtGui import QIcon, QColor
-from PySide6.QtCore import Qt
 
 from ui.components.gradient.editor import GradientEditor
 from ui.widgets import Button, ComboBox, Label, Surface, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle
