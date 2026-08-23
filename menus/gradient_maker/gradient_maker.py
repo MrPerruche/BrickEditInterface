@@ -12,6 +12,10 @@ from brickedit import *
 from utils import try_serialize, try_serialize_metadata
 
 
+def col_as_tuple(col: QColor) -> tuple[int, int, int, int]:
+    return col.red(), col.green(), col.blue(), col.alpha()
+
+
 
 class GradientMaker(base.BaseMenu):
 
@@ -20,7 +24,11 @@ class GradientMaker(base.BaseMenu):
 
         self.special_bricks = [bt.TEXT_BRICK.name(), bt.TEXT_CYLINDER.name(), bt.SPINNER_BRICK.name()]
         self.special_bricks_str = ', '.join(self.special_bricks)
-        self.sorted_bt_registry = [k for k, v in bt.bt_registry.items() if p.BRICK_SIZE in v.p.keys() or p.SPINNER_SIZE in v.p.keys()]
+        self.sorted_bt_registry = self.special_bricks + sorted([
+            k for k, v in bt.bt_registry.items()
+            if ((p.BRICK_SIZE in v.p.keys() or p.SPINNER_SIZE in v.p.keys())
+                and k not in self.special_bricks)
+        ])
         self.brick_count: int = 50
 
         self.gradient_editor = GradientEditor()
@@ -72,7 +80,7 @@ class GradientMaker(base.BaseMenu):
     def create_vehicle(self):
 
         # Make sure we can create the vehicle
-        if self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None:
+        if self.main_window.vehicle_selector_banner.is_vehicle_loaded():
             VehicleLoadingIssueDialog.create(False).exec()
             return
 
@@ -85,16 +93,17 @@ class GradientMaker(base.BaseMenu):
         brv = BRVFile(FILE_MAIN_VERSION)
         vh = vhelper.ValueHelper(FILE_MAIN_VERSION)
 
-        brick_type = bt.bt_registry.get(self.brick_type_setting.get_current_text()).name()
+        brick_type = bt.bt_registry.get(self.brick_type_setting.get_current_text())
         if brick_type is None:
             brick_type = bt.TEXT_BRICK
 
         brick_size = min(0.5, 6 / num_bricks)  # Minimum between 60cm and a total length under 500cm
 
-        for i, bc in enumerate(brick_colors):
+        for i, qbc in enumerate(brick_colors):
+            bc = col_as_tuple(qbc)
             nbc = vhelper.color.pack_float_to_int(*[c/255 for c in bc])
             color_str = f"{bc[0]:02x}{bc[1]:02x}{bc[2]:02x}"
-            
+
             # Spinner brick
             if brick_type == bt.SPINNER_BRICK:
                 angle_per_step = 360 / num_bricks
@@ -129,5 +138,3 @@ class GradientMaker(base.BaseMenu):
         colorspace = self.gradient_editor.current_space().label
         description = f"Created using the {self.get_menu_name()}: {num_bricks}-bricks {colorspace} gradient"
         self.main_window.vehicle_selector_banner.save_brv(brv, description=description)
-
-
