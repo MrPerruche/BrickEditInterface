@@ -1,7 +1,10 @@
-from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtGui import QIcon, QColor
+from PySide6.QtCore import Qt
 
 from ui.components.gradient.editor import GradientEditor
+from ui.widgets import Button, ComboBox, Label, Surface, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle
+from ui.models import TooltipContents
 from menus import base
 
 import os
@@ -16,8 +19,44 @@ class GradientMaker(base.BaseMenu):
     def __init__(self, mw):
         super().__init__(mw)
 
+        self.special_bricks = [bt.TEXT_BRICK.name(), bt.TEXT_CYLINDER.name(), bt.SPINNER_BRICK.name()]
+        self.special_bricks_str = ', '.join(self.special_bricks)
+        self.sorted_bt_registry = [k for k, v in bt.bt_registry.items() if p.BRICK_SIZE in v.p.keys() or p.SPINNER_SIZE in v.p.keys()]
+        self.brick_count: int = 50
+
         self.gradient_editor = GradientEditor()
         self.master_layout.addWidget(self.gradient_editor)
+
+        # BRICK SETTINGS
+        self.brick_settings_widget = Surface()
+        self.brick_settings_layout = self.brick_settings_widget.layout()
+        self.setLayout(self.brick_settings_layout)
+        self.master_layout.addWidget(self.brick_settings_widget)
+
+        self.brick_settings_title = StyledLabel("Brick settings", LabelStyle.LARGE_5)
+        self.brick_settings_layout.addWidget(self.brick_settings_title)
+
+        self.brick_count_label = Label("Brick count")
+        self.brick_settings_layout.addWidget(self.brick_count_label)
+
+        self.brick_count_nce = NumberChannelEdit(ChannelMode.INT, minimum=2, maximum=5000, allow_inf=False, allow_nan=False)
+        self.brick_count_nce.setValue(50)
+
+        self.brick_settings_layout.addWidget(self.brick_count_nce)
+        self.brick_count_nce.value_changed.connect(self.on_brick_count_updated)
+
+        self.brick_type_label = Label("Brick type")
+        self.brick_settings_layout.addWidget(self.brick_type_label)
+        self.brick_type_label.set_tooltip(TooltipContents("Brick type", f"{self.special_bricks_str} have special interactions."))
+
+        self.brick_type_setting = ComboBox()
+        for bricktype in self.sorted_bt_registry:
+            self.brick_type_setting.add_item(bricktype)
+        self.brick_settings_layout.addWidget(self.brick_type_setting)
+
+        self.create_gradient_button = Button("Create vehicle")
+        self.create_gradient_button.clicked.connect(self.create_vehicle)
+        self.master_layout.addWidget(self.create_gradient_button)
 
         self.master_layout.addStretch()
 
@@ -28,18 +67,19 @@ class GradientMaker(base.BaseMenu):
     def get_icon(self) -> base.MenuIconInfo:
         return base.MenuIconInfo(QIcon(":/assets/icons/GradientIconNew.png"), True)
 
+    def on_brick_count_updated(self):
+        self.brick_count = int(self.brick_count_nce.get_text())
 
     def create_vehicle(self):
 
         # Get values
-        num_bricks: int = self.num_bricks_spin.value()
-        colors: list[tuple[QColor, float]] = self.col_sel_widget.get_colors_pos()  # pos between 0 and 100
-        longer_hue: bool = self.longer_hue.isChecked()
+        num_bricks = self.brick_count
+        colors: list[tuple[QColor, float]] = self.gradient_editor.get_colors_pos()  # pos between 0 and 100
+        longer_hue: bool = self.gradient_editor.current_long_hue()
+        colorspace = self.gradient_editor.current_space()[0]
 
         # Make a backup
-        path = self.get_vehicle_path()
-        description = f"Created using the {self.get_menu_name()}: {num_bricks}-bricks {colorspace.name} gradient"
-        self.main_window.backups.full_backup_procedure(path, description)
+        description = f"Created using the {self.get_menu_name()}: {num_bricks}-bricks {colorspace} gradient"
         
         # CREATE VEHICLE
         # SET THE LIST OF COLORS MAKING THE GRADIENT
@@ -72,7 +112,7 @@ class GradientMaker(base.BaseMenu):
         brv = BRVFile(FILE_MAIN_VERSION)
         vh = vhelper.ValueHelper(FILE_MAIN_VERSION)
 
-        brick_type = bt.bt_registry.get(self.brick_type_sel.currentText())
+        brick_type = bt.bt_registry.get(self.brick_type_setting.get_current_text()).name()
         if brick_type is None:
             brick_type = bt.TEXT_BRICK
 

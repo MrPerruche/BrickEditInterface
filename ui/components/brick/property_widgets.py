@@ -193,7 +193,7 @@ class BooleanPropertyWidget(BasePropertyWidget):
 
         self.master_layout.addWidget(self.setting_widget)
 
-        self.set_enabled(enabled if initial_value is not None else False)
+        self.set_enabled(enabled)
 
 
     def set_enabled(self, enabled: bool):
@@ -798,7 +798,7 @@ def get_property_widget_cls(property_name: str, allow_unknown: bool = True) -> t
         return FloatPropertyWidget
     elif issubclass(property_meta_cls, brickedit.p.Vec2Meta):
         return Vec2PropertyWidget
-    elif issubclass(property_meta_cls, brickedit.p.BrickSize):
+    elif issubclass(property_meta_cls, (brickedit.p.BrickSize, brickedit.p.ExitLocation)):
         return Vec3PropertyWidget
     elif issubclass(property_meta_cls, brickedit.p.NumFractionalDigits):
         return Integer8PropertyWidget
@@ -830,5 +830,5 @@ def get_property_widget(
                 return None
         else:
             return None
-
-    return widget_cls(property_name, test_values, formula_mode, initial_value, enabled, show_text)
+    if initial_value is not None:
+        return widget_cls(property_name, test_values, formula_mode, initial_value, enabled, show_text)

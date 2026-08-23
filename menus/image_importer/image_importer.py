@@ -188,31 +188,25 @@ class ImageImporter(base.BaseMenu):
 
     def on_optimization_method_changed(self):
         idx = self.optimization_method.get_current_idx()
-        if idx in (0, 1):
-            self.oms3d_widget.hide()
-        else:
-            self.oms3d_widget.show()
+        self.oms3d_widget.setHidden(idx in (0, 1))
 
 
     def on_quantization_algorithm_changed(self):
         idx = self.quantization_algorithm.get_current_idx()
-        if idx == 0:
-            self.quantization_settings_widget.hide()
-        else:
-            self.quantization_settings_widget.show()
+        self.quantization_settings_widget.setVisible(idx != 0)
 
 
 
     def update_max_layers(self):
         self.max_layers = self.max_layers_slider.get_value()
-        self.max_layers_slider.set_text(f"{self.max_layers}", 25)
+        self.max_layers_slider.set_text(f"{self.max_layers} layers", 60)
 
     def update_layer_thickness(self):
         self.layer_thickness_slider.set_text(f"{_LIST_SLIDER_OPTIONS[self.layer_thickness_slider.get_value()]} cm", 62)
 
     def update_color_count(self):
         self.color_count = self.colors_slider.get_value()
-        self.colors_slider.set_text(f"{self.color_count} Colors", 62)
+        self.colors_slider.set_text(f"{self.color_count} colors", 61)
 
     def get_menu_name(self):
         return "Image Importer"

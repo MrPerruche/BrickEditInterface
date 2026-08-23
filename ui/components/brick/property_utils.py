@@ -17,6 +17,6 @@ def get_or_make_property_display_name(property_name: str) -> str:
         property_name = property_name[1: ]
 
     # Split PascalCase
-    property_name = re.sub(r'(?<!^)(?=[A-Z])', ' ', property_name.replace('_', ' ')).title()
+    property_name = (re.sub(r'(?<!^)(?=[A-Z])', ' ', property_name.replace('_', ' ')).title()).replace('.', '')
 
     return property_name
