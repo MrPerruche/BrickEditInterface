@@ -175,6 +175,8 @@ class Label(Widget):
         self.is_muted = muted
         super().__init__(parent)
 
+        self.text = text
+
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self._layout)
@@ -199,6 +201,9 @@ class Label(Widget):
 
         register_has_theme_and_apply(self)
 
+    def get_text(self) -> str:
+        return self.text
+
     def set_muted(self, muted: bool):
         if muted != self.is_muted:
             self.is_muted = muted
@@ -206,6 +211,7 @@ class Label(Widget):
             reapply_theme(self)
 
     def set_text(self, text: str):
+        self.text = text
         self.qt_widget.setText(text)
         self.qt_widget.update()
 

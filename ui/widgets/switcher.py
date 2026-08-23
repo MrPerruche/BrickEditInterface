@@ -111,6 +111,10 @@ class Switcher(Widget):
         return self.idx if self.items else None
 
 
+    def get_text(self) -> str | None:
+        return self.label.get_text()
+
+
     def get_layout(self, idx: int) -> QLayout | None:
 
         if not self.items:

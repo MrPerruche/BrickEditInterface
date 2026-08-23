@@ -1,9 +1,9 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
+from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtGui import QIcon
 
 from menus import base
 
-from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle
+from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface, Switcher, SwitcherEntry
 from ui.components.brick.property_widgets import ColorPropertyWidget
 from ui.dialogs import VehicleLoadingIssueDialog
 from ui.models import TooltipContents
@@ -16,153 +16,164 @@ logger = logging.getLogger(__name__)
 
 
 
+_SUPPORTED_VERSIONS = ["1.10", "1.11"]
+
+_ABOUT_OPERATION_HANDLING = """Keep operation - Closest equivalent to the 1.11 operation
+        Keep operation and recolor - Lets you easily find the affected math brick(s)"""
+
+_ABOUT_BRICK_HANDLING = f"""Remove brick(s) - Removes the brick(s)
+        Replace with {bt.SCALABLE_BRICK.name()} - Replaces the brick(s) with a scalable cube ({bt.SCALABLE_BRICK.name()})
+        Replace with {bt.SCALABLE_BRICK.name()} and recolor - Replaces the brick(s) with a scalable cube ({bt.SCALABLE_BRICK.name()}) and recolors it to let you find the affected brick(s) easier"""
+
+_OPERATION_HANDLING_OPTIONS = ("Keep operation", "Keep operation and recolor")
+
+_BRICK_HANDLING_OPTIONS = ("Remove brick(s)", f"Replace with {bt.SCALABLE_BRICK.name()}", f"Replace with {bt.SCALABLE_BRICK.name()} and recolor")
+
+
 class DowngradeVehicleMenu(base.BaseMenu):
 
     def __init__(self, mw):
         super().__init__(mw)
+        self.mw = mw
 
-        self.supported_versions = ("1.11", "1.10")
-
-        self.current_version_label = StyledLabel("CURRENT VERSION", style=LabelStyle.SUBTEXT_1)
+        # downgrade from
+        self.current_version_label = Label("Current version")
         self.master_layout.addWidget(self.current_version_label)
 
-        self.current_version = ComboBox()
-        self.master_layout.addWidget(self.current_version)
-        self.current_version.setEnabled(False)
-        self.current_version.add_item('---')
+        self.current_version_setting = Switcher(["---"])
+        self.master_layout.addWidget(self.current_version_setting)
 
-        self.to_version_label = StyledLabel("DOWNGRADE TO VERSION", style=LabelStyle.SUBTEXT_1)
+        # downgrade to
+        self.to_version_label = Label("Downgrade to version")
         self.master_layout.addWidget(self.to_version_label)
 
-        self.to_version = ComboBox()
-        self.master_layout.addWidget(self.to_version)
-        for version in self.supported_versions:
-            self.to_version.add_item(version)
-        self.to_version.item_changed.connect(self.update_can_downgrade)
-        self.to_version.item_changed.connect(self.update_downgrade_preferences)
+        self.to_version_setting = Switcher(_SUPPORTED_VERSIONS)
+        self.master_layout.addWidget(self.to_version_setting)
+        self.to_version_setting.left_arrow.clicked.connect(self.update_can_downgrade)
+        self.to_version_setting.right_arrow.clicked.connect(self.update_can_downgrade)
 
-        self.downgrade_preferences_layout = QVBoxLayout()
-        self.master_layout.addLayout(self.downgrade_preferences_layout)
+        # OPERATION HANDLING UI
+        self.operation_handling_layout = QVBoxLayout()
+        self.master_layout.addLayout(self.operation_handling_layout)
 
-        self.downgrade_button = Button("Downgrade vehicle")
-        self.downgrade_button.clicked.connect(self.downgrade_vehicle)
-        self.downgrade_button.set_enabled(False)
-        self.master_layout.addWidget(self.downgrade_button)
-
-        self.disabled_if_vehicle_not_loaded = [self.downgrade_button]
-
-        self.main_window.vehicle_selector_banner.vehicle_loaded.connect(self.on_reloaded)
-
-        # math brick handling
-        self.operation_handling_options: tuple[str] = (
-            "Keep operation",
-            "Keep operation and recolor"
-            )
-        self.operation_handling_options_descriptions: tuple[str] = (
-            "Closest equivalent to the 1.11 operation",
-            "Lets you easily find the affected math brick(s)"
-        )
+        self.operation_handling_title = StyledLabel("Operation handling", LabelStyle.LARGE_5)
+        self.operation_handling_layout.addWidget(self.operation_handling_title)
+        self.operation_handling_title.hide()
 
         # greater operation handling
-        self.greater_handling_label = StyledLabel("GREATER HANDLING", style=LabelStyle.SUBTEXT_1)
-        self.downgrade_preferences_layout.addWidget(self.greater_handling_label)
+        self.greater_handling_widget = Surface()
+        self.greater_handling_layout = self.greater_handling_widget.layout()
+        self.greater_handling_title = StyledLabel(f"{p.Operation.GT} handling", LabelStyle.LARGE_5)
+        self.greater_handling_layout.addWidget(self.greater_handling_title)
+        self.operation_handling_layout.addWidget(self.greater_handling_widget)
+        self.greater_handling_widget.hide()
+
+        self.greater_handling_label = Label("Handling mode")
+        self.greater_handling_label.set_tooltip(TooltipContents("Handling mode", _ABOUT_OPERATION_HANDLING))
+        self.greater_handling_setting = ComboBox()
+        for option in _OPERATION_HANDLING_OPTIONS:
+            self.greater_handling_setting.add_item(option)
+        self.greater_handling_color_label = Label("Recolor to")
+        self.greater_handling_color = ColorPropertyWidget('', (0,), False, 0xbcbcbcff, show_text=False)
+        self.greater_handling_layout.addWidget(self.greater_handling_label)
         self.greater_handling_label.hide()
-
-        self.greater_handling = ComboBox()
-        self.downgrade_preferences_layout.addWidget(self.greater_handling)
-        self.greater_handling.hide()
-        for option in self.operation_handling_options:
-            self.greater_handling.add_item(option)
-        self.greater_handling.item_changed.connect(self.update_downgrade_preferences)
-
-        self.greater_handling_color = ColorPropertyWidget(f"Recolor {p.Operation.GT} math bricks to", (0, 0, 0, 0,), False, 0xbcbcbcff)
-        self.downgrade_preferences_layout.addWidget(self.greater_handling_color)
+        self.greater_handling_layout.addWidget(self.greater_handling_setting)
+        self.greater_handling_setting.hide()
+        self.greater_handling_layout.addWidget(self.greater_handling_color_label)
+        self.greater_handling_color_label.hide()
+        self.greater_handling_layout.addWidget(self.greater_handling_color)
         self.greater_handling_color.hide()
-
-        self.greater_handling.set_tooltip(TooltipContents(f'{p.Operation.GT} handling', f"""How '{p.Operation.GT}' math bricks get handled.
-        The '{p.Operation.GT}' operation was tweaked in 1.11, which results in it not having a true equivalent operation in 1.10. You can use this option to set how the math brick(s) will get handled.
-        <hr>
-        {self.operation_handling_options[0]} - {self.operation_handling_options_descriptions[0]}
-        {self.operation_handling_options[1]} - {self.operation_handling_options_descriptions[1]}
-        """))
+        self.greater_handling_setting.item_changed.connect(self.update_downgrade_preferences)
 
         # less operation handling
-        self.less_handling_label = StyledLabel("LESS HANDLING", style=LabelStyle.SUBTEXT_1)
-        self.downgrade_preferences_layout.addWidget(self.less_handling_label)
+        self.less_handling_widget = Surface()
+        self.less_handling_layout = self.less_handling_widget.layout()
+        self.less_handling_title = StyledLabel(f"{p.Operation.LT} handling", LabelStyle.LARGE_5)
+        self.less_handling_layout.addWidget(self.less_handling_title)
+        self.operation_handling_layout.addWidget(self.less_handling_widget)
+        self.less_handling_widget.hide()
+
+        self.less_handling_label = Label("Handling mode")
+        self.less_handling_label.set_tooltip(TooltipContents("Handling mode", _ABOUT_OPERATION_HANDLING))
+        self.less_handling_setting = ComboBox()
+        for option in _OPERATION_HANDLING_OPTIONS:
+            self.less_handling_setting.add_item(option)
+        self.less_handling_color_label = Label("Recolor to")
+        self.less_handling_color = ColorPropertyWidget('', (0,), False, 0xbcbcbcff, show_text=False)
+        self.less_handling_layout.addWidget(self.less_handling_label)
         self.less_handling_label.hide()
-
-        self.less_handling = ComboBox()
-        self.downgrade_preferences_layout.addWidget(self.less_handling)
-        self.less_handling.hide()
-        for option in self.operation_handling_options:
-            self.less_handling.add_item(option)
-        self.less_handling.item_changed.connect(self.update_downgrade_preferences)
-
-        self.less_handling_color = ColorPropertyWidget(f"Recolor {p.Operation.LT} math bricks to", (0, 0, 0, 0,), False, 0xbcbcbcff)
-        self.downgrade_preferences_layout.addWidget(self.less_handling_color)
+        self.less_handling_layout.addWidget(self.less_handling_setting)
+        self.less_handling_setting.hide()
+        self.less_handling_layout.addWidget(self.less_handling_color_label)
+        self.less_handling_color_label.hide()
+        self.less_handling_layout.addWidget(self.less_handling_color)
         self.less_handling_color.hide()
+        self.less_handling_setting.item_changed.connect(self.update_downgrade_preferences)
 
-        self.less_handling.set_tooltip(TooltipContents(f'{p.Operation.LT} handling', f"""How '{p.Operation.LT}' math bricks get handled.
-        The '{p.Operation.LT}' operation was tweaked in 1.11, which results in it not having a true equivalent operation in 1.10. You can use this option to set how the math brick(s) will get handled.
-        <hr>
-        {self.operation_handling_options[0]} - {self.operation_handling_options_descriptions[0]}
-        {self.operation_handling_options[1]} - {self.operation_handling_options_descriptions[1]}
-        """))
+        # BRICK HANDLING UI
+        self.brick_handling_layout = QVBoxLayout()
+        self.master_layout.addLayout(self.brick_handling_layout)
 
-        # scalable brick handling
-        self.brick_handling_options: tuple[str] = ("Remove brick(s)", f"Replace with {bt.SCALABLE_BRICK.name()}", f"Replace with {bt.SCALABLE_BRICK.name()} and recolor")
-        self.brick_handling_options_descriptions: tuple[str] = (
-            "Removes the brick(s) with no additional handling",
-            f"Replaces the brick(s) with a scalable cube ({bt.SCALABLE_BRICK.name()})",
-            f"Replaces the brick(s) with a scalable cube ({bt.SCALABLE_BRICK.name()}) and recolors it to let you find the affected brick(s) easier"
-            )
+        self.brick_handling_title = StyledLabel("Brick handling", LabelStyle.LARGE_5)
+        self.brick_handling_layout.addWidget(self.brick_handling_title)
+        self.brick_handling_title.hide()
 
         # scalable square to circle handling
-        self.sq_to_c_handling_label = StyledLabel("SCALABLE SQUARE TO CIRCLE HANDLING", style=LabelStyle.SUBTEXT_1)
-        self.downgrade_preferences_layout.addWidget(self.sq_to_c_handling_label)
+        self.sq_to_c_handling_widget = Surface()
+        self.sq_to_c_handling_layout = self.sq_to_c_handling_widget.layout()
+        self.sq_to_c_handling_title = StyledLabel(f"{bt.SCALABLE_SQUARE_TO_CIRCLE.name()} handling", LabelStyle.LARGE_5)
+        self.sq_to_c_handling_layout.addWidget(self.sq_to_c_handling_title)
+        self.brick_handling_layout.addWidget(self.sq_to_c_handling_widget)
+        self.sq_to_c_handling_widget.hide()
+
+        self.sq_to_c_handling_label = Label("Handling mode")
+        self.sq_to_c_handling_label.set_tooltip(TooltipContents("Handling mode", _ABOUT_OPERATION_HANDLING))
+        self.sq_to_c_handling_setting = ComboBox()
+        for option in _BRICK_HANDLING_OPTIONS:
+            self.sq_to_c_handling_setting.add_item(option)
+        self.sq_to_c_handling_color_label = Label("Recolor to")
+        self.sq_to_c_handling_color = ColorPropertyWidget('', (0,), False, 0xbcbcbcff, show_text=False)
+        self.sq_to_c_handling_layout.addWidget(self.sq_to_c_handling_label)
         self.sq_to_c_handling_label.hide()
-
-        self.sq_to_c_handling = ComboBox()
-        self.downgrade_preferences_layout.addWidget(self.sq_to_c_handling)
-        self.sq_to_c_handling.hide()
-        for option in self.brick_handling_options:
-            self.sq_to_c_handling.add_item(option)
-        self.sq_to_c_handling.item_changed.connect(self.update_downgrade_preferences)
-
-        self.sq_to_c_handling_color = ColorPropertyWidget(f"Recolor {bt.SCALABLE_SQUARE_TO_CIRCLE.name()} bricks to", (0, 0, 0, 0,), False, 0xbcbcbcff)
-        self.downgrade_preferences_layout.addWidget(self.sq_to_c_handling_color)
+        self.sq_to_c_handling_layout.addWidget(self.sq_to_c_handling_setting)
+        self.sq_to_c_handling_setting.hide()
+        self.sq_to_c_handling_layout.addWidget(self.sq_to_c_handling_color_label)
+        self.sq_to_c_handling_color_label.hide()
+        self.sq_to_c_handling_layout.addWidget(self.sq_to_c_handling_color)
         self.sq_to_c_handling_color.hide()
-
-        self.sq_to_c_handling.set_tooltip(TooltipContents(f'{bt.SCALABLE_SQUARE_TO_CIRCLE.name()} handling', f"""How '{bt.SCALABLE_SQUARE_TO_CIRCLE.name()}' bricks get handled.
-        The '{bt.SCALABLE_SQUARE_TO_CIRCLE.name()} brick was added in 1.11, which results in it not having an equivalent brick in 1.10. You can use this option to set how the brick(s) will get handled.
-        <hr>
-        {self.brick_handling_options[0]} - {self.brick_handling_options_descriptions[0]}
-        {self.brick_handling_options[1]} - {self.brick_handling_options_descriptions[1]}
-        {self.brick_handling_options[2]} - {self.brick_handling_options_descriptions[2]}"""))
+        self.sq_to_c_handling_setting.item_changed.connect(self.update_downgrade_preferences)
 
         # scalable square to quarter circle handling
-        self.sq_to_qc_handling_label = StyledLabel("SCALABLE SQUARE TO QUARTER CIRCLE HANDLING", style=LabelStyle.SUBTEXT_1)
-        self.downgrade_preferences_layout.addWidget(self.sq_to_qc_handling_label)
+        self.sq_to_qc_handling_widget = Surface()
+        self.sq_to_qc_handling_layout = self.sq_to_qc_handling_widget.layout()
+        self.sq_to_qc_handling_title = StyledLabel(f"{bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()} handling", LabelStyle.LARGE_5)
+        self.sq_to_qc_handling_layout.addWidget(self.sq_to_qc_handling_title)
+        self.brick_handling_layout.addWidget(self.sq_to_qc_handling_widget)
+        self.sq_to_qc_handling_widget.hide()
+
+        self.sq_to_qc_handling_label = Label("Handling mode")
+        self.sq_to_qc_handling_label.set_tooltip(TooltipContents("Handling mode", _ABOUT_OPERATION_HANDLING))
+        self.sq_to_qc_handling_setting = ComboBox()
+        for option in _BRICK_HANDLING_OPTIONS:
+            self.sq_to_qc_handling_setting.add_item(option)
+        self.sq_to_qc_handling_color_label = Label("Recolor to")
+        self.sq_to_qc_handling_color = ColorPropertyWidget('', (0,), False, 0xbcbcbcff, show_text=False)
+        self.sq_to_qc_handling_layout.addWidget(self.sq_to_qc_handling_label)
         self.sq_to_qc_handling_label.hide()
-
-        self.sq_to_qc_handling = ComboBox()
-        self.downgrade_preferences_layout.addWidget(self.sq_to_qc_handling)
-        self.sq_to_qc_handling.hide()
-        for option in self.brick_handling_options:
-            self.sq_to_qc_handling.add_item(option)
-        self.sq_to_qc_handling.item_changed.connect(self.update_downgrade_preferences)
-
-        self.sq_to_qc_handling_color = ColorPropertyWidget(f"Recolor {bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()} bricks to", (0, 0, 0, 0,), False, 0xbcbcbcff)
-        self.downgrade_preferences_layout.addWidget(self.sq_to_qc_handling_color)
+        self.sq_to_qc_handling_layout.addWidget(self.sq_to_qc_handling_setting)
+        self.sq_to_qc_handling_setting.hide()
+        self.sq_to_qc_handling_layout.addWidget(self.sq_to_qc_handling_color_label)
+        self.sq_to_qc_handling_color_label.hide()
+        self.sq_to_qc_handling_layout.addWidget(self.sq_to_qc_handling_color)
         self.sq_to_qc_handling_color.hide()
+        self.sq_to_qc_handling_setting.item_changed.connect(self.update_downgrade_preferences)
 
-        self.sq_to_qc_handling.set_tooltip(TooltipContents(f'{bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()} handling', f"""How '{bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()}' bricks get handled.
-        The '{bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()} brick was added in 1.11, which results in it not having an equivalent brick in 1.10. You can use this option to set how the brick(s) will get handled.
-        <hr>
-        {self.brick_handling_options[0]} - {self.brick_handling_options_descriptions[0]}
-        {self.brick_handling_options[1]} - {self.brick_handling_options_descriptions[1]}
-        {self.brick_handling_options[2]} - {self.brick_handling_options_descriptions[2]}"""))
+        self.downgrade_vehicle_button = Button("Downgrade vehicle")
+        self.master_layout.addWidget(self.downgrade_vehicle_button)
+        self.downgrade_vehicle_button.set_disabled(True)
+        self.downgrade_vehicle_button.clicked.connect(self.downgrade_vehicle)
 
+        mw.vehicle_selector_banner.vehicle_loaded.connect(self.on_reloaded)
         self.master_layout.addStretch()
 
 
@@ -173,20 +184,20 @@ class DowngradeVehicleMenu(base.BaseMenu):
 
     @staticmethod
     def int_to_version(v: int) -> str | None:
-        return "1.11" if v == 18 else "1.10" if v == 17 else "other"
+        return "1.11" if v == 18 else "1.10" if v == 17 else "---"
 
     def get_versions(self) -> tuple[int, int]:
         """Returns the current version and the version to downgrade to as a tuple of ints"""
         return (
-            self.version_to_int(self.current_version.get_current_text()),
-            self.version_to_int(self.to_version.get_current_text())
+            self.version_to_int(self.current_version_setting.get_text()),
+            self.version_to_int(self.to_version_setting.get_text())
             )
 
     def get_versions_str(self) -> tuple[int, int]:
         """Returns the current version and the version to downgrade to as a tuple of strings"""
         return (
-            self.current_version.get_current_text(),
-            self.to_version.get_current_text()
+            self.current_version_setting.get_text(),
+            self.to_version_setting.get_text()
             )
 
     def get_menu_name(self) -> str:
@@ -196,99 +207,102 @@ class DowngradeVehicleMenu(base.BaseMenu):
         return base.MenuIconInfo(QIcon(":/assets/icons/DowngradeIcon.png"), True)
 
     def update_can_downgrade(self):
-        self.downgrade_button.set_disabled(
-            self.get_versions_str()[0] == '---' or
-            self.get_versions()[0] <= self.get_versions()[1]
-            )
-        if self.main_window.vehicle_selector_banner.get_brvfile_ref() is None:
-            self.downgrade_button.set_enabled(False)
-            self.current_version.set_current_text(0, '---')
+        self.downgrade_vehicle_button.set_enabled(self.version_to_int(self.current_version_setting.get_text()) >
+        self.version_to_int(self.to_version_setting.get_text()) if self.current_version_setting.get_text() != '---' else False)
     
     def on_reloaded(self):
-        for widget in self.disabled_if_vehicle_not_loaded:
-            widget.set_enabled(self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None)
-        if self.main_window.vehicle_selector_banner.get_brvfile_ref() is not None:
-            version = self.main_window.vehicle_selector_banner.get_brvfile_ref().version
-            self.current_version.set_current_text(0, self.int_to_version(version))
-        self.update_can_downgrade()
+        version = None
+        if self.mw.vehicle_selector_banner.get_brvfile_ref() is not None:
+            version = self.mw.vehicle_selector_banner.get_brvfile_ref().version
+        self.current_version_setting.set_items([self.int_to_version(version)])
         self.update_downgrade_preferences()
+        self.update_can_downgrade()
 
     def update_downgrade_preferences(self):
-        self.greater_handling_label.hide()
-        self.greater_handling.hide()
-        self.greater_handling_color.hide()
+        widgets_to_hide = [
+            self.greater_handling_setting, self.greater_handling_label, self.greater_handling_widget, self.greater_handling_color, self.greater_handling_color_label,
+            self.less_handling_setting, self.less_handling_label, self.less_handling_widget, self.less_handling_color, self.less_handling_color_label,
+            self.sq_to_c_handling_setting, self.sq_to_c_handling_label, self.sq_to_c_handling_widget, self.sq_to_c_handling_color, self.sq_to_c_handling_color_label,
+            self.sq_to_qc_handling_setting, self.sq_to_qc_handling_label, self.sq_to_qc_handling_widget, self.sq_to_qc_handling_color, self.sq_to_qc_handling_color_label,
+            self.operation_handling_title, self.brick_handling_title
+        ]
 
-        self.less_handling_label.hide()
-        self.less_handling.hide()
-        self.less_handling_color.hide()
+        for widget in widgets_to_hide:
+            widget.hide()
 
-        self.sq_to_c_handling_label.hide()
-        self.sq_to_c_handling.hide()
-        self.sq_to_c_handling_color.hide()
-
-        self.sq_to_qc_handling_label.hide()
-        self.sq_to_qc_handling.hide()
-        self.sq_to_qc_handling_color.hide()
-
-        has_greater: bool = False
-        has_less: bool = False
+        has_greater_operation: bool = False
+        has_less_operation: bool = False
         has_sq_to_c_brick: bool = False
         has_sq_to_qc_brick: bool = False
 
         if self.get_versions()[0] > self.get_versions()[1]:
             if self.get_versions()[1] < 18:
-                brvf = self.main_window.vehicle_selector_banner.get_brvfile_copy()
-                if brvf is None:
-                    VehicleLoadingIssueDialog.create(True).exec()
-                    return
+                brvf = self.mw.vehicle_selector_banner.get_brvfile_copy()
+                if brvf is None: return
                 for brick in brvf.bricks:
                     if brick.meta().name() == bt.MATH_BRICK.name():
-                        has_greater = True if brick.get_property(p.OPERATION) == p.Operation.GT else has_greater
-                        has_less = True if brick.get_property(p.OPERATION) == p.Operation.LT else has_less 
+                        has_greater_operation = True if brick.get_property(p.OPERATION) == p.Operation.GT else has_greater_operation
+                        has_less_operation = True if brick.get_property(p.OPERATION) == p.Operation.LT else has_less_operation
 
-                        self.greater_handling_label.setVisible(has_greater)
-                        self.less_handling_label.setVisible(has_less)
+                    has_sq_to_c_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_CIRCLE.name() else has_sq_to_c_brick
+                    has_sq_to_qc_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name() else has_sq_to_qc_brick
 
-                        self.greater_handling.setVisible(has_greater)
-                        self.less_handling.setVisible(has_less)
+                self.operation_handling_title.setVisible(has_greater_operation or has_less_operation)
 
-                        self.greater_handling_color.setVisible(self.greater_handling.get_current_idx() == 1 and has_greater)
-                        self.less_handling_color.setVisible(self.less_handling.get_current_idx() == 1 and has_less)
+                self.greater_handling_widget.setVisible(has_greater_operation)
+                self.greater_handling_label.setVisible(has_greater_operation)
+                self.greater_handling_setting.setVisible(has_greater_operation)
+                self.greater_handling_color_label.setVisible(has_greater_operation and self.greater_handling_setting.get_current_idx() == 1)
+                self.greater_handling_color.setVisible(has_greater_operation and self.greater_handling_setting.get_current_idx() == 1)
 
-                    elif brick.meta().name() in (bt.SCALABLE_SQUARE_TO_CIRCLE.name(), bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()):
-                        has_sq_to_c_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_CIRCLE.name() else has_sq_to_c_brick
-                        has_sq_to_qc_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name() else has_sq_to_qc_brick
+                self.less_handling_widget.setVisible(has_less_operation)
+                self.less_handling_label.setVisible(has_less_operation)
+                self.less_handling_setting.setVisible(has_less_operation)
+                self.less_handling_color_label.setVisible(has_less_operation and self.less_handling_setting.get_current_idx() == 1)
+                self.less_handling_color.setVisible(has_less_operation and self.less_handling_setting.get_current_idx() == 1)
 
-                        self.sq_to_c_handling_label.setVisible(has_sq_to_c_brick)
-                        self.sq_to_qc_handling_label.setVisible(has_sq_to_qc_brick)
+                self.brick_handling_title.setVisible(has_sq_to_c_brick or has_sq_to_qc_brick)
+
+                self.sq_to_c_handling_widget.setVisible(has_sq_to_c_brick)
+                self.sq_to_c_handling_label.setVisible(has_sq_to_c_brick)
+                self.sq_to_c_handling_setting.setVisible(has_sq_to_c_brick)
+                self.sq_to_c_handling_color_label.setVisible(has_sq_to_c_brick and self.sq_to_c_handling_setting.get_current_idx() == 2)
+                self.sq_to_c_handling_color.setVisible(has_sq_to_c_brick  and self.sq_to_c_handling_setting.get_current_idx() == 2)
+
+                self.sq_to_qc_handling_widget.setVisible(has_sq_to_qc_brick)
+                self.sq_to_qc_handling_label.setVisible(has_sq_to_qc_brick)
+                self.sq_to_qc_handling_setting.setVisible(has_sq_to_qc_brick)
+                self.sq_to_qc_handling_color_label.setVisible(has_sq_to_qc_brick and self.sq_to_qc_handling_setting.get_current_idx() == 2)
+                self.sq_to_qc_handling_color.setVisible(has_sq_to_qc_brick and self.sq_to_qc_handling_setting.get_current_idx() == 2)
                         
-                        self.sq_to_c_handling.setVisible(has_sq_to_c_brick)
-                        self.sq_to_qc_handling.setVisible(has_sq_to_qc_brick)
-
-                        self.sq_to_c_handling_color.setVisible(self.sq_to_c_handling.get_current_idx() == 2 and has_sq_to_c_brick)
-                        self.sq_to_qc_handling_color.setVisible(self.sq_to_qc_handling.get_current_idx() == 2 and has_sq_to_qc_brick)
-                        # print(has_sq_to_c_brick)
 
         else: return
 
 
     
     def downgrade_vehicle(self):
-        brvfile = self.main_window.vehicle_selector_banner.get_brvfile_copy()  # Faster and respects user intentionally not reloading the vehicle
+        brvfile = self.mw.vehicle_selector_banner.get_brvfile_copy()  # Faster and respects user intentionally not reloading the vehicle
         if brvfile is None:
-            VehicleLoadingIssueDialog.create(True).exec()
-            return
+            VehicleLoadingIssueDialog.create(True).exec(); return
         brvfile.version = self.get_versions()[1]
 
-        if self.get_versions_str()[1] == self.supported_versions[1] and self.get_versions_str()[0] == self.supported_versions[0]:
-            for i, brick in enumerate(brvfile.bricks):
+        if self.get_versions_str()[0] == _SUPPORTED_VERSIONS[1] and self.get_versions_str()[1] == _SUPPORTED_VERSIONS[0]:
+            for i, brick in enumerate(brvfile.bricks[:]):
                 if brick.meta().name() == bt.MATH_BRICK.name():
-                    if brick.get_property(p.OPERATION) == p.Operation.GT or brick.get_property(p.OPERATION) == p.Operation.LT and self.greater_handling.get_current_idx() == 1:
-                        brick.set_property(p.BRICK_COLOR, self.greater_handling_color.get_value(0xbcbcbcff) if brick.get_property(p.OPERATION) == p.Operation.GT else self.less_handling_color.get_value(0xbcbcbcff))
-                    elif brick.get_property(p.OPERATION) == p.Operation.GE or brick.get_property(p.OPERATION) == p.Operation.LE:
+                    if brick.get_property(p.OPERATION) == p.Operation.GT and self.greater_handling_setting.get_current_idx() == 1:
+                        brick.set_property(
+                            p.BRICK_COLOR,
+                            self.greater_handling_color.get_value(0xbcbcbcff)
+                            )
+                    elif brick.get_property(p.OPERATION) == p.Operation.LT and self.less_handling_setting.get_current_idx() == 1:
+                        brick.set_property(
+                            p.BRICK_COLOR,
+                            self.less_handling_color.get_value(0xbcbcbcff)
+                            )
+                    elif brick.get_property(p.OPERATION) in (p.Operation.GE, p.Operation.LE):
                         brick.set_property(p.OPERATION, p.Operation.LT if brick.get_property(p.OPERATION) == p.Operation.LE else p.Operation.GT)
                 elif brick.meta().name() in (bt.SCALABLE_SQUARE_TO_CIRCLE.name(), bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()):
-                    if self.sq_to_c_handling.get_current_idx() in (1, 2):
+                    if self.sq_to_c_handling_setting.get_current_idx() in (1, 2):
                         new_meta = bt.SCALABLE_BRICK
                         new_brick = Brick(
                             ref=brick.ref,
@@ -298,10 +312,15 @@ class DowngradeVehicleMenu(base.BaseMenu):
                             ppatch=brick.ppatch
                         )
                         brvfile.add(new_brick)
-                        if self.sq_to_c_handling.get_current_idx() == 2:
-                            new_brick.set_property(p.BRICK_COLOR, self.sq_to_c_handling_color.get_value(0xbcbcbcff))
-                    brvfile.bricks.pop(i)
+                        if self.sq_to_c_handling_setting.get_current_idx() == 2 and brick.meta().name() == bt.SCALABLE_SQUARE_TO_CIRCLE.name():
+                            new_brick.set_property(p.BRICK_COLOR,
+                            self.sq_to_c_handling_color.get_value(0xbcbcbcff))
+                        elif self.sq_to_qc_handling_setting.get_current_idx() == 2 and brick.meta().name() == bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name():
+                            new_brick.set_property(p.BRICK_COLOR,
+                            self.sq_to_qc_handling_color.get_value(0xbcbcbcff))
+
+                        brvfile.bricks.remove(brick)
         
         logger.info(f"Downgrading vehicle from {self.get_versions_str()[0]} to {self.get_versions_str()[1]}")
-        self.main_window.vehicle_selector_banner.save_brv(brvfile, description=f"Downgraded using the {self.get_menu_name()} from {self.get_versions_str()[0]} to {self.get_versions_str()[1]}.")
+        self.mw.vehicle_selector_banner.save_brv(brvfile, description=f"Downgraded using the {self.get_menu_name()} from {self.get_versions_str()[0]} to {self.get_versions_str()[1]}.")
         logger.info(f"Vehicle downgraded from {self.get_versions_str()[0]} to {self.get_versions_str()[1]}")
