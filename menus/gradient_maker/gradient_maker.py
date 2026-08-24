@@ -47,7 +47,7 @@ class GradientMaker(base.BaseMenu):
         self.brick_settings_layout.addWidget(self.brick_count_label)
 
         self.brick_count_nce = NumberChannelEdit(ChannelMode.INT, minimum=2, maximum=5000, allow_inf=False, allow_nan=False)
-        self.brick_count_nce.setValue(50)
+        self.brick_count_nce.setValue(12)
 
         self.brick_settings_layout.addWidget(self.brick_count_nce)
         self.brick_count_nce.value_changed.connect(self.on_brick_count_updated)

@@ -5,12 +5,11 @@ from PIL import Image
 
 from menus import base
 
-from .widgets import ImageSelector
 from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface
+from ui.components.image.image_selector import ImageSelector
 from ui.models import TooltipContents
 
 from utils import max_float32_for_tolerance
-from . import image_utils
 
 from enum import Enum
 import os
@@ -74,7 +73,7 @@ class ImageImporter(base.BaseMenu):
 
         # ----- IMAGE SELECTION -----
 
-        self.image_selector = ImageSelector(store_pil_img=True)  # TODO REMAKE THIS WIDGET
+        self.image_selector = ImageSelector()
         self.image = None
         #self.image_selector.new_image_selected.connect(self.on_image_reload)
         self.master_layout.addWidget(self.image_selector)

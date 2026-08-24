@@ -94,7 +94,7 @@ class VehicleData:
 
             # PROPERTIES
             # Unknown metas' default properties are blank so we must look at non-default properties (slower)
-            if isinstance(brick.meta(), brickedit.p.UnknownPropertyMeta):
+            if isinstance(brick.meta(), brickedit.bt.UnknownBrickMeta):
                 properties.update(brick.get_all_properties().keys())
             else:
                 properties.update(brick.meta().p.keys())

@@ -1,3 +1,5 @@
+from ui.dialogs.animated_image_error import AnimatedImageError
 from ui.dialogs.cannot_save import CannotSaveDialog, CannotSaveUneditedDialog
 from ui.dialogs.corrupt_state import CorruptStateDialog
+from ui.dialogs.unexpected_error import UnexpectedError
 from ui.dialogs.vehicle_loading_issue import VehicleLoadingIssueDialog
