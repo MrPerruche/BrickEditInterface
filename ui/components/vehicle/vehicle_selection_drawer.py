@@ -10,6 +10,7 @@ from traceback import format_exc
 from ui.components import VehicleSelector, VehicleData
 from ui.widgets import Widget, Button, ToolButton, Label, LineEdit
 from ui.theme import Theme, register_has_theme_and_apply
+from ui.dialogs import VehicleSavedDialog
 
 from pathlib import Path
 from utils import tint_icon, str_time_since, get_vehicles_path
@@ -105,11 +106,8 @@ class VehicleSelectionDrawer(Widget):
         # self.set_icon call later because it also affects self.e_layout which is defined later
 
         # Vehicle title
-        self.c_vehicle_name = Label("Unnamed", word_wrap=False, muted=True)
-        self.c_layout_left.addWidget(self.c_vehicle_name)
-
-        # Keep stuff on right in c layout left
-        self.c_layout_left.addStretch(1)
+        self.c_vehicle_name = Label("Unnamed", overflow=Label.Overflow.ELIDE_MIDDLE, muted=True)
+        self.c_layout_left.addWidget(self.c_vehicle_name, stretch=1)
 
         # Reload button
         reload_icon = QIcon.fromTheme("view-refresh")
@@ -228,6 +226,12 @@ class VehicleSelectionDrawer(Widget):
         self.loaded_brvfile = brvfile
         self.loaded_brvfile_data = VehicleData(brvfile)
 
+    def unload_vehicle(self, restore_text: bool = True):
+        old_name = self.e_vehicle_te.get_text()
+        self.load_vehicle('')  # Unload vehicle
+        if restore_text:
+            self.e_vehicle_te.set_text(old_name)
+
 
     def save_brv(self, brv: brickedit.BRVFile, show_dialogs: bool = True, description: str | None = None) -> bool:
         # First, serialize
@@ -264,6 +268,9 @@ class VehicleSelectionDrawer(Widget):
             # If it's a new vehicle we load it right after to avoid issues
             if is_new_vehicle:
                 self.load_vehicle(self.loaded_vehicle_path)
+
+            if show_dialogs:
+                VehicleSavedDialog.create(self.mw).exec(blocking=False)
 
             return True
 

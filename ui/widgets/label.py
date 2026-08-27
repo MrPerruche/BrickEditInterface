@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QLabel, QHBoxLayout, QSizePolicy
 from PySide6.QtCore import Qt, QPointF
-from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap, QTextLayout, QTextOption
 
 from ui.widgets.widget import Widget
 from ui.theme import Theme, register_has_theme_and_apply, reapply_theme
@@ -10,10 +10,29 @@ from typing import ClassVar
 from utils import tint_icon
 
 from dataclasses import dataclass
+from enum import Enum, auto
+
+
+class TextOverflow(Enum):
+    """How a Label handles text that doesn't fit its width."""
+    WRAP = auto()          # wraps onto as many lines as it needs (old default)
+    NONE = auto()          # single line, Qt's native clip -- text can overflow
+    ELIDE_LEFT = auto()    # single line, "…tail of a long string"
+    ELIDE_RIGHT = auto()   # single line, "head of a long strin…"
+    ELIDE_MIDDLE = auto()  # single line, "head of a lo…ng string"
+
+
+_ELIDE_MODES = {
+    TextOverflow.ELIDE_LEFT: Qt.TextElideMode.ElideLeft,
+    TextOverflow.ELIDE_RIGHT: Qt.TextElideMode.ElideRight,
+    TextOverflow.ELIDE_MIDDLE: Qt.TextElideMode.ElideMiddle,
+}
 
 
 class _QLabel(QLabel):
-    """QLabel that paints a small icon flush against the end of the last line of text."""
+    """QLabel that paints a small icon flush against the end of the visible
+    text -- after the last wrapped line (TextOverflow.WRAP), or after the
+    single line of text otherwise (native clip or pre-elided)."""
 
     ICON_TEXT_MARGIN = 5    # px between text and icon
     ICON_VERTICAL_OFFSET = 1  # px to nudge icon up(-) or down(+) relative to vertical centre
@@ -23,6 +42,13 @@ class _QLabel(QLabel):
         self._icon_pixmap: QPixmap | None = None
         self._icon_size: int = 11
         self._icon_visible: bool = False
+        self._overflow: TextOverflow | None = None
+        # super().__init__() may have already set text via the *native*
+        # QLabel.setText (our own override below isn't hooked up yet at
+        # that point), so read it back through the base class directly.
+        self._full_text: str = QLabel.text(self)
+
+    # -- icon (unchanged public API) -- #
 
     def set_icon(self, pixmap: QPixmap | None, size: int):
         self._icon_pixmap = pixmap
@@ -39,89 +65,89 @@ class _QLabel(QLabel):
         showing = self._icon_visible and self._icon_pixmap is not None
         r = self._icon_size + self.ICON_TEXT_MARGIN if showing else 0
         self.setContentsMargins(0, 0, r, 0)
+        self._refresh_display_text()  # available width just changed
 
-    def _last_line_end_x(self) -> int:
-        """Use QTextLayout to accurately find where the last line of wrapped text ends."""
-        from PySide6.QtGui import QTextLayout, QTextOption
+    # -- overflow mode -- #
 
-        text = self.text()
-        cr = self.contentsRect()
-
-        option = QTextOption()
-        if self.wordWrap():
-            option.setWrapMode(QTextOption.WrapMode.WordWrap)
-        else:
-            option.setWrapMode(QTextOption.WrapMode.NoWrap)
-        option.setAlignment(self.alignment())
-
-        layout = QTextLayout(text, self.font())
-        layout.setTextOption(option)
-        layout.beginLayout()
-
-        last_line = None
-        y = 0.0
-        while True:
-            line = layout.createLine()
-            if not line.isValid():
-                break
-            line.setLineWidth(cr.width())
-            line.setPosition(QPointF(0, y))
-            y += line.height()
-            last_line = line
-
-        layout.endLayout()
-
-        if last_line is None:
-            return 0
-
-        end_pos = last_line.textStart() + last_line.textLength()
-        return int(last_line.cursorToX(end_pos)[0])
-
-    def paintEvent(self, event):
-        super().paintEvent(event)
-
-        if not self._icon_visible or self._icon_pixmap is None:
+    def set_overflow(self, mode: TextOverflow):
+        if mode == self._overflow:
             return
+        self._overflow = mode
+        self.setWordWrap(mode == TextOverflow.WRAP)
+        self._refresh_display_text()
+        self.update()
 
-        from PySide6.QtGui import QTextLayout, QTextOption
+    def overflow(self) -> TextOverflow:
+        return self._overflow
 
+    # -- text: store the real string, display a (possibly elided) version -- #
+
+    def setText(self, text: str):
+        self._full_text = text
+        self._refresh_display_text()
+
+    def text(self) -> str:
+        return self._full_text
+
+    def _refresh_display_text(self):
+        if self._overflow in _ELIDE_MODES:
+            avail = max(0, self.contentsRect().width())
+            elided = self.fontMetrics().elidedText(self._full_text, _ELIDE_MODES[self._overflow], avail)
+            QLabel.setText(self, elided)
+        else:
+            QLabel.setText(self, self._full_text)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self._overflow in _ELIDE_MODES:
+            self._refresh_display_text()  # available width changed
+        self.update()
+
+    # -- icon placement + painting -- #
+
+    def _icon_position(self) -> QPointF | None:
+        """Where the tooltip icon should sit: right after the last visible
+        character, vertically centered on that line. Assumes left-aligned
+        text (this class doesn't attempt to support center/right-aligned
+        icon placement)."""
         cr = self.contentsRect()
 
+        if self._overflow != TextOverflow.WRAP:
+            # Single line: native clip, or already elided by
+            # _refresh_display_text -- either way, just measure it.
+            displayed = QLabel.text(self)
+            text_width = self.fontMetrics().horizontalAdvance(displayed)
+            x = cr.left() + min(text_width, cr.width()) + self.ICON_TEXT_MARGIN
+            y = cr.top() + (cr.height() - self._icon_size) // 2 + self.ICON_VERTICAL_OFFSET
+            return QPointF(x, y)
+
+        # WRAP: re-run Qt's own line breaking to find where the *last*
+        # visual line ends.
         option = QTextOption()
-        option.setWrapMode(
-            QTextOption.WrapMode.WordWrap
-            if self.wordWrap()
-            else QTextOption.WrapMode.NoWrap
-        )
+        option.setWrapMode(QTextOption.WrapMode.WordWrap)
         option.setAlignment(self.alignment())
 
-        layout = QTextLayout(self.text(), self.font())
+        layout = QTextLayout(self._full_text, self.font())
         layout.setTextOption(option)
-
         layout.beginLayout()
 
         lines = []
-        y = 0.0
-
+        y_cursor = 0.0
         while True:
             line = layout.createLine()
             if not line.isValid():
                 break
-
             line.setLineWidth(cr.width())
-            line.setPosition(QPointF(0, y))
-            y += line.height()
+            line.setPosition(QPointF(0, y_cursor))
+            y_cursor += line.height()
             lines.append(line)
-
         layout.endLayout()
 
         if not lines:
-            return
+            return None
 
         last = lines[-1]
-
-        text_height = int(y)
-
+        text_height = int(y_cursor)
         alignment = self.alignment()
 
         if alignment & Qt.AlignBottom:
@@ -131,26 +157,34 @@ class _QLabel(QLabel):
         else:  # Top (default)
             text_top = cr.top()
 
-        
+        # cursorToX() takes a position *within the whole text*, not
+        # relative to this line -- textStart() + textLength() is the
+        # line's own end position; textLength() alone is only correct
+        # by accident for the very first line.
         end_pos = last.textStart() + last.textLength()
-        x = (
-            cr.left()
-            + int(last.cursorToX(end_pos)[0])
-            + self.ICON_TEXT_MARGIN
-        )
-
+        x = cr.left() + int(last.cursorToX(end_pos)[0]) + self.ICON_TEXT_MARGIN
         y = (
             text_top
             + int(last.y())
             + (int(last.height()) - self._icon_size) // 2
             + self.ICON_VERTICAL_OFFSET
         )
+        return QPointF(x, y)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+
+        if not self._icon_visible or self._icon_pixmap is None:
+            return
+
+        pos = self._icon_position()
+        if pos is None:
+            return
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.drawPixmap(
-            x,
-            y,
+            pos,
             self._icon_pixmap.scaled(
                 self._icon_size,
                 self._icon_size,
@@ -162,20 +196,20 @@ class _QLabel(QLabel):
 
 class Label(Widget):
 
+    Overflow = TextOverflow
+
     info_icon_size = 11
     info_icon = None
 
     def __init__(self, text: str | None = None,
         font_size = 13, font_weight = 400,
         muted = False,
-        word_wrap = True,
+        overflow: TextOverflow = TextOverflow.WRAP,
         center_text = False,
         parent = None
     ):
         self.is_muted = muted
         super().__init__(parent)
-
-        self.text = text
 
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -184,7 +218,7 @@ class Label(Widget):
         self.qt_widget = _QLabel(parent=self) if text is None else _QLabel(text, parent=self)
         self.set_font_size(font_size)
         self.set_font_weight(font_weight)
-        self.qt_widget.setWordWrap(word_wrap)
+        self.qt_widget.set_overflow(overflow)
 
         if center_text:
             self.qt_widget.setAlignment(Qt.AlignCenter)
@@ -201,8 +235,7 @@ class Label(Widget):
 
         register_has_theme_and_apply(self)
 
-    def get_text(self) -> str:
-        return self.text
+
 
     def set_muted(self, muted: bool):
         if muted != self.is_muted:
@@ -210,10 +243,21 @@ class Label(Widget):
             self.qt_widget.setProperty('muted', muted)
             reapply_theme(self)
 
+    def get_text(self) -> str:
+        return self.qt_widget.text()
+
     def set_text(self, text: str):
-        self.text = text
         self.qt_widget.setText(text)
         self.qt_widget.update()
+
+    def set_overflow(self, mode: TextOverflow):
+        """WRAP / NONE / ELIDE_LEFT / ELIDE_RIGHT / ELIDE_MIDDLE."""
+        self.qt_widget.set_overflow(mode)
+
+    def set_word_wrap(self, enabled: bool):
+        """Convenience for the old bool API: True -> WRAP, False -> NONE.
+        Prefer set_overflow() if you want eliding."""
+        self.set_overflow(TextOverflow.WRAP if enabled else TextOverflow.NONE)
 
     def set_font_size(self, size: int):
         font = self.qt_widget.font()

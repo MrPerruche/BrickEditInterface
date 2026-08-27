@@ -45,7 +45,7 @@ class EditBrickMenu(base.BaseMenu):
 
     def save_changes(self):
         if not self.main_window.vehicle_selector_banner.is_vehicle_loaded():
-            VehicleLoadingIssueDialog.create(True).exec()
+            VehicleLoadingIssueDialog.create(self.mw, True).exec()
             return
         logger.info("Saving changes in Brick Editor...")
         self.vbe.build_modified_brvfile(True, {'description': f"Modified using the {self.get_menu_name()}."})

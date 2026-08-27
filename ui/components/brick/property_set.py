@@ -87,15 +87,15 @@ class PropertySet(Widget):
             for pw in self.property_widgets:
 
                 if not pw.is_dirty():
-                    print(f"{pw.get_property()} not dirty")
+                    # print(f"{pw.get_property()} not dirty")
                     continue
                 pw_prop: str = pw.get_property()
-                print(pw_prop)
+                # print(pw_prop)
 
                 try:
                     default_value: Hashable = brick.get_property(pw_prop)
                 except brickedit.BrickError:
-                    print("brickerror")
+                    # print("brickerror")
                     continue
 
                 if pw.is_cachable() and default_value in cache[pw_prop]:
@@ -107,4 +107,4 @@ class PropertySet(Widget):
 
                 brick.set_property(pw_prop, new_value)
 
-        print(bricks, len(self.property_widgets))
+        # print(bricks, len(self.property_widgets))

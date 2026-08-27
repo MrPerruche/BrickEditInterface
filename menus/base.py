@@ -24,6 +24,7 @@ class BaseMenu(QWidget):
         super().__init__()
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.main_window: "BrickEditInterface" = mw
+        self.mw: "BrickEditInterface" = mw  # Alias for convenience
         self.master_layout = QVBoxLayout(self)
         if header:
             self.header_label = StyledLabel(self.get_menu_name(), LabelStyle.HEADER_2, margins_mult=0)

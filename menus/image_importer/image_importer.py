@@ -8,18 +8,26 @@ from menus import base
 from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface
 from ui.components.image.image_selector import ImageSelector
 from ui.models import TooltipContents
+from ui.dialogs import VehicleLoadingIssueDialog, CannotSaveOverLimit
 
+from menus.image_importer.dialogs.import_progress import ImportProgressDialog
+from menus.image_importer.img_conversion.decompose_worker import DecomposeWorker, DecomposeResult, launch_with_threading
+from menus.image_importer.img_conversion.image_layers import decompose_image
+from menus.image_importer.img_conversion.quantize import quantize_image
 from utils import max_float32_for_tolerance
 
 from enum import Enum
 import os
+
+import brickedit
+
 
 _LABEL_SIZE = 10
 
 _LS_SIZE = 15
 _LS_NEG = 10
 _LIST_SLIDER_OPTIONS = {2**(i-_LS_NEG): (f"1/{2**(_LS_NEG-i)}" if i < _LS_NEG else f"{2**(i-_LS_NEG)}") for i in range(_LS_SIZE)}
-
+_INV_LIST_SLIDER_OPTIONS = {v: k for k, v in _LIST_SLIDER_OPTIONS.items()}
 
 class Quantization(Enum):
     NO = 0
@@ -38,7 +46,7 @@ class Quantization(Enum):
         return Quantization.get_names()[self.value]
 
     @staticmethod
-    def from_idx(self, idx):
+    def from_idx(idx) -> 'Quantization':
         return [
             Quantization.NO,
             Quantization.MEDIAN_CUT,
@@ -65,6 +73,9 @@ WHAT_IS_QUANTIZATION = TooltipContents(
 )
 
 
+FPE_INFO_TEXT = "The image will Z-fight if you go further than {:.1f} km from world center."
+
+
 class ImageImporter(base.BaseMenu):
 
     def __init__(self, mw):
@@ -73,7 +84,7 @@ class ImageImporter(base.BaseMenu):
 
         # ----- IMAGE SELECTION -----
 
-        self.image_selector = ImageSelector()
+        self.image_selector = ImageSelector(self.mw)
         self.image = None
         #self.image_selector.new_image_selected.connect(self.on_image_reload)
         self.master_layout.addWidget(self.image_selector)
@@ -115,7 +126,7 @@ class ImageImporter(base.BaseMenu):
 
 
         # Max layers
-        self.max_layers: int = 24
+        self.max_layers = 24
         self.max_layers_label = Label("Max layers")
         self.max_layers_label.set_tooltip(STACKING_3D_OPTIMIZATION)
         self.oms3d_layout.addWidget(self.max_layers_label)
@@ -133,11 +144,11 @@ class ImageImporter(base.BaseMenu):
         self.layer_thickness_slider = Slider(list(_LIST_SLIDER_OPTIONS.keys()), _LS_NEG//2+1)
         self.layer_thickness_slider.value_changed.connect(self.update_layer_thickness)
         self.oms3d_layout.addWidget(self.layer_thickness_slider)
-        self.update_layer_thickness()
+        # Layer thickness updated at the end
 
 
         # Z-fighting notice
-        self.fpe_info = Label("The image will Z-fight if you go further than x km from world center.")
+        self.fpe_info = Label("fpe_info")
         self.fpe_info.set_tooltip(WHAT_IS_ZFIGHTING)
         self.oms3d_layout.addWidget(self.fpe_info)
         #self.fpe_slider = Slider(range)
@@ -175,7 +186,12 @@ class ImageImporter(base.BaseMenu):
         self.update_color_count()
 
 
+        self.import_image_btn = Button("Import image")
+        self.import_image_btn.clicked.connect(self.on_import_image_btn_clicked)
+        self.master_layout.addWidget(self.import_image_btn)
+
         # CHANGE SETTINGS
+        self.update_layer_thickness()
         self.optimization_method.set_current_idx(1)
         self.quantization_algorithm.set_current_idx(2)
 
@@ -195,12 +211,136 @@ class ImageImporter(base.BaseMenu):
 
 
 
+    def on_import_image_btn_clicked(self):
+
+        # Nothing loaded check
+        if self.main_window.vehicle_selector_banner.is_vehicle_loaded():
+            VehicleLoadingIssueDialog.create(self.mw, False).exec()
+            return
+
+        # Get data
+        grp_format = ["none", "2d", "3d_greedy", "3d_slow"][self.optimization_method.get_current_idx()]
+        quantization = self.quantization_algorithm.get_current_idx()
+        color_count = self.colors_slider.get_value()
+
+        # Quantize image
+        img = self.image_selector.get_pil_copy()
+        if quantization:
+            quantization_str = ["_", "median_cut", "kmeans_oklab"][quantization]
+            img = quantize_image(img, color_count, quantization_str)
+
+        # If slow 3D: Prepare dialog widget and worker
+        if grp_format == "3d_slow":
+
+            self.decompose_worker = DecomposeWorker(
+                image=img,
+                mode=grp_format,
+                max_layers=self.max_layers,
+                max_restarts=None
+            )
+            import_progress_dialog = ImportProgressDialog(self.mw, self.max_layers, self.decompose_worker)
+
+            def on_progress(best_total_rects, best_layer_count, restarts_done):
+                import_progress_dialog.set_progress(best_total_rects, best_layer_count, restarts_done)
+
+            def on_finished(result: DecomposeResult):
+                self.handle_decompose_result(result)
+                import_progress_dialog.close()
+
+            def on_cancelled():
+                self.decompose_worker.finished.disconnect(on_finished)  # don't build anything
+                self.decompose_worker.cancel()
+                import_progress_dialog.close()
+
+            def on_end_now():
+                self.decompose_worker.cancel()
+                import_progress_dialog.close()
+
+            self.decompose_worker.progress.connect(on_progress)
+            self.decompose_worker.finished.connect(on_finished)
+            import_progress_dialog.finished.connect(on_end_now)
+            import_progress_dialog.cancelled.connect(on_cancelled)
+
+            launch_with_threading(self.decompose_worker)
+
+            import_progress_dialog.exec(blocking=True)
+            return
+
+        # else:
+        result = decompose_image(
+            image=img,
+            mode=grp_format,
+            max_layers=self.max_layers,
+            max_restarts=None
+        )
+        self.handle_decompose_result(result)
+
+
+
+    def handle_decompose_result(self, result: DecomposeResult):
+
+        # Nothing loaded check (just in case)
+        if self.main_window.vehicle_selector_banner.is_vehicle_loaded():
+            VehicleLoadingIssueDialog.create(self.mw, False).exec()
+            return
+
+        # Get data
+        layer_width = self.layer_thickness_slider.get_value()
+
+        # Build vehicle
+        brvfile = brickedit.BRVFile(brickedit.FILE_MAIN_VERSION)
+        vhelper = brickedit.vhelper.ValueHelper(brickedit.FILE_MAIN_VERSION)
+        color_id_to_br = [vhelper.rgba(*col) for col in result.palette]
+        i = 0
+
+        for layer_index, layer in enumerate(result.layers):
+            for (r0, c0, r1, c1, color_id) in layer:
+                # TODO: Adjust positions for scaling
+                x, y = c0, r0
+                width, height = c1 - c0 + 1, r1 - r0 + 1
+                color = color_id_to_br[color_id]
+                z = (layer_index + .5) * layer_width
+
+                size_vec = brickedit.Vec3(width, height, layer_width)
+                pos_vec = brickedit.Vec3(x, y, z) + size_vec * 0.5
+
+                # TODO: Add controls over properties such as materials, welding etc. & Control if we use Scalable bricks or floats.
+                brvfile.add(brickedit.Brick(
+                    ref=brickedit.ID(str(i), editor='img', weld='img'),
+                    meta=brickedit.bt.SCALABLE_BRICK,
+                    pos=pos_vec,
+                    ppatch={
+                        brickedit.p.BRICK_SIZE: size_vec,
+                        brickedit.p.BRICK_COLOR: color,
+                        brickedit.p.BRICK_MATERIAL: brickedit.p.BrickMaterial.CONCRETE
+                    }
+                ))
+                i += 1
+
+        # Make sure brick count is okay
+        if len(brvfile.bricks) > 50_000:
+            CannotSaveOverLimit.create(len(brvfile.bricks)).exec()
+            return
+
+        # Make description and save BRV
+        img_path = self.image_selector.get_img_path()
+        self.main_window.vehicle_selector_banner.save_brv(brvfile,
+            description=f"Imported {img_path} in {len(brvfile.bricks)} brick(s) using the {self.get_menu_name()}."
+        )
+
+
+
     def update_max_layers(self):
         self.max_layers = self.max_layers_slider.get_value()
         self.max_layers_slider.set_text(f"{self.max_layers} layers", 60)
 
     def update_layer_thickness(self):
-        self.layer_thickness_slider.set_text(f"{_LIST_SLIDER_OPTIONS[self.layer_thickness_slider.get_value()]} cm", 62)
+        value = self.layer_thickness_slider.get_value()
+        # Update slider
+        self.layer_thickness_slider.set_text(f"{_LIST_SLIDER_OPTIONS[value]} cm", 62)
+        # Update FPE Info
+        zfight_distance = max_float32_for_tolerance(value) / 100_000  # cm -> km
+        self.fpe_info.set_text(str.format(FPE_INFO_TEXT, zfight_distance))
 
     def update_color_count(self):
         self.color_count = self.colors_slider.get_value()

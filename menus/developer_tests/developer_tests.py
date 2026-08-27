@@ -100,7 +100,7 @@ class DeveloperTestMenu(base.BaseMenu):
         self.master_layout.addStretch()
 
     def button11_clicked(self):
-        CorruptStateDialog.create(None).exec(blocking=False)
+        CorruptStateDialog.create(self.mw, None).exec(blocking=False)
 
     def button21_clicked(self):
         self.theme_idx = (self.theme_idx + 1) % len(self.themes)

@@ -24,6 +24,10 @@
         <file>assets/icons/Information.png</file>
 		<file>assets/icons/Unlocked.png</file>
 		<file>assets/icons/Locked.png</file>
+        <file>assets/icons/IconError.png</file>
+        <file>assets/icons/IconWarning.png</file>
+        <file>assets/icons/IconInfo.png</file>
+        <file>assets/icons/IconConfirm.png</file>
         <file>LICENSE</file>
     </qresource>
 </RCC>

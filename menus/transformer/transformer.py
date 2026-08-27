@@ -175,7 +175,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
     def save_changes(self):
         brvfile = self.mw.vehicle_selector_banner.get_brvfile_copy()
         if brvfile is None:
-            VehicleLoadingIssueDialog.create(True).exec(); return
+            VehicleLoadingIssueDialog.create(self.mw, True).exec(); return
 
         # Apply transform
         off_x = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).x)

@@ -3,7 +3,7 @@ from PySide6.QtGui import QIcon, QColor
 from ui.components.gradient.editor import GradientEditor
 from ui.widgets import Button, ComboBox, Label, Surface, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle
 from ui.models import TooltipContents
-from ui.dialogs import VehicleLoadingIssueDialog
+from ui.dialogs import OverwriteOrCancelDialog
 from menus import base
 
 import os
@@ -81,8 +81,10 @@ class GradientMaker(base.BaseMenu):
 
         # Make sure we can create the vehicle
         if self.main_window.vehicle_selector_banner.is_vehicle_loaded():
-            VehicleLoadingIssueDialog.create(False).exec()
-            return
+            vehicle_cleared = OverwriteOrCancelDialog.create(self.mw).exec()
+            if not vehicle_cleared:
+                # print("vehicle not cleared fuck you")
+                return
 
         # Get values
         num_bricks = self.brick_count

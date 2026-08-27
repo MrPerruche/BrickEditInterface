@@ -37,6 +37,8 @@ def setup_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
 
+    logging.getLogger("numba").setLevel(logging.WARNING)
+
     formatter = logging.Formatter(
         '%(asctime)s | %(levelname)-8s | [%(name)s]: %(message)s'
     )

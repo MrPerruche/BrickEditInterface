@@ -1,11 +1,11 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QFileDialog
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QIcon
 
 from ui.widgets import Widget, Surface, Label, Button
-from ui.dialogs import AnimatedImageError, UnexpectedError
+from ui.dialogs import AnimatedImageErrorDialog, UnexpectedErrorDialog, FileNotFoundDialog, NotAnImageErrorDialog
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 
 def is_single_frame_image(image: Image.Image):
@@ -17,10 +17,13 @@ name_filter = "Images (" + " ".join(f"*{ext}" for ext in extensions)
 
 class ImageSelector(Widget):
 
-    thumbnail_size = 96, 64
+    EXPLORER_ICON = None
 
-    def __init__(self):
+    thumbnail_size = 100, 58
+
+    def __init__(self, mw):
         super().__init__()
+        self.mw = mw
 
         self.true_master_layout = QVBoxLayout()
         self.true_master_layout.setContentsMargins(0, 0, 0, 0)
@@ -45,10 +48,12 @@ class ImageSelector(Widget):
         self.contents_layout.setContentsMargins(0, 0, 0, 0)
         self.master_layout.addLayout(self.contents_layout, stretch=1)
 
-        self.image_name_label = Label("No image selected")
+        self.image_name_label = Label("No image selected", overflow=Label.Overflow.ELIDE_LEFT)
         self.contents_layout.addWidget(self.image_name_label)
 
-        self.image_selector_button = Button("Select image")
+        if ImageSelector.EXPLORER_ICON == None:
+            ImageSelector.EXPLORER_ICON = QIcon.fromTheme("folder-open")
+        self.image_selector_button = Button("Browse", ImageSelector.EXPLORER_ICON, True)
         self.image_selector_button.clicked.connect(self.on_selector_button_clicked)
         self.contents_layout.addWidget(self.image_selector_button)
 
@@ -62,7 +67,7 @@ class ImageSelector(Widget):
             filter=name_filter
         )
 
-        self.try_set_icon_from_path(file_path)
+        self.try_set_icon_from_path(file_path, show_dialogs = False)
 
 
 
@@ -79,22 +84,30 @@ class ImageSelector(Widget):
         success = False
 
         try:
-            if path is None:
+            if path is None or not path:
                 raise Exception('skip')
 
             qicon = QPixmap(path)
             pil_img = Image.open(path)
 
             if not is_single_frame_image(pil_img):
-                AnimatedImageError.create().exec()
+                AnimatedImageErrorDialog.create(self.mw).exec()
                 raise Exception('skip')
 
             self.set_icon(qicon, pil_img)
+            self.image_name_label.set_text(path)
             success = True
+
+        except UnidentifiedImageError:
+            NotAnImageErrorDialog.create(self.mw).exec()
+
+        except FileNotFoundError:
+            FileNotFoundDialog.create(self.mw, path).exec()
 
         except Exception as e:
             if str(e) != 'skip':
-                UnexpectedError.create(None, e).exec()
+                UnexpectedErrorDialog.create(self.mw, None, e).exec()
+
         if not success:
             self.set_icon(QPixmap(":/assets/icons/not_found.png"), None)
 
@@ -105,5 +118,11 @@ class ImageSelector(Widget):
     def get_qpixmap_copy(self) -> QPixmap | None:
         return self.icon_label.pixmap() if self.is_loaded() else None
 
-    def get_pil_copy(self) -> Image.Image | None:
-        return self.pil_img
+    def get_pil_copy(self, size: tuple[int, int] | None = None) -> Image.Image | None:
+        if size is None:
+            return self.pil_img.copy()
+        # else:
+        return self.pil_img.resize(size, Image.Resampling.LANCZOS)
+
+    def get_img_path(self) -> str | None:
+        return self.image_name_label.get_text() if self.is_loaded() else None

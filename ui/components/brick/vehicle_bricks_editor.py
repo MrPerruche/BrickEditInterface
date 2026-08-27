@@ -209,7 +209,7 @@ class VehicleBricksEditor(Widget):
         # Validation
         if self.live_property_set is None:
             logger.warning("Trying to save property set but live property set is currently None.")
-            CannotSaveUneditedDialog.create().exec()
+            CannotSaveUneditedDialog.create(self.mw).exec()
             return
 
         brvfile = self.mw.vehicle_selector_banner.get_brvfile_copy()
