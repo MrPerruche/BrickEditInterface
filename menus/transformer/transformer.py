@@ -93,19 +93,51 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.master_layout.addStretch()
     
     @staticmethod
-    def ceil(x: Vec3, n: int) -> Vec3:
-        return Vec3(
-            ceil(x.x * 10**n) / 10**n,
-            ceil(x.y * 10**n) / 10**n,
-            ceil(x.z * 10**n) / 10**n,
+    def ceil(x: float | Vec2 | Vec3, n: int) -> Vec3 | Vec2:
+        if isinstance(x, Vec3):
+            return Vec3(
+            ceil(x.x * 10 ** n) / 10 ** n,
+            ceil(x.y * 10 ** n) / 10 ** n,
+            ceil(x.z * 10 ** n) / 10 ** n,
+            )
+        elif isinstance(x, float):
+            return ceil(x * 10 ** n) / 10 ** n
+        else:
+            return Vec2(
+            ceil(x.x * 10 ** n) / 10 ** n,
+            ceil(x.y * 10 ** n) / 10 ** n,
             )
 
     @staticmethod
-    def floor(x: Vec3, n: int) -> Vec3:
-        return Vec3(
-            floor(x.x * 10**n) / 10**n,
-            floor(x.y * 10**n) / 10**n,
-            floor(x.z * 10**n) / 10**n,
+    def floor(x: float | Vec2 | Vec3, n: int) -> Vec3 | Vec2:
+        if isinstance(x, Vec3):
+            return Vec3(
+            floor(x.x * 10 ** n) / 10 ** n,
+            floor(x.y * 10 ** n) / 10 ** n,
+            floor(x.z * 10 ** n) / 10 ** n,
+            )
+        elif isinstance(x, float):
+            return floor(x * 10 ** n) / 10 ** n
+        else:
+            return Vec2(
+            floor(x.x * 10 ** n) / 10 ** n,
+            floor(x.y * 10 ** n) / 10 ** n,
+            )
+
+    @staticmethod
+    def round(x: Vec3 | Vec2) -> Vec3 | Vec2:
+        if isinstance(x, Vec3):
+            return Vec3(
+            round(x.x * 10 ** n) / 10 ** n,
+            round(x.y * 10 ** n) / 10 ** n,
+            round(x.z * 10 ** n) / 10 ** n,
+            )
+        elif isinstance(x, float):
+            return round(x * 10 ** n) / 10 ** n
+        else:
+            return Vec2(
+            round(x.x * 10 ** n) / 10 ** n,
+            round(x.y * 10 ** n) / 10 ** n,
             )
 
     def scale_input_updated(self, from_mul: bool):
@@ -161,13 +193,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
         if must_scale:
             for brick in brvfile.bricks:
                 # Position
-                roundv = lambda vec, n: Vec3(round(vec.x, n), round(vec.y, n), round(vec.z, n))
-                mode = self.get_rounding_mode()
-                decimals = self.get_decimals()
-                brick.pos = (brick.pos * scale if mode == 0 else
-                roundv(brick.pos * scale, decimals) if mode == 1 else
-                self.ceil(brick.pos * scale, decimals) if mode == 2 else
-                self.floor(brick.pos * scale, decimals))
+                brick.pos = brick.pos * scale
                 # Modify properties
                 for prop, val in brick.get_all_properties().items():
                     # Float & vec properties
@@ -178,7 +204,14 @@ class VehicleUpscalerMenu(base.BaseMenu):
                             p.PATTERN_SCALE,
                             p.FONT_SIZE
                     ):
-                        brick.set_property(prop, val * scale)
+                        mode = self.get_rounding_mode()
+                        decimals = self.get_decimals()
+                        brick.set_property(prop, 
+                        val * scale if not mode else
+                        self.round(val * scale, decimals) if mode == 1 else
+                        self.ceil(val * scale, decimals) if mode == 2 else
+                        self.floor(val * scale, decimals)
+                        )
 
         logger.info(f"Transforming vehicle with scale {scale}" if must_scale else "Transforming vehicle")
         self.mw.vehicle_selector_banner.save_brv(brvfile, description=f"Transformed using scale {scale}.")
