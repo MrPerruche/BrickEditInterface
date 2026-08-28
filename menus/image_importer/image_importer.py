@@ -7,6 +7,7 @@ from menus import base
 
 from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface
 from ui.components.image.image_selector import ImageSelector
+from ui.components import Tutorial
 from ui.models import TooltipContents
 from ui.dialogs import VehicleLoadingIssueDialog, CannotSaveOverLimit
 
@@ -349,5 +350,14 @@ class ImageImporter(base.BaseMenu):
     def get_menu_name(self):
         return "Image Importer"
 
-    def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(":/assets/icons/ImageIcon.png"), True)
+    def _make_menu_info(self) -> base.MenuInfo:
+        return base.MenuInfo(QIcon(":/assets/icons/ImageIcon.png"), True,
+            tutorial=Tutorial(self.get_menu_name(), self.mw)
+                .add_text("Test!")
+                .add_collection("Some collection",
+                    "Collection test 1!",
+                    "Collection test 2 ??",
+                    "Collection test 3.",
+                    "Some very\nlong text with spaces and random stuff"
+                )
+        )

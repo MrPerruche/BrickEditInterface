@@ -4,7 +4,7 @@ from menus import base
 
 from ui.dialogs import VehicleLoadingIssueDialog
 from ui.widgets import Button
-from ui.components import BrickSelector, VehicleBricksEditor
+from ui.components import BrickSelector, VehicleBricksEditor, Tutorial
 
 from brickedit import *
 
@@ -40,8 +40,24 @@ class EditBrickMenu(base.BaseMenu):
     def get_menu_name(self) -> str:
         return "Brick Editor"
 
-    def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(":/assets/icons/BrickEditorIcon.png"), True)
+    def _make_menu_info(self) -> base.MenuInfo:
+        return base.MenuInfo(QIcon(":/assets/icons/BrickEditorIcon.png"), True,
+
+            tutorial=Tutorial(self.get_menu_name(), self.mw)
+                .add_text("The brick editor allows you to modify the properties of a vehicle's "
+                          "bricks. Its purpose is to bypass Brick Rigs' limits and edit many "
+                          "bricks' properties at once using formulas.")
+                # .add_header("TLDR? In a nutshell:")
+                # .add_text("1. Save in Brick Rigs and adjust filters\n"
+                #           "2. Load / reload your vehicle\n"
+                #           "3. Edit bricks\n"
+                #           "4. Save changes in BEI\n"
+                #           "5. Load in Brick Rigs\n"
+                #           "6. Edit again and keep changes? → step 2,"
+                #           "\n    Edit again but undo changes? → step 3.")
+                # .add_header("Selecting bricks")
+                # .add_text("")
+        )
 
     def save_changes(self):
         if not self.main_window.vehicle_selector_banner.is_vehicle_loaded():

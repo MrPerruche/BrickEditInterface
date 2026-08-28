@@ -203,8 +203,8 @@ class DowngradeVehicleMenu(base.BaseMenu):
     def get_menu_name(self) -> str:
         return "Vehicle Downgrader"
 
-    def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(":/assets/icons/DowngradeIcon.png"), True)
+    def _make_menu_info(self) -> base.MenuInfo:
+        return base.MenuInfo(QIcon(":/assets/icons/DowngradeIcon.png"), True)
 
     def update_can_downgrade(self):
         self.downgrade_vehicle_button.set_enabled(self.version_to_int(self.current_version_setting.get_text()) >

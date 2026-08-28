@@ -69,7 +69,7 @@ class BrickEditInterface(QMainWindow):
         menu_configs = [
             {
                 'name': menu.get_menu_name(),
-                'icon_info': menu.get_icon()
+                'icon_info': menu._make_menu_info()
             }
             for menu in self.menus
         ]

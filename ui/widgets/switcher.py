@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QLayout
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Signal
 
-from ui.widgets import Widget, ToolButton, Label
+from ui.widgets import Widget, ToolButton, Label, StyledLabel, LabelStyle, Surface
 from ui.models import TooltipContents
 
 from utils import wipe_layout
@@ -157,9 +157,13 @@ class Switcher(Widget):
             self.idx = max(0, min(idx, len(self.items) - 1))
 
         # Hide current
+        for item in self.items:
+            widget = item.get_widget()
+            if widget is not None:
+                widget.hide()
         current_widget = self.items[self.idx].get_widget()
         if current_widget is not None:
-            current_widget.hide()
+            current_widget.show()
 
         # Update label
         item = self.items[self.idx]
@@ -181,3 +185,58 @@ class Switcher(Widget):
             current_widget.show()
 
         self.index_changed.emit(self.idx)
+
+
+
+class SurfaceSwitcher(Widget):
+
+    def __init__(self, title: str | None, items: list[str | SwitcherEntry]):
+        super().__init__()
+
+        self.master_layout = QVBoxLayout()
+        self.master_layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self.master_layout)
+
+        self.surface = Surface()
+        surface_layout: QVBoxLayout = self.surface.layout()
+        self.master_layout.addWidget(self.surface)
+
+        self.surface_top_layout = QHBoxLayout()
+        self.surface_top_layout.setSpacing(20)
+        surface_layout.addLayout(self.surface_top_layout)
+
+        self.title_label = None
+        if title is not None:
+            self.title_label = StyledLabel(title, style=LabelStyle.LARGE_4)
+            self.surface_top_layout.addWidget(self.title_label)
+
+        items = [SwitcherEntry(item) if isinstance(item, str) else item for item in items]
+        for item in items:
+            item.auto_add_layout = False
+            widget = item.get_widget()
+            if widget is not None:
+                surface_layout.addWidget(widget)
+
+        self.switcher = Switcher(items)
+        self.surface_top_layout.addWidget(self.switcher, stretch=1)
+
+
+    # def add_collection(self, title: str, *args: str | tuple[str, str]):
+    #     surface = Surface()
+    #     surface_layout: QVBoxLayout = surface.layout()
+
+    #     surface_top_layout = QHBoxLayout()
+    #     surface_top_layout.setSpacing(20)
+    #     surface_layout.addLayout(surface_top_layout)
+
+    #     surface_top_layout.addWidget(StyledLabel(title, style=LabelStyle.LARGE_4))
+
+    #     collection_entries = self._get_collection_entries(*args)
+    #     for entry in collection_entries:
+    #         entry.auto_add_layout = False
+    #         widget = entry.get_widget()
+    #         if widget is not None:
+    #             surface_layout.addWidget(widget)
+    #     surface_top_layout.addWidget(Switcher(collection_entries), stretch=1)
+
+    #     return self.add_widget(surface)

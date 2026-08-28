@@ -185,8 +185,8 @@ class SettingsAndBackupsMenu(base.BaseMenu):
     def get_menu_name(self) -> str:
         return "Backup Manager"
 
-    def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(":/assets/icons/BackupIcon.png"), True)
+    def _make_menu_info(self) -> base.MenuInfo:
+        return base.MenuInfo(QIcon(":/assets/icons/BackupIcon.png"), True)
 
 
     def update_backup_recovery_entries(self):

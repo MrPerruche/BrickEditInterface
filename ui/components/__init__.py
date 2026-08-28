@@ -1,3 +1,6 @@
+from ui.components.tutorial import Tutorial
+
+
 from ui.components.vehicle.vehicle_card import VehicleCard, VehicleCardData
 
 from ui.components.brick.vehicle_bricks_editor import VehicleBricksEditor

@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QIcon
 
-from menus.base import MenuIconInfo
+from menus.base import MenuInfo
 from ui.theme import Theme, register_has_theme_and_apply
 from utils import tint_icon
 
@@ -52,7 +52,7 @@ class Sidebar(QWidget):
         for index, config in enumerate(menu_configs):
             btn = QToolButton()
             btn.setToolTip(config.get('name', f'Menu {index}'))
-            menu_icon_info = config.get('icon_info', MenuIconInfo(QIcon(':/assets/icons/placeholder.png'), True))
+            menu_icon_info = config.get('icon_info', MenuInfo(QIcon(':/assets/icons/placeholder.png'), True))
             btn.setIcon(menu_icon_info.qicon)
             btn.setIconSize(QSize(24, 24))
             btn.setCheckable(True)

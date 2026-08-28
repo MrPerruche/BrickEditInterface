@@ -169,8 +169,8 @@ class VehicleUpscalerMenu(base.BaseMenu):
     def get_menu_name(self) -> str:
         return "Vehicle Transformer"
 
-    def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(":/assets/icons/GizmoIcon.png"), True)
+    def _make_menu_info(self) -> base.MenuInfo:
+        return base.MenuInfo(QIcon(":/assets/icons/GizmoIcon.png"), True)
 
     def save_changes(self):
         brvfile = self.mw.vehicle_selector_banner.get_brvfile_copy()

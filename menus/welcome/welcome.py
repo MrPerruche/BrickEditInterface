@@ -179,8 +179,8 @@ Our backup system lets you adjust both how many and how large the backups of a v
     def get_menu_name(self):
         return "Welcome"
 
-    def get_icon(self) -> base.MenuIconInfo:
-        return base.MenuIconInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False)
+    def _make_menu_info(self) -> base.MenuInfo:
+        return base.MenuInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False)
 
     def show_license(self):
         license_window = LicenseDialog()
