@@ -207,7 +207,7 @@ class SurfaceSwitcher(Widget):
 
         self.title_label = None
         if title is not None:
-            self.title_label = StyledLabel(title, style=LabelStyle.LARGE_4)
+            self.title_label = StyledLabel(title, style=LabelStyle.LARGE_5)
             self.surface_top_layout.addWidget(self.title_label)
 
         items = [SwitcherEntry(item) if isinstance(item, str) else item for item in items]

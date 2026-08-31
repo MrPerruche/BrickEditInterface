@@ -1,5 +1,6 @@
 from .widget import Widget
 
+from .separator import Separator
 from .button import Button
 from .colored_icon import ColoredIcon
 from .combobox import ComboBox

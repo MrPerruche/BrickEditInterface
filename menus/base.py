@@ -27,7 +27,6 @@ class BaseMenu(QWidget):
 
 
     _INFORMATION_ICON = None
-    _TUTORIAL_BTN_SIZE = (32, 32)
 
 
     def __init__(self, mw: "BrickEditInterface", header=True):
@@ -57,7 +56,6 @@ class BaseMenu(QWidget):
             if menu_info.tutorial:
                 self.header_layout.addStretch()
                 self.tutorial_button = ToolButton(BaseMenu._INFORMATION_ICON, True)
-                self.tutorial_button.setFixedSize(*BaseMenu._TUTORIAL_BTN_SIZE)
                 self.tutorial_button.clicked.connect(menu_info.tutorial.summon)
                 self.header_layout.addWidget(self.tutorial_button)
 

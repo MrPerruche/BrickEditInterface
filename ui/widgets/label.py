@@ -327,6 +327,8 @@ class LabelStyle:
     HEADER_4: ClassVar["LabelStyle"]
     HEADER_5: ClassVar["LabelStyle"]
 
+    LARGE_1: ClassVar["LabelStyle"]
+    LARGE_2: ClassVar["LabelStyle"]
     LARGE_3: ClassVar["LabelStyle"]
     LARGE_4: ClassVar["LabelStyle"]
     LARGE_5: ClassVar["LabelStyle"]
@@ -342,6 +344,8 @@ LabelStyle.HEADER_3 = LabelStyle(18, 700, (None, 8, None, None), False)
 LabelStyle.HEADER_4 = LabelStyle(16, 650, (None, 7, None, None), False)
 LabelStyle.HEADER_5 = LabelStyle(14, 600, (None, 6, None, None), False)
 
+LabelStyle.LARGE_1 = LabelStyle(26, 700, (None, None, None, None), False)
+LabelStyle.LARGE_2 = LabelStyle(22, 700, (None, None, None, None), False)
 LabelStyle.LARGE_3 = LabelStyle(18, 700, (None, None, None, None), False)
 LabelStyle.LARGE_4 = LabelStyle(16, 650, (None, None, None, None), False)
 LabelStyle.LARGE_5 = LabelStyle(14, 600, (None, None, None, None), False)

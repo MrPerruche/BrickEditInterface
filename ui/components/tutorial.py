@@ -1,13 +1,13 @@
-from PySide6.QtWidgets import QLayout, QVBoxLayout, QScrollArea, QDialog
+from PySide6.QtWidgets import QLayout, QVBoxLayout, QScrollArea, QDialog, QSizePolicy
 from PySide6.QtCore import Qt
 
-from ui.widgets import Widget, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry
+from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry
 from ui.theme import register_has_theme_and_apply, Theme
 
 
 class Tutorial(QDialog):
 
-    def __init__(self, title: str | None, parent=None, title_is_raw: bool = False):
+    def __init__(self, title: str | None, parent=None, title_is_raw: bool = False, show_header: bool = True):
         super().__init__(parent)
 
         # Give it a normal window with its own taskbar button,
@@ -20,10 +20,11 @@ class Tutorial(QDialog):
 
         self.finalized = False
 
+        # SETUP
         content = QDialog()  # plain container widget
         content.setProperty("tutorialContent", True)
         self.master_layout = QVBoxLayout()
-        self.master_layout.setContentsMargins(12, 0, 12, 12)
+        self.master_layout.setContentsMargins(10, 10, 10, 10)
         content.setLayout(self.master_layout)
 
         self.scroll_area = QScrollArea()
@@ -36,13 +37,27 @@ class Tutorial(QDialog):
         outer_layout.addWidget(self.scroll_area)
         self.setLayout(outer_layout)
 
+        # WARNING
+        self.warning_label = Label("IF YOU ARE UNFAMILIAR WITH BEI,\nPLEASE READ INFORMATION PROVIDED IN THE WELCOME MENU FIRST!")
+        self.warning_label.set_font_weight(800)
+        self.warning_label.set_muted(True)
+        self.warning_label.setProperty("tutorialWarning", True)
+        self.warning_label.setContentsMargins(0, 0, 0, 5)
+        self.warning_label.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Preferred
+        )
+        self.master_layout.addWidget(self.warning_label)
+        self.warning_label.setVisible(show_header)
+
+        # TITLE
         title_text = title if title_is_raw else f"Tutorial: {title}"
         self.setWindowTitle(title_text)
         if title is not None:
-            self.add_title(title_text)
+            self.add_text(title_text, LabelStyle.LARGE_2)
 
         self.setMinimumSize(300, 200)
-        self.resize(300, 500)
+        self.resize(325, 650)
         register_has_theme_and_apply(self)
 
 
@@ -56,6 +71,10 @@ class Tutorial(QDialog):
         return self
 
 
+    def add_sep(self, top=9, bottom=9):
+        return self.add_widget(Separator(top, bottom))
+
+
     def add_text(self, text: str, style: LabelStyle | None = None):
         if style is None:
             return self.add_widget(Label(text))
@@ -67,6 +86,9 @@ class Tutorial(QDialog):
 
     def add_header(self, text: str):
         return self.add_text(text, style=LabelStyle.HEADER_4)
+
+    def add_low_header(self, text: str):
+        return self.add_text(text, style=LabelStyle.HEADER_5)
 
     def add_subtext(self, text: str):
         return self.add_text(text, style=LabelStyle.SUBTEXT_1)
@@ -108,6 +130,17 @@ class Tutorial(QDialog):
     def add_tips(self, *args: str | tuple[str, str]):
         return self.add_collection("Tips", *args)
 
+    def add_raw_faq(self, *args: str | tuple[str, str]):
+        return self.add_collection("FAQ", *args)
+
+    def add_faq(self, *args: str | tuple[str, str]):
+        return self.add_collection("FAQ & Help", *args)
+
+    def add_help(self, *args: str | tuple[str, str]):
+        return self.add_collection("Help", *args)
+
+    def add_steps(self, *args: str | tuple[str, str]):
+        return self.add_collection("Steps", *args)
 
 
     def summon(self):
@@ -132,5 +165,9 @@ class Tutorial(QDialog):
         
         QWidget[tutorialContent] {{
             background-color: {theme.background.color};
+        }}
+        
+        QWidget[tutorialWarning] {{
+            border-bottom: 2px solid {theme.border.color};
         }}
         """)
