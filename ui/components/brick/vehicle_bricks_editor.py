@@ -145,9 +145,9 @@ class VehicleBricksEditor(Widget):
         self.pos_layout.setContentsMargins(0, 0, 0, 0)
         self.property_set_container.addLayout(self.pos_layout)
 
-        self.pos_x = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
-        self.pos_y = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
-        self.pos_z = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
+        self.pos_x = NumberChannelEdit(allow_inf=False, allow_nan=False)
+        self.pos_y = NumberChannelEdit(allow_inf=False, allow_nan=False)
+        self.pos_z = NumberChannelEdit(allow_inf=False, allow_nan=False)
         self.pos_layout.addWidget(self.pos_x)
         self.pos_layout.addWidget(self.pos_y)
         self.pos_layout.addWidget(self.pos_z)
