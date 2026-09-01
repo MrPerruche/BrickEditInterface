@@ -7,7 +7,14 @@ from ..shared_widgets import *
 
 from utils import VERSION, DEV_VERSION
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Switcher
+from ui.components import Tutorial
 from ui.theme import theme_manager
+
+
+def _build_tutorial(name: str = "Getting Started", standalone: bool = True):
+    return (Tutorial(name, title_is_raw=True, show_header=False, standalone=standalone)
+        .add_text("TODO")
+    )
 
 
 class LicenseDialog(QDialog):
@@ -92,11 +99,61 @@ class HomeMenu(base.BaseMenu):
 
         self.master_layout.addWidget(title_block_container, alignment=Qt.AlignCenter)
 
+        # --- PRE TUTORIAL STUFF
 
-        text = """\
+        # Welcome
+        self.welcome_header = StyledLabel("Welcome!", LabelStyle.HEADER_5)
+        self.master_layout.addWidget(self.welcome_header)
+        self.welcome_text = Label("BrickEdit-Interface is a set of tools made using BrickEdit 5 to help builders get over the limitations of Brick Rigs.\n"
+                                  "Please read the Getting Started section below!")
+        self.master_layout.addWidget(self.welcome_text)
+
+        # License
+        self.license_header = StyledLabel("License", LabelStyle.HEADER_5)
+        self.master_layout.addWidget(self.license_header)
+        self.license_text = Label("This software is under the GNU GENERAL PUBLIC LICENSE Version 3.")
+        self.master_layout.addWidget(self.license_text)
+        # License buttons
+        self.open_license_btns = QHBoxLayout()
+        self.master_layout.addLayout(self.open_license_btns)
+        self.license_off_btn = Button("Show license offline")
+        self.license_off_btn.clicked.connect(self.show_license)
+        self.open_license_btns.addWidget(self.license_off_btn)
+        self.license_web_btn = Button("Open in browser")
+        self.license_web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://www.gnu.org/licenses/gpl-3.0.en.html")))
+        self.open_license_btns.addWidget(self.license_web_btn)
+        # Source
+        self.license_source_btn = Button("Show source code")
+        self.license_source_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/MrPerruche/BrickEditInterface")))
+        self.master_layout.addWidget(self.license_source_btn)
+
+        # --- WIP NEW
+        self.tutorial = _build_tutorial(standalone=False)
+        self.tutorial.set_inner_margins(0, 0, 0, 0)
+        self.master_layout.addWidget(self.tutorial)
+
+        self.master_layout.addStretch()
+
+
+    def update_theme(self):
+        theme_manager.set_theme(theme_manager.themes[self.theme_switcher.get_idx()])
+
+
+    def get_menu_name(self):
+        return "Welcome"
+
+    def _make_menu_info(self) -> base.MenuInfo:
+        return base.MenuInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False, _build_tutorial())
+
+    def show_license(self):
+        license_window = LicenseDialog()
+        license_window.exec()
+
+"""
 #Welcome!
 ---
 BrickEdit-Interface is a set of tools made using BrickEdit 5 to help builders and get over the limitations of Brick Rigs.
+Please read the Getting Started section below!
 
 ---
 #License:
@@ -105,6 +162,8 @@ This software is under the GNU GENERAL PUBLIC LICENSE Version 3.
 https://www.gnu.org/licenses/gpl-3.0.en.html
 The source code is available at:
 https://github.com/MrPerruche/BrickEditInterface
+---
+licensebtn_web
 ---
 licensebtn
 ---
@@ -138,7 +197,7 @@ If you remember the numbers at the end of the file path, when selecting, you can
 Our backup system lets you adjust both how many and how large the backups of a vehicle may grow. We create both "short-term" and "long-term" backups so you can recover from your immediate and previous mistakes.
 ---
 → 3. Most if not all number inputs allow you to input mathematical expressions, which will be evaluated once you are done writing.
-"""
+
 
         self.welcome_labels = []
         for welcome_label_text in text.split('\n---\n'):
@@ -154,6 +213,11 @@ Our backup system lets you adjust both how many and how large the backups of a v
                     self.discord_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://discord.gg/P9wcknqQVB")))
                     self.master_layout.addWidget(self.discord_button)
                     continue
+                case 'licensebtn_web':
+                    self.license_button = Button("Show license online")
+                    self.license_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://www.gnu.org/licenses/gpl-3.0.en.html")))
+                    self.master_layout.addWidget(self.license_button)
+                    continue
                 case 'licensebtn':
                     self.license_button = Button("Show license offline")
                     self.license_button.clicked.connect(self.show_license)
@@ -168,20 +232,4 @@ Our backup system lets you adjust both how many and how large the backups of a v
             self.welcome_labels.append(welcome_label)
             self.master_layout.addWidget(welcome_label)
 
-
-        self.master_layout.addStretch()
-
-
-    def update_theme(self):
-        theme_manager.set_theme(theme_manager.themes[self.theme_switcher.get_idx()])
-
-
-    def get_menu_name(self):
-        return "Welcome"
-
-    def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False)
-
-    def show_license(self):
-        license_window = LicenseDialog()
-        license_window.exec()
+"""

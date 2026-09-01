@@ -7,7 +7,7 @@ from ui.theme import register_has_theme_and_apply, Theme
 
 class Tutorial(QDialog):
 
-    def __init__(self, title: str | None, parent=None, title_is_raw: bool = False, show_header: bool = True):
+    def __init__(self, title: str | None, parent=None, title_is_raw: bool = False, show_header: bool = True, standalone: bool = True):
         super().__init__(parent)
 
         # Give it a normal window with its own taskbar button,
@@ -52,12 +52,13 @@ class Tutorial(QDialog):
 
         # TITLE
         title_text = title if title_is_raw else f"Tutorial: {title}"
-        self.setWindowTitle(title_text)
         if title is not None:
             self.add_text(title_text, LabelStyle.LARGE_2)
 
-        self.setMinimumSize(300, 200)
-        self.resize(325, 650)
+        if standalone:
+            self.setWindowTitle(title_text)
+            self.setMinimumSize(300, 200)
+            self.resize(325, 650)
         register_has_theme_and_apply(self)
 
 
@@ -142,6 +143,10 @@ class Tutorial(QDialog):
     def add_steps(self, *args: str | tuple[str, str]):
         return self.add_collection("Steps", *args)
 
+
+    def set_inner_margins(self, left: int, top: int, right: int, bottom: int):
+        self.master_layout.setContentsMargins(left, top, right, bottom)
+        return self
 
     def summon(self):
         """Show the widget in a new window
