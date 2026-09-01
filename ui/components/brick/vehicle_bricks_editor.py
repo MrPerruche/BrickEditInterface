@@ -1,7 +1,7 @@
-from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 
 from ui.dialogs import CannotSaveUneditedDialog
-from ui.widgets import Widget, Switcher, SwitcherEntry, Label
+from ui.widgets import Widget, Switcher, SwitcherEntry, Label, NumberChannelEdit, ChannelMode
 from ui.components.brick.grouping_methods import *
 from ui.components.brick.property_set import PropertySet
 
@@ -141,6 +141,28 @@ class VehicleBricksEditor(Widget):
         # Clear current page
         wipe_layout(self.property_set_container, delete_widgets=False)
 
+        self.pos_layout = QHBoxLayout()
+        self.pos_layout.setContentsMargins(0, 0, 0, 0)
+        self.property_set_container.addLayout(self.pos_layout)
+
+        self.pos_x = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
+        self.pos_y = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
+        self.pos_z = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
+        self.pos_layout.addWidget(self.pos_x)
+        self.pos_layout.addWidget(self.pos_y)
+        self.pos_layout.addWidget(self.pos_z)
+
+        self.rot_layout = QHBoxLayout()
+        self.rot_layout.setContentsMargins(0, 0, 0, 0)
+        self.property_set_container.addLayout(self.rot_layout)
+
+        self.rot_x = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
+        self.rot_y = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
+        self.rot_z = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
+        self.rot_layout.addWidget(self.rot_x)
+        self.rot_layout.addWidget(self.rot_y)
+        self.rot_layout.addWidget(self.rot_z)
+
         # Get active menu stuff
         active_gm_idx = self.grouping_method_switcher.get_idx()
         brick_lists = self.gms_to_brick_lists[active_gm_idx]
@@ -169,6 +191,14 @@ class VehicleBricksEditor(Widget):
 
         for brick in bricks:
             brick_properties = brick.get_all_properties() | brick.ppatch
+
+            self.pos_x.setValue(brick.pos.x)
+            self.pos_y.setValue(brick.pos.y)
+            self.pos_y.setValue(brick.pos.z)
+
+            self.rot_x.setValue(brick.rot.x)
+            self.rot_y.setValue(brick.rot.y)
+            self.rot_z.setValue(brick.rot.z)
 
             for prop, val in brick_properties.items():
                 if prop in self.frozen_properties:
