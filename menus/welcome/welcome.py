@@ -6,13 +6,14 @@ from menus import base
 from ..shared_widgets import *
 
 from utils import VERSION, DEV_VERSION
-from ui.widgets import Label, StyledLabel, LabelStyle, Button, Switcher
+from ui.widgets import Label, StyledLabel, LabelStyle, Button, Switcher, Separator
 from ui.components import Tutorial
 from ui.theme import theme_manager
 
 
 def _build_tutorial(name: str = "Getting Started", standalone: bool = True):
     return (Tutorial(name, title_is_raw=True, show_header=False, standalone=standalone)
+        .add_header("Must know before using BEI!")
         .add_text("TODO")
     )
 
@@ -127,8 +128,16 @@ class HomeMenu(base.BaseMenu):
         self.license_source_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/MrPerruche/BrickEditInterface")))
         self.master_layout.addWidget(self.license_source_btn)
 
+        self.master_layout.addWidget(Separator())
+
         # --- WIP NEW
+        
+        self.tutorial_open_btn = Button("Open \"Getting Started\" in a separate window")
+        self.tutorial_open_btn.clicked.connect(self.get_menu_info().tutorial.summon)
+        self.master_layout.addWidget(self.tutorial_open_btn)
+
         self.tutorial = _build_tutorial(standalone=False)
+
         self.tutorial.set_inner_margins(0, 0, 0, 0)
         self.master_layout.addWidget(self.tutorial)
 
