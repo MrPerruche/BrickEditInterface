@@ -27,13 +27,14 @@ class BrickSelector(Widget):
     filters_changed = Signal()
 
 
-    def __init__(self, mw: 'BrickEditInterface', filters: list[BaseFilter] | None = None, allow_all_if_empty: bool = False, parent=None):
+    def __init__(self, mw: 'BrickEditInterface', filters: list[BaseFilter] | None = None, allow_all_if_empty: bool = False, updates_requires_reloading: bool = True, parent=None):
         """Brick selector widget
         filters=None will create 1 filter with a random color"""
         super().__init__(parent=parent)
 
         self.mw = mw
         self.allow_all_if_empty = allow_all_if_empty
+        self.updates_requires_reloading = updates_requires_reloading
 
         self.true_master_layout = QVBoxLayout()
         self.true_master_layout.setContentsMargins(0, 0, 0, 0)
@@ -79,6 +80,9 @@ class BrickSelector(Widget):
     def on_reload(self):
         self.must_reload_label.hide()
 
+    def enable_reload_label(self):
+        self.must_reload_label.setVisible(self.updates_requires_reloading)
+
 
     def set_filters(self, filters: list[BaseFilter]):
         self.filters = filters
@@ -87,7 +91,7 @@ class BrickSelector(Widget):
         if filters:
             self.no_filters_label.hide()
         else:
-            self.no_filters_label.show()
+            self.enable_reload_label()
 
         for f in self.filters:
             self._add_filter_widget(f)
@@ -110,14 +114,14 @@ class BrickSelector(Widget):
         filter.deleteLater()
 
         if not self.filters:
-            self.no_filters_label.show()
+            self.enable_reload_label()
 
         self.filter_changed()
 
 
     def filter_changed(self):
         if self.mw.vehicle_selector_banner.is_vehicle_loaded():
-            self.must_reload_label.show()
+            self.enable_reload_label()
         self.filters_changed.emit()
 
 

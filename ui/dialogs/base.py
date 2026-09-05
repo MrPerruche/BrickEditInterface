@@ -85,6 +85,7 @@ class Dialog(Widget):
         self.qt_dialog_layout.addWidget(self._actions)
 
         register_has_theme_and_apply(self)
+        self.destroyed.connect(lambda: unregister(self))
 
 
     def _add_content(self, widget):

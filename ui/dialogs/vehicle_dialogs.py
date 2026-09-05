@@ -1,5 +1,7 @@
 from ui.dialogs.base import BooleanOutcomeDialog, BasicInfoDialog
 
+from random import uniform
+
 import brickedit
 
 
@@ -91,4 +93,23 @@ class VehicleSavedDialog(BasicInfoDialog):
             icon=VehicleSavedDialog.CONFIRM_ICON(),
             title="BrickEdit-Interface",
             text="This vehicle has been saved."
+        )
+
+
+class NothingEverHappensDialog(BasicInfoDialog):
+
+    MSG_DID_SAVE = "This vehicle has been saved.\n"
+    MSG_BASE = "Nothing happened."
+    MSG_BASE_EASTEREGG = "Nothing ever happens."
+    EASTEREGG_PROBABILITY = 0.01
+
+    @staticmethod
+    def create(mw, saved: bool):
+        return NothingEverHappensDialog(
+            mw=mw,
+            icon=NothingEverHappensDialog.INFO_ICON(),
+            title="BrickEdit-Interface",
+            text=(NothingEverHappensDialog.MSG_DID_SAVE if saved else '') + (
+                NothingEverHappensDialog.MSG_BASE_EASTEREGG if uniform(0, 1) < NothingEverHappensDialog.EASTEREGG_PROBABILITY else NothingEverHappensDialog.MSG_BASE
+            )
         )

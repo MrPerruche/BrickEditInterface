@@ -10,7 +10,7 @@ from traceback import format_exc
 from ui.components import VehicleSelector, VehicleData
 from ui.widgets import Widget, Button, ToolButton, Label, LineEdit
 from ui.theme import Theme, register_has_theme_and_apply
-from ui.dialogs import VehicleSavedDialog
+from ui.dialogs import VehicleSavedDialog, NothingEverHappensDialog
 
 from pathlib import Path
 from utils import tint_icon, str_time_since, get_vehicles_path
@@ -233,7 +233,7 @@ class VehicleSelectionDrawer(Widget):
             self.e_vehicle_te.set_text(old_name)
 
 
-    def save_brv(self, brv: brickedit.BRVFile, show_dialogs: bool = True, description: str | None = None) -> bool:
+    def save_brv(self, brv: brickedit.BRVFile, show_dialogs: bool = True, description: str | None = None, nothing_happened: bool = False) -> bool:
         # First, serialize
         is_new_vehicle = not self.is_vehicle_loaded()
         try:
@@ -270,7 +270,10 @@ class VehicleSelectionDrawer(Widget):
                 self.load_vehicle(self.loaded_vehicle_path)
 
             if show_dialogs:
-                VehicleSavedDialog.create(self.mw).exec(blocking=False)
+                if nothing_happened:
+                    NothingEverHappensDialog.create(self.mw, saved=True).exec(blocking=False)
+                else:
+                    VehicleSavedDialog.create(self.mw).exec(blocking=False)
 
             return True
 

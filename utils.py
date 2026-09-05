@@ -14,8 +14,10 @@ from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter
 
 
 VERSION = "2.0.0"
-DEV_VERSION = True
-
+EARLY_ACCESS = 1  # 0 = Dev, None = Release, >= 1 = Early Access {v}
+DEV_VERSION = EARLY_ACCESS >= 0
+DISPLAY_VERSION_SHORT = f"{VERSION} (Dev)" if EARLY_ACCESS == 0 else f"{VERSION} Early Access {EARLY_ACCESS}" if EARLY_ACCESS is not None else VERSION
+DISPLAY_VERSION = f"Version {DISPLAY_VERSION_SHORT}"
 
 
 class Sentinel:

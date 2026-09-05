@@ -3,13 +3,18 @@ from PySide6.QtGui import QIcon
 from menus import base
 
 from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface, NumberChannelEdit, ChannelMode, Switcher
-from ui.dialogs import VehicleLoadingIssueDialog
+from ui.dialogs import VehicleLoadingIssueDialog, NothingEverHappensDialog
+from ui.components import BrickSelector
 from ui.components.brick.property_widgets import Vec3PropertyWidget
 from ui.models import TooltipContents
 
 from brickedit import *
 
 from math import ceil, floor
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from mainwindow import BrickEditInterface
 
 import logging
 logger = logging.getLogger(__name__)
@@ -18,12 +23,17 @@ logger = logging.getLogger(__name__)
 class VehicleUpscalerMenu(base.BaseMenu):
     """Menu for upscaling vehicle properties."""
 
-    def __init__(self, mw):
+    def __init__(self, mw: 'BrickEditInterface'):
         super().__init__(mw)
 
         self.mw = mw
 
         mw.vehicle_selector_banner.vehicle_loaded.connect(self.vehicle_reloaded)
+
+
+        self.brick_selector = BrickSelector(self.mw, [], allow_all_if_empty=True, updates_requires_reloading=False)
+        self.master_layout.addWidget(self.brick_selector)
+
 
         self.pos_widget = Surface()
         self.pos_layout = self.pos_widget.layout()
@@ -48,7 +58,10 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.scale_mul_label = Label("Multiply by")
         self.scale_layout.addWidget(self.scale_mul_label)
 
-        self.scale_mul_nce = NumberChannelEdit(allow_inf=False, allow_nan=False)
+        self.scale_mul_nce = NumberChannelEdit(
+            # allow_inf=False,
+            allow_nan=False
+        )
         self.scale_layout.addWidget(self.scale_mul_nce)
         self.scale_mul_nce.setValue(1.0)
         self.scale_mul_nce.value_changed.connect(lambda: self.scale_input_updated(True))
@@ -56,7 +69,10 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.scale_div_label = Label("Divide by")
         self.scale_layout.addWidget(self.scale_div_label)
 
-        self.scale_div_nce = NumberChannelEdit(allow_inf=False, allow_nan=False)
+        self.scale_div_nce = NumberChannelEdit(
+            # allow_inf=False,
+            allow_nan=False
+        )
         self.scale_layout.addWidget(self.scale_div_nce)
         self.scale_div_nce.setValue(1.0)
         self.scale_div_nce.value_changed.connect(lambda: self.scale_input_updated(False))
@@ -67,6 +83,9 @@ class VehicleUpscalerMenu(base.BaseMenu):
 
         self.rounding_title = StyledLabel("Rounding", LabelStyle.LARGE_5)
         self.rounding_layout.addWidget(self.rounding_title)
+
+        self.rounding_wip = Label("WORK IN PROGRESS - DO NOT USE")
+        self.rounding_layout.addWidget(self.rounding_wip)
 
         self.rounding_mode_label = Label("Mode")
         self.rounding_layout.addWidget(self.rounding_mode_label)
@@ -100,7 +119,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
             ceil(x.y * 10 ** n) / 10 ** n,
             ceil(x.z * 10 ** n) / 10 ** n,
             )
-        elif isinstance(x, float):
+        elif isinstance(x, (float, int)):
             return ceil(x * 10 ** n) / 10 ** n
         else:
             return Vec2(
@@ -116,7 +135,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
             floor(x.y * 10 ** n) / 10 ** n,
             floor(x.z * 10 ** n) / 10 ** n,
             )
-        elif isinstance(x, float):
+        elif isinstance(x, (float, int)):
             return floor(x * 10 ** n) / 10 ** n
         else:
             return Vec2(
@@ -125,29 +144,35 @@ class VehicleUpscalerMenu(base.BaseMenu):
             )
 
     @staticmethod
-    def round(x: Vec3 | Vec2) -> Vec3 | Vec2:
+    def round(x: float | Vec2 | Vec3, n: int) -> float | Vec2 | Vec3:
         if isinstance(x, Vec3):
             return Vec3(
-            round(x.x * 10 ** n) / 10 ** n,
-            round(x.y * 10 ** n) / 10 ** n,
-            round(x.z * 10 ** n) / 10 ** n,
+                round(x.x, n),
+                round(x.y, n),
+                round(x.z, n),
             )
-        elif isinstance(x, float):
-            return round(x * 10 ** n) / 10 ** n
-        else:
+        elif isinstance(x, Vec2):
             return Vec2(
-            round(x.x * 10 ** n) / 10 ** n,
-            round(x.y * 10 ** n) / 10 ** n,
+                round(x.x, n),
+                round(x.y, n),
             )
+        elif isinstance(x, (float, int)):
+            return round(x, n)
+        else:
+            raise TypeError(f"Unsupported type: {type(x)}")
 
     def scale_input_updated(self, from_mul: bool):
         if from_mul:
+            value = float(self.scale_mul_nce.get_text())
+            result = 1.0 / value if value != 0 else float('inf')
             self.scale_div_nce.blockSignals(True)
-            self.scale_div_nce.setValue(1.0 / float(self.scale_mul_nce.get_text()))
+            self.scale_div_nce.setValue(result)
             self.scale_div_nce.blockSignals(False)
         else:
+            value = float(self.scale_div_nce.get_text())
+            result = 1.0 / value if value != 0 else float('inf')
             self.scale_mul_nce.blockSignals(True)
-            self.scale_mul_nce.setValue(1.0 / float(self.scale_div_nce.get_text()))
+            self.scale_mul_nce.setValue(result)
             self.scale_mul_nce.blockSignals(False)
 
     def rounding_updated(self):
@@ -177,6 +202,8 @@ class VehicleUpscalerMenu(base.BaseMenu):
         if brvfile is None:
             VehicleLoadingIssueDialog.create(self.mw, True).exec(); return
 
+        nothing_happened = True
+
         # Apply transform
         off_x = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).x)
         off_y = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).y)
@@ -188,31 +215,36 @@ class VehicleUpscalerMenu(base.BaseMenu):
 
         if must_offset:
             for brick in brvfile.bricks:
-                brick.pos += Vec3(off_x, off_y, off_z)
+                if self.brick_selector.is_allowed(brick):
+                    brick.pos += Vec3(off_x, off_y, off_z)
+                    nothing_happened = False
 
         if must_scale:
             for brick in brvfile.bricks:
+                if not self.brick_selector.is_allowed(brick):
+                    continue
+                nothing_happened = False
                 # Position
                 brick.pos = brick.pos * scale
                 # Modify properties
                 for prop, val in brick.get_all_properties().items():
                     # Float & vec properties
-                    if prop in (
+                    if prop in {
                             p.BRICK_SIZE,
                             p.SPINNER_RADIUS, p.SPINNER_SIZE,
                             p.WHEEL_DIAMETER, p.WHEEL_WIDTH, p.TIRE_WIDTH,
                             p.PATTERN_SCALE,
                             p.FONT_SIZE
-                    ):
+                    }:
                         mode = self.get_rounding_mode()
                         decimals = self.get_decimals()
                         brick.set_property(prop, 
-                        val * scale if not mode else
-                        self.round(val * scale, decimals) if mode == 1 else
-                        self.ceil(val * scale, decimals) if mode == 2 else
-                        self.floor(val * scale, decimals)
+                            val * scale if not mode else
+                            self.round(val * scale, decimals) if mode == 1 else
+                            self.ceil(val * scale, decimals) if mode == 2 else
+                            self.floor(val * scale, decimals)
                         )
 
         logger.info(f"Transforming vehicle with scale {scale}" if must_scale else "Transforming vehicle")
-        self.mw.vehicle_selector_banner.save_brv(brvfile, description=f"Transformed using scale {scale}.")
+        self.mw.vehicle_selector_banner.save_brv(brvfile, description=f"Transformed using scale {scale}.", nothing_happened=nothing_happened)
         logger.info(f"Vehicle transformed with scale {scale}" if must_scale else "Transforming vehicle")

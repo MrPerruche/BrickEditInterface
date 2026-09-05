@@ -57,9 +57,9 @@ class BrickEditInterface(QMainWindow):
             GradientMaker(self),
             VehicleUpscalerMenu(self),
             DowngradeVehicleMenu(self),
+            ImageImporter(self),
         ]
         self.in_dev_menus = [
-            ImageImporter(self),
             DeveloperTestMenu(self),
         ]
         if DEV_VERSION:

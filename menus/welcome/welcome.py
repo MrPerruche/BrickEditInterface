@@ -5,16 +5,25 @@ from PySide6.QtGui import QIcon, QDesktopServices
 from menus import base
 from ..shared_widgets import *
 
-from utils import VERSION, DEV_VERSION
+from utils import DISPLAY_VERSION
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Switcher, Separator
 from ui.components import Tutorial
 from ui.theme import theme_manager
 
 
-def _build_tutorial(name: str = "Getting Started", standalone: bool = True):
-    return (Tutorial(name, title_is_raw=True, show_header=False, standalone=standalone)
-        .add_header("Must know before using BEI!")
-        .add_text("TODO")
+def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
+    return (Tutorial(name, mw, title_is_raw=True, show_header=False, standalone=standalone)
+        .add_header("MUST KNOW BEFORE USING BEI !", nomargin=True)
+        .add_text("<html>BrickEdit-Interface (BEI) edits the version of the vehicle <b>stored on "
+            "disk</b> (just like HexEdit !). Changes made in Brick Rigs (BR) do NOT automatically "
+            "happen in BEI !</html>")
+        .add_text("If you do not save (in BR) before (re-)loading a vehicle in BEI, the program "
+            "will load an older version of the vehicle. (Tip: use CTRL+S in BR to save quickly.)")
+        .add_text("Additionally, once you save changes in BEI, you must re-open the vehicle in "
+            "Brick Rigs to see the changes. If you don't, you may overwrite them!")
+        .add_text("If the vehicle loaded in BEI is older than the one on disk, the reload button "
+                  "will glow red. BEI does not automatically reload the vehicle because keeping "
+                  "an old version loaded can sometimes be useful.")
     )
 
 
@@ -71,14 +80,14 @@ class HomeMenu(base.BaseMenu):
         # --- TITLE + VERSION BLOCK ---------------------------------
 
         title_text = "BrickEdit-Interface"
-        version_text = f"{'Dev ' if DEV_VERSION else ''}Version {VERSION}"
+        # version_text = f"{'Dev ' if DEV_VERSION else ''}Version {VERSION}"
 
 
         self.bei_text_label = Label(title_text, 16, 900)
         self.bei_text_label.set_italic(True)
         self.bei_text_label.qt_widget.setAlignment(Qt.AlignRight)
 
-        version_label = Label(version_text, 10, muted=True)
+        version_label = Label(DISPLAY_VERSION, 10, muted=True)
         version_label.qt_widget.setAlignment(Qt.AlignRight)
 
         # Layout that holds title + version
@@ -124,19 +133,38 @@ class HomeMenu(base.BaseMenu):
         self.license_web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://www.gnu.org/licenses/gpl-3.0.en.html")))
         self.open_license_btns.addWidget(self.license_web_btn)
         # Source
-        self.license_source_btn = Button("Show source code")
-        self.license_source_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/MrPerruche/BrickEditInterface")))
-        self.master_layout.addWidget(self.license_source_btn)
+        # self.license_source_btn = Button("Show source code")
+        # self.license_source_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/MrPerruche/BrickEditInterface")))
+        # self.master_layout.addWidget(self.license_source_btn)
+        
+        # Links
+        self.links_header = StyledLabel("Links", LabelStyle.HEADER_5)
+        self.master_layout.addWidget(self.links_header)
+        # Discord
+        self.discord_lay = QHBoxLayout()
+        self.master_layout.addLayout(self.discord_lay)
+        self.discord_btn = Button("Discord")
+        self.discord_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://discord.gg/sZXaESzDd9")))  # this new link goes to #rules instead of #old-dev-chat lol. its private anyways but wtv
+        self.discord_lay.addWidget(self.discord_btn, stretch=10)
+        self.discord_label = Label("Chat, get notifications and support")
+        self.discord_lay.addWidget(self.discord_label, stretch=30)
+        # Github
+        self.github_lay = QHBoxLayout()
+        self.master_layout.addLayout(self.github_lay)
+        self.github_btn = Button("Github")
+        self.github_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/MrPerruche/BrickEditInterface")))
+        self.github_lay.addWidget(self.github_btn, stretch=10)
+        self.github_label = Label("View source code on Github")
+        self.github_lay.addWidget(self.github_label, stretch=30)
 
         self.master_layout.addWidget(Separator())
 
-        # --- WIP NEW
-        
+        # --- TUTORAIL
         self.tutorial_open_btn = Button("Open \"Getting Started\" in a separate window")
         self.tutorial_open_btn.clicked.connect(self.get_menu_info().tutorial.summon)
         self.master_layout.addWidget(self.tutorial_open_btn)
 
-        self.tutorial = _build_tutorial(standalone=False)
+        self.tutorial = _build_tutorial(self.mw, standalone=False)
 
         self.tutorial.set_inner_margins(0, 0, 0, 0)
         self.master_layout.addWidget(self.tutorial)
@@ -152,7 +180,7 @@ class HomeMenu(base.BaseMenu):
         return "Welcome"
 
     def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False, _build_tutorial())
+        return base.MenuInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False, _build_tutorial(self.mw))
 
     def show_license(self):
         license_window = LicenseDialog()
