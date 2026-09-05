@@ -212,24 +212,13 @@ class VehicleBricksEditor(Widget):
         self.property_set_container.addWidget(property_set)
 
         if not active_gm_idx:
-            # Set the rotation widget's value's to the brick's
-            property_set.pos_x_nce.setValue(brick_pos.x)
-            property_set.pos_y_nce.setValue(brick_pos.y)
-            property_set.pos_z_nce.setValue(brick_pos.z)
+            property_set.pos_widget.set_value(brick_pos)
+            property_set.rot_widget.set_value(brick_rot)
 
-            property_set.rot_x_nce.setValue(brick_rot.x)
-            property_set.rot_y_nce.setValue(brick_rot.y)
-            property_set.rot_z_nce.setValue(brick_rot.z)
-        # TODO: don't hide them when selection isn't split by individual bricks
-        property_set.pos_label.setVisible(not active_gm_idx)
-        property_set.pos_x_nce.setVisible(not active_gm_idx)
-        property_set.pos_y_nce.setVisible(not active_gm_idx)
-        property_set.pos_z_nce.setVisible(not active_gm_idx)
-
-        property_set.rot_label.setVisible(not active_gm_idx)
-        property_set.rot_x_nce.setVisible(not active_gm_idx)
-        property_set.rot_y_nce.setVisible(not active_gm_idx)
-        property_set.rot_z_nce.setVisible(not active_gm_idx)
+            
+        # TODO: don't hide them for formula mode
+        property_set.pos_widget.setVisible(not active_gm_idx)
+        property_set.rot_widget.setVisible(not active_gm_idx)
 
 
 

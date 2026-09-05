@@ -338,6 +338,8 @@ class LabelStyle:
     SUBTEXT_0: ClassVar["LabelStyle"]
     SUBTEXT_1: ClassVar["LabelStyle"]
 
+    PROPERTIES: ClassVar["LabelStyle"]
+
 LabelStyle.HEADER_1 = LabelStyle(26, 700, (None, 12, None, None), False)
 LabelStyle.HEADER_2 = LabelStyle(22, 700, (None, 10, None, None), False)
 LabelStyle.HEADER_3 = LabelStyle(18, 700, (None, 8, None, None), False)

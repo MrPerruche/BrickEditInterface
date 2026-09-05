@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Signal
 
 from ui.widgets import Widget, NumberChannelEdit, StyledLabel, LabelStyle
-from ui.components.brick.property_widgets import BasePropertyWidget, get_property_widget
+from ui.components.brick.property_widgets import BasePropertyWidget, get_property_widget, Vec3PropertyWidget
 
 from utils import wipe_layout
 
@@ -57,38 +57,12 @@ class PropertySet(Widget):
             #TODO: Make rotation and position into Vec3PropertyWidgets
 
             # Brick's position
-            self.pos_label = StyledLabel("POSITION", LabelStyle.PROPERTIES)
-            self.properties_layout.addWidget(self.pos_label)
-
-            self.pos_layout = QHBoxLayout()
-            self.pos_layout.setContentsMargins(0, 0, 0, 0)
-            self.properties_layout.addLayout(self.pos_layout)
-
-            self.pos_x_nce = NumberChannelEdit()
-            self.pos_layout.addWidget(self.pos_x_nce)
-
-            self.pos_y_nce = NumberChannelEdit()
-            self.pos_layout.addWidget(self.pos_y_nce)
-
-            self.pos_z_nce = NumberChannelEdit()
-            self.pos_layout.addWidget(self.pos_z_nce)
+            self.pos_widget = Vec3PropertyWidget("Position", (brickedit.Vec3(0.0, 0.0, 0.0),), False, brickedit.Vec3(0.0, 0.0, 0.0))
+            self.properties_layout.addWidget(self.pos_widget)
 
             # Brick's rotation
-            self.rot_label = StyledLabel("ROTATION", LabelStyle.PROPERTIES)
-            self.properties_layout.addWidget(self.rot_label)
-
-            self.rot_layout = QHBoxLayout()
-            self.rot_layout.setContentsMargins(0, 0, 0, 0)
-            self.properties_layout.addLayout(self.rot_layout)
-
-            self.rot_x_nce = NumberChannelEdit()
-            self.rot_layout.addWidget(self.rot_x_nce)
-
-            self.rot_y_nce = NumberChannelEdit()
-            self.rot_layout.addWidget(self.rot_y_nce)
-
-            self.rot_z_nce = NumberChannelEdit()
-            self.rot_layout.addWidget(self.rot_z_nce)
+            self.rot_widget = Vec3PropertyWidget("Rotation", (brickedit.Vec3(0.0, 0.0, 0.0),), False, brickedit.Vec3(0.0, 0.0, 0.0))
+            self.properties_layout.addWidget(self.rot_widget)
 
             for (prop, values) in sorted_properties:
 
@@ -145,16 +119,7 @@ class PropertySet(Widget):
                 brick.set_property(pw_prop, new_value)
 
                 # Set brick's transform
-                brick.rot = brickedit.Vec3(
-                    self.rot_x_nce.value(),
-                    self.rot_y_nce.value(),
-                    self.rot_z_nce.value()
-                )
-
-                brick.pos = brickedit.Vec3(
-                    self.pos_x_nce.value(),
-                    self.pos_y_nce.value(),
-                    self.pos_z_nce.value()
-                )
+                brick.rot = self.rot_widget.get_value(self.rot_widget.get_example_value())
+                brick.pos = self.pos_widget.get_value(self.pos_widget.get_example_value())
 
         # print(bricks, len(self.property_widgets))
