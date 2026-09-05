@@ -7,7 +7,7 @@ from ui.theme import register_has_theme_and_apply, Theme
 
 class Tutorial(QDialog):
 
-    def __init__(self, title: str | None, parent=None, title_is_raw: bool = False, show_header: bool = True, standalone: bool = True):
+    def __init__(self, title: str | None, parent=None, title_is_raw: bool = False, show_header: bool = True, standalone: bool = True, use_scroll_area: bool = True):
         super().__init__(parent)
 
         # Give it a normal window with its own taskbar button,
@@ -21,21 +21,25 @@ class Tutorial(QDialog):
         self.finalized = False
 
         # SETUP
-        content = QDialog()  # plain container widget
-        content.setProperty("tutorialContent", True)
+        self.content = QDialog()  # plain container widget
+        self.content.setProperty("tutorialContent", True)
         self.master_layout = QVBoxLayout()
         self.master_layout.setContentsMargins(10, 10, 10, 10)
-        content.setLayout(self.master_layout)
+        self.content.setLayout(self.master_layout)
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setProperty("tutorialScroll", True)
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setWidget(content)
 
         outer_layout = QVBoxLayout()
         outer_layout.setContentsMargins(0, 0, 0, 0)
-        outer_layout.addWidget(self.scroll_area)
         self.setLayout(outer_layout)
+
+        if use_scroll_area:
+            outer_layout.addWidget(self.scroll_area)
+            self.scroll_area.setWidget(self.content)
+        else:
+            outer_layout.addWidget(self.content)
 
         # WARNING
         self.warning_label = Label("IF YOU ARE UNFAMILIAR WITH BEI,\nPLEASE READ INFORMATION PROVIDED IN THE WELCOME MENU FIRST!")

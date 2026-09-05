@@ -12,8 +12,8 @@ from ui.theme import theme_manager
 
 
 def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
-    return (Tutorial(name, mw, title_is_raw=True, show_header=False, standalone=standalone)
-        .add_header("MUST KNOW BEFORE USING BEI !", nomargin=True)
+    return (Tutorial(name, mw, title_is_raw=True, show_header=False, standalone=standalone, use_scroll_area=standalone)
+        .add_header("MUST KNOW BEFORE USING BEI !")
         .add_text("<html>BrickEdit-Interface (BEI) edits the version of the vehicle <b>stored on "
             "disk</b> (just like HexEdit !). Changes made in Brick Rigs (BR) do NOT automatically "
             "happen in BEI !</html>")
@@ -22,8 +22,35 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
         .add_text("Additionally, once you save changes in BEI, you must re-open the vehicle in "
             "Brick Rigs to see the changes. If you don't, you may overwrite them!")
         .add_text("If the vehicle loaded in BEI is older than the one on disk, the reload button "
-                  "will glow red. BEI does not automatically reload the vehicle because keeping "
-                  "an old version loaded can sometimes be useful.")
+            "will glow red. BEI does not automatically reload the vehicle because keeping "
+            "an old version loaded can sometimes be useful.")
+
+        .add_sep()
+        .add_text("Below are all features of BEI in alphabetical order. Tutorials may redirect "
+            "you to different sections available below: ")
+
+        .add_header("Filters")
+        .add_text("Filters (aka. brick selectors) can be used to select only parts of a vehicle. "
+            "A filter is made of a list of conditions which can be added and removed. If a brick "
+            "respects all conditions of a filter, it is \"allowed\" (selected). By default, you "
+            "will most often see filters require a specific color or be empty and allow all "
+            "bricks.")
+        .add_text("When a filter is empty, it may either allow all bricks or none. Filters which "
+            "allows no bricks when they're empty have a special \"condition\", which overrides "
+            "all other filters (if any) and allows all bricks no matter what.")
+        .add_low_header("Condition modes")
+        .add_text("<html>Conditions have 4 different modes which changes their behavior.<br>"
+            "- <b>Should</b> → brick is allowed if it meets this condition.<br>"
+            "- <b>Must</b> → brick must meet this condition to be allowed. If it does not, it is vetoed and no other filter can allow it.<br>"
+            "<b>Should not</b> and <b>must not</b> also exist. In these two mods, the condition is inverted.</html>")
+        .add_text("The order of conditions in a filter does not matter.")
+
+        .add_header("Named groups")
+        .add_text("<html>In BEI, you can name a group (works for both editor groups and weld "
+            "groups) by adding a text brick named: <br><code>bei#&lt;My group name&gt;<br></code> "
+            "(angle brackets not required). </html>")
+        .add_text("You can use named groups to easily select or group a complex set of bricks.")
+
     )
 
 
@@ -165,6 +192,7 @@ class HomeMenu(base.BaseMenu):
         self.master_layout.addWidget(self.tutorial_open_btn)
 
         self.tutorial = _build_tutorial(self.mw, standalone=False)
+        self.tutorial.content.setMaximumHeight(10000)
 
         self.tutorial.set_inner_margins(0, 0, 0, 0)
         self.master_layout.addWidget(self.tutorial)
