@@ -99,7 +99,7 @@ class VehicleSavedDialog(BasicInfoDialog):
 class NothingEverHappensDialog(BasicInfoDialog):
 
     MSG_DID_SAVE = "This vehicle has been saved.\n"
-    MSG_BASE = "Nothing happened."
+    MSG_BASE = "No changes were made."
     MSG_BASE_EASTEREGG = "Nothing ever happens."
     EASTEREGG_PROBABILITY = 0.01
 
