@@ -23,9 +23,9 @@ class BasePropertyWidget(Widget):
     value_changed = Signal(tuple)
 
     def __init__(self, property_name: str, test_values: tuple[T, ...], formula_mode: bool, initial_value: T, enabled: bool = True, show_text: bool = True):
-        """Property name is the internal property name from brick rigs (eg. bGenerateLift).
+        """Property name is the internal property name from Brick Rigs (eg. bGenerateLift).
 
-        Test values is a set of values that must be tested for whne evaluating a widget. Eg. when
+        Test values is a set of values that must be tested for when evaluating a widget. Eg. when
         a user inputs a formula like 1/(x-1), this formula may yield invalid numbers if eg. x is 1.
         If any of these test values cause an error, then the input will not be allowed.
 
@@ -46,7 +46,7 @@ class BasePropertyWidget(Widget):
         self.true_master_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.true_master_layout)
 
-        self.display_name_label = StyledLabel(self.display_text, LabelStyle.SUBTEXT_1)
+        self.display_name_label = StyledLabel(self.display_text, LabelStyle.PROPERTIES)
         self.true_master_layout.addWidget(self.display_name_label)
         if not show_text:
             self.display_name_label.hide()
@@ -83,7 +83,7 @@ class BasePropertyWidget(Widget):
 
 
     def set_enabled(self, enabled: bool):
-        raise NotImplementedError("Subclass must implement set_enabled()")
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement set_enabled()")
 
     def get_text(self) -> tuple[str, ...]:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement get_text()")
@@ -194,6 +194,7 @@ class BooleanPropertyWidget(BasePropertyWidget):
         self.master_layout.addWidget(self.setting_widget)
 
         self.set_enabled(enabled)
+        self.setting_widget.left_arrow.set_enabled(False)
 
 
     def set_enabled(self, enabled: bool):
@@ -286,7 +287,7 @@ class Vec2PropertyWidget(BasePropertyWidget):
 
     def on_lock_toggled(self):
         self.is_locked = not self.is_locked
-        self.lock_button.set_icon(QIcon(":/assets/icons/Locked.png" if self.is_locked else ":/assets/icons/Unlocked.png"))
+        self.lock_button.set_icon(QIcon(f":/assets/icons/{"Locked" if self.is_locked else "Unlocked"}.png"))
         self.lock_button.set_checked(self.is_locked)
 
     def set_enabled(self, enabled: bool):

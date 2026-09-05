@@ -355,6 +355,8 @@ LabelStyle.DEFAULT = LabelStyle(13, 400, (None, None, None, None), False)
 LabelStyle.SUBTEXT_0 = LabelStyle(11, 400, (None, 0, None, None), False)
 LabelStyle.SUBTEXT_1 = LabelStyle(9, 500, (None, 0, None, -4), True)
 
+LabelStyle.PROPERTIES = LabelStyle(11, 500, (None, 0, None, -4), True)
+
 
 class StyledLabel(Label):
 

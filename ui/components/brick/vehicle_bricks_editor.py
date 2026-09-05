@@ -1,7 +1,7 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
+from PySide6.QtWidgets import QVBoxLayout
 
 from ui.dialogs import CannotSaveUneditedDialog
-from ui.widgets import Widget, Switcher, SwitcherEntry, Label, NumberChannelEdit, ChannelMode
+from ui.widgets import Widget, Switcher, SwitcherEntry, Label
 from ui.components.brick.grouping_methods import *
 from ui.components.brick.property_set import PropertySet
 
@@ -141,28 +141,6 @@ class VehicleBricksEditor(Widget):
         # Clear current page
         wipe_layout(self.property_set_container, delete_widgets=False)
 
-        self.pos_layout = QHBoxLayout()
-        self.pos_layout.setContentsMargins(0, 0, 0, 0)
-        self.property_set_container.addLayout(self.pos_layout)
-
-        self.pos_x = NumberChannelEdit(allow_inf=False, allow_nan=False)
-        self.pos_y = NumberChannelEdit(allow_inf=False, allow_nan=False)
-        self.pos_z = NumberChannelEdit(allow_inf=False, allow_nan=False)
-        self.pos_layout.addWidget(self.pos_x)
-        self.pos_layout.addWidget(self.pos_y)
-        self.pos_layout.addWidget(self.pos_z)
-
-        self.rot_layout = QHBoxLayout()
-        self.rot_layout.setContentsMargins(0, 0, 0, 0)
-        self.property_set_container.addLayout(self.rot_layout)
-
-        self.rot_x = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
-        self.rot_y = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
-        self.rot_z = NumberChannelEdit(allow_inf=False, allow_nan=False, minimum=-360, maximum=360)
-        self.rot_layout.addWidget(self.rot_x)
-        self.rot_layout.addWidget(self.rot_y)
-        self.rot_layout.addWidget(self.rot_z)
-
         # Get active menu stuff
         active_gm_idx = self.grouping_method_switcher.get_idx()
         brick_lists = self.gms_to_brick_lists[active_gm_idx]
@@ -189,16 +167,17 @@ class VehicleBricksEditor(Widget):
         frozen_properties_found = set()
         properties = defaultdict(set)
 
+        rotations = set()
+        positions = set()
+
         for brick in bricks:
+
+            brick_rot = brick.rot
+            brick_pos = brick.pos
+            
+            rotations.add(brick.rot)
+            positions.add(brick.pos)
             brick_properties = brick.get_all_properties() | brick.ppatch
-
-            self.pos_x.setValue(brick.pos.x)
-            self.pos_y.setValue(brick.pos.y)
-            self.pos_y.setValue(brick.pos.z)
-
-            self.rot_x.setValue(brick.rot.x)
-            self.rot_y.setValue(brick.rot.y)
-            self.rot_z.setValue(brick.rot.z)
 
             for prop, val in brick_properties.items():
                 if prop in self.frozen_properties:
@@ -215,7 +194,7 @@ class VehicleBricksEditor(Widget):
         # temp_t1 = time.perf_counter()
         # profiler = cProfile.Profile()
         # profiler.enable()
-        property_set = PropertySet(self.brick_selector, properties, self.frozen_properties)
+        property_set = PropertySet(self.brick_selector, properties, self.frozen_properties, positions, rotations)
         # profiler.disable()
         # temp_t2 = time.perf_counter()
 
@@ -231,6 +210,26 @@ class VehicleBricksEditor(Widget):
         
 
         self.property_set_container.addWidget(property_set)
+
+        if not active_gm_idx:
+            # Set the rotation widget's value's to the brick's
+            property_set.pos_x_nce.setValue(brick_pos.x)
+            property_set.pos_y_nce.setValue(brick_pos.y)
+            property_set.pos_z_nce.setValue(brick_pos.z)
+
+            property_set.rot_x_nce.setValue(brick_rot.x)
+            property_set.rot_y_nce.setValue(brick_rot.y)
+            property_set.rot_z_nce.setValue(brick_rot.z)
+        # TODO: don't hide them when selection isn't split by individual bricks
+        property_set.pos_label.setVisible(not active_gm_idx)
+        property_set.pos_x_nce.setVisible(not active_gm_idx)
+        property_set.pos_y_nce.setVisible(not active_gm_idx)
+        property_set.pos_z_nce.setVisible(not active_gm_idx)
+
+        property_set.rot_label.setVisible(not active_gm_idx)
+        property_set.rot_x_nce.setVisible(not active_gm_idx)
+        property_set.rot_y_nce.setVisible(not active_gm_idx)
+        property_set.rot_z_nce.setVisible(not active_gm_idx)
 
 
 

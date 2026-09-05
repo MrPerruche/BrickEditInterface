@@ -1,7 +1,7 @@
-from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Signal
 
-from ui.widgets import Widget
+from ui.widgets import Widget, NumberChannelEdit, StyledLabel, LabelStyle
 from ui.components.brick.property_widgets import BasePropertyWidget, get_property_widget
 
 from utils import wipe_layout
@@ -20,7 +20,7 @@ class PropertySet(Widget):
 
     properties_edited = Signal()
 
-    def __init__(self, bs: 'BrickSelector', properties: dict[str, set], frozen_properties: set[str]):
+    def __init__(self, bs: 'BrickSelector', properties: dict[str, set], frozen_properties: set[str], positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3]):
         super().__init__()
 
         self.bs = bs
@@ -36,14 +36,14 @@ class PropertySet(Widget):
         self.property_widgets = []
 
         self.failed_properties = set()
-        self.set_property_set(properties, frozen_properties)
+        self.set_property_set(properties, frozen_properties, positions, rotations)
 
 
     def on_property_edited(self):
         self.properties_edited.emit()
 
 
-    def set_property_set(self, properties: dict[str, set], frozen_properties: set[str]):
+    def set_property_set(self, properties: dict[str, set], frozen_properties: set[str], positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3]):
         self.setUpdatesEnabled(False)
 
         try:
@@ -53,6 +53,42 @@ class PropertySet(Widget):
             sorted_properties: list[tuple[str, set]] = sorted([(k, v) for k, v in properties.items()], key=lambda x: x[0])
 
             self.failed_properties = set()
+
+            #TODO: Make rotation and position into Vec3PropertyWidgets
+
+            # Brick's position
+            self.pos_label = StyledLabel("POSITION", LabelStyle.PROPERTIES)
+            self.properties_layout.addWidget(self.pos_label)
+
+            self.pos_layout = QHBoxLayout()
+            self.pos_layout.setContentsMargins(0, 0, 0, 0)
+            self.properties_layout.addLayout(self.pos_layout)
+
+            self.pos_x_nce = NumberChannelEdit()
+            self.pos_layout.addWidget(self.pos_x_nce)
+
+            self.pos_y_nce = NumberChannelEdit()
+            self.pos_layout.addWidget(self.pos_y_nce)
+
+            self.pos_z_nce = NumberChannelEdit()
+            self.pos_layout.addWidget(self.pos_z_nce)
+
+            # Brick's rotation
+            self.rot_label = StyledLabel("ROTATION", LabelStyle.PROPERTIES)
+            self.properties_layout.addWidget(self.rot_label)
+
+            self.rot_layout = QHBoxLayout()
+            self.rot_layout.setContentsMargins(0, 0, 0, 0)
+            self.properties_layout.addLayout(self.rot_layout)
+
+            self.rot_x_nce = NumberChannelEdit()
+            self.rot_layout.addWidget(self.rot_x_nce)
+
+            self.rot_y_nce = NumberChannelEdit()
+            self.rot_layout.addWidget(self.rot_y_nce)
+
+            self.rot_z_nce = NumberChannelEdit()
+            self.rot_layout.addWidget(self.rot_z_nce)
 
             for (prop, values) in sorted_properties:
 
@@ -84,6 +120,7 @@ class PropertySet(Widget):
         cache: dict[str, dict[Hashable, Hashable | None]] = defaultdict(dict)
 
         for brick in bricks:
+
             for pw in self.property_widgets:
 
                 if not pw.is_dirty():
@@ -106,5 +143,18 @@ class PropertySet(Widget):
                         cache[pw_prop][default_value] = new_value
 
                 brick.set_property(pw_prop, new_value)
+
+                # Set brick's transform
+                brick.rot = brickedit.Vec3(
+                    self.rot_x_nce.value(),
+                    self.rot_y_nce.value(),
+                    self.rot_z_nce.value()
+                )
+
+                brick.pos = brickedit.Vec3(
+                    self.pos_x_nce.value(),
+                    self.pos_y_nce.value(),
+                    self.pos_z_nce.value()
+                )
 
         # print(bricks, len(self.property_widgets))
