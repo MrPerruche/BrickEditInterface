@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Signal
 
-from ui.widgets import Widget, NumberChannelEdit, StyledLabel, LabelStyle
+from ui.widgets import Widget, StyledLabel, LabelStyle
 from ui.components.brick.property_widgets import BasePropertyWidget, get_property_widget, Vec3PropertyWidget
 
 from utils import wipe_layout
