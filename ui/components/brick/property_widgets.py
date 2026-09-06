@@ -13,6 +13,9 @@ from typing import Hashable, TypeVar
 
 import brickedit
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 T = TypeVar("T", bound=Hashable)
 
@@ -105,10 +108,9 @@ class BasePropertyWidget(Widget):
 class TextPropertyWidget(BasePropertyWidget):
 
     EDIT_ICON = None
+    KEEP_DEFAULT_DISPLAY = "Do not edit"
 
     def __init__(self, property_name: str, test_values: tuple[str, ...], formula_mode: bool, initial_value: str, enabled: bool = True, show_text: bool = True):
-        if initial_value is None: return
-
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
         self.input_le: LineEdit = LineEdit()
@@ -117,7 +119,7 @@ class TextPropertyWidget(BasePropertyWidget):
         self.formula_mode_value = ""
 
         if formula_mode:
-            self.input_le.set_text("Default value")
+            self.input_le.set_text(TextPropertyWidget.KEEP_DEFAULT_DISPLAY)
             self.input_le.set_enabled(False)
             if TextPropertyWidget.EDIT_ICON is None:
                 TextPropertyWidget.EDIT_ICON = QIcon(':/assets/icons/BrickEditorIcon.png')
@@ -137,7 +139,7 @@ class TextPropertyWidget(BasePropertyWidget):
             self.input_le.set_text(self.formula_mode_value)
         else:
             self.formula_mode_value = self.input_le.get_text()
-            self.input_le.set_text("Default value")
+            self.input_le.set_text(TextPropertyWidget.KEEP_DEFAULT_DISPLAY)
         self.input_le.set_enabled(checked)
         self.on_value_changed()
 
@@ -267,8 +269,9 @@ class Vec2PropertyWidget(BasePropertyWidget):
 
         self.lock_button = ToolButton(QIcon(":/assets/icons/Unlocked.png"), True)
         self.lock_button.set_checkable(True)
-        self.x_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
-        self.y_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
+        extra_variables = {"x": 0.0, "y": 0.0}
+        self.x_widget = FormulaChannelEdit(variable_name="x", extra_variables=extra_variables) if formula_mode else NumberChannelEdit()
+        self.y_widget = FormulaChannelEdit(variable_name="y", extra_variables=extra_variables) if formula_mode else NumberChannelEdit()
         self.set_value(initial_value)
 
         self.lock_button.clicked.connect(self.on_lock_toggled)
@@ -287,7 +290,7 @@ class Vec2PropertyWidget(BasePropertyWidget):
 
     def on_lock_toggled(self):
         self.is_locked = not self.is_locked
-        self.lock_button.set_icon(QIcon(f":/assets/icons/{"Locked" if self.is_locked else "Unlocked"}.png"))
+        self.lock_button.set_icon(QIcon(":/assets/icons/Locked.png" if self.is_locked else ":/assets/icons/Unlocked.png"))
         self.lock_button.set_checked(self.is_locked)
 
     def set_enabled(self, enabled: bool):
@@ -315,16 +318,19 @@ class Vec2PropertyWidget(BasePropertyWidget):
     def set_value(self, value: brickedit.Vec2):
         if self.formula_mode:
             self.x_widget.setFormula('x')
-            self.y_widget.setFormula('x')
+            self.y_widget.setFormula('y')
         else:
             self.x_widget.setValue(value.x)
             self.y_widget.setValue(value.y)
 
     def get_value(self, default_value: brickedit.Vec2):
-        dx, dy = default_value.as_tuple()
+        eval_table = {
+            'x': default_value.x,
+            'y': default_value.y
+        }
         return brickedit.Vec2(
-            x=self.x_widget.evaluate_at(x=dx),
-            y=self.y_widget.evaluate_at(x=dy)
+            x=self.x_widget.evaluate_at(**eval_table),
+            y=self.y_widget.evaluate_at(**eval_table)
         ) if self.formula_mode else brickedit.Vec2(
             x=self.x_widget.value(),
             y=self.y_widget.value()
@@ -346,9 +352,10 @@ class Vec3PropertyWidget(BasePropertyWidget):
 
         self.lock_button = ToolButton(QIcon(":/assets/icons/Unlocked.png"), True)
         self.lock_button.set_checkable(True)
-        self.x_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
-        self.y_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
-        self.z_widget = FormulaChannelEdit() if formula_mode else NumberChannelEdit()
+        extra_variables = {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.x_widget = FormulaChannelEdit(variable_name="x", extra_variables=extra_variables) if formula_mode else NumberChannelEdit()
+        self.y_widget = FormulaChannelEdit(variable_name="y", extra_variables=extra_variables) if formula_mode else NumberChannelEdit()
+        self.z_widget = FormulaChannelEdit(variable_name="z", extra_variables=extra_variables) if formula_mode else NumberChannelEdit()
         self.set_value(initial_value)
 
         self.lock_button.clicked.connect(self.on_lock_toggled)
@@ -398,22 +405,27 @@ class Vec3PropertyWidget(BasePropertyWidget):
     def get_text(self):
         return (self.x_widget.get_text(), self.y_widget.get_text(), self.z_widget.get_text())
 
-    def set_value(self, value: brickedit.Vec3):
+    def set_value(self, value: brickedit.Vec3 | None):
         if self.formula_mode:
             self.x_widget.setFormula('x')
-            self.y_widget.setFormula('x')
-            self.z_widget.setFormula('x')
+            self.y_widget.setFormula('y')
+            self.z_widget.setFormula('z')
         else:
+            assert value is not None, f"Value is None for {self.property_name}"
             self.x_widget.setValue(value.x)
             self.y_widget.setValue(value.y)
             self.z_widget.setValue(value.z)
 
     def get_value(self, default_value: brickedit.Vec3) -> bool:
-        dx, dy, dz = default_value.as_tuple()
+        eval_table = {
+            'x': default_value.x,
+            'y': default_value.y,
+            'z': default_value.z
+        }
         return brickedit.Vec3(
-            x=self.x_widget.evaluate_at(x=dx),
-            y=self.y_widget.evaluate_at(x=dy),
-            z=self.z_widget.evaluate_at(x=dz)
+            x=self.x_widget.evaluate_at(**eval_table),
+            y=self.y_widget.evaluate_at(**eval_table),
+            z=self.z_widget.evaluate_at(**eval_table)
         ) if self.formula_mode else brickedit.Vec3(
             x=self.x_widget.value(),
             y=self.y_widget.value(),
@@ -476,7 +488,7 @@ class Integer8PropertyWidget(BasePropertyWidget):
 
 class ColorPropertyWidget(BasePropertyWidget):
 
-    args = {
+    rgb_args = {
         'mode': ChannelMode.INT,
         'minimum': 0,
         'maximum': 255,
@@ -493,7 +505,7 @@ class ColorPropertyWidget(BasePropertyWidget):
         'allow_inf': False
     }
 
-    hsv_sva_args = {
+    hsv_sv_args = {
         'mode': ChannelMode.FLOAT32,
         'minimum': 0,
         'maximum': 100,
@@ -527,28 +539,71 @@ class ColorPropertyWidget(BasePropertyWidget):
 
         channel_type = FormulaChannelEdit if formula_mode else NumberChannelEdit
 
-        self.r_widget = channel_type(**self.args)
-        self.g_widget = channel_type(**self.args)
-        self.b_widget = channel_type(**self.args)
-        self.a_widget = channel_type(**self.args)
+        if formula_mode:
+            extra_variables = {
+                'r': 0.0,
+                'g': 0.0,
+                'b': 0.0,
+                'a': 0.0,
+                'h': 0.0,
+                's': 0.0,
+                'v': 0.0
+            }
 
-        self.h_widget = channel_type(**self.hsv_h_args)
-        self.s_widget = channel_type(**self.hsv_sva_args)
-        self.v_widget = channel_type(**self.hsv_sva_args)
-        self.ha_widget = channel_type(**self.hsv_sva_args)
+            self.r_widget = channel_type(
+                variable_name='r',
+                extra_variables=extra_variables,
+                **self.rgb_args
+            )
+            self.g_widget = channel_type(
+                variable_name='g',
+                extra_variables=extra_variables,
+                **self.rgb_args
+            )
+            self.b_widget = channel_type(
+                variable_name='b',
+                extra_variables=extra_variables,
+                **self.rgb_args
+            )
+            self.a_widget = channel_type(
+                variable_name='a',
+                extra_variables=extra_variables,
+                **self.rgb_args
+            )
 
-        self.rgb_widgets = (
-            self.r_widget,
-            self.g_widget,
-            self.b_widget,
-            self.a_widget,
-        )
-        self.hsv_widgets = (
-            self.h_widget,
-            self.s_widget,
-            self.v_widget,
-            self.ha_widget,
-        )
+            self.h_widget = channel_type(
+                variable_name='h',
+                extra_variables=extra_variables,
+                **self.hsv_h_args
+            )
+            self.s_widget = channel_type(
+                variable_name='s',
+                extra_variables=extra_variables,
+                **self.hsv_sv_args
+            )
+            self.v_widget = channel_type(
+                variable_name='v',
+                extra_variables=extra_variables,
+                **self.hsv_sv_args
+            )
+            self.ha_widget = channel_type(
+                variable_name='a',
+                extra_variables=extra_variables,
+                **self.rgb_args
+            )
+        else:
+            self.r_widget = channel_type(**self.rgb_args)
+            self.g_widget = channel_type(**self.rgb_args)
+            self.b_widget = channel_type(**self.rgb_args)
+            self.a_widget = channel_type(**self.rgb_args)
+
+            self.h_widget = channel_type(**self.hsv_h_args)
+            self.s_widget = channel_type(**self.hsv_sv_args)
+            self.v_widget = channel_type(**self.hsv_sv_args)
+            self.ha_widget = channel_type(**self.rgb_args)
+
+        self.rgb_widgets = (self.r_widget, self.g_widget, self.b_widget, self.a_widget)
+        self.hsv_widgets = (self.h_widget, self.s_widget, self.v_widget, self.ha_widget)
         self.widgets = self.rgb_widgets + self.hsv_widgets
 
         for widget in self.widgets:
@@ -592,63 +647,43 @@ class ColorPropertyWidget(BasePropertyWidget):
 
     @staticmethod
     def _rgba_to_hsva(r: int, g: int, b: int, a: int):
-        h, s, v = colorsys.rgb_to_hsv(
-            r / 255.0,
-            g / 255.0,
-            b / 255.0,
-        )
-
-        return (
-            h * 360.0,
-            s * 100.0,
-            v * 100.0,
-            a / 255.0 * 100.0,
-        )
+        h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+        return (h * 360.0, s * 100.0, v * 100.0, a)
 
     @staticmethod
     def _hsva_to_rgba(h: float, s: float, v: float, a: float):
-        r, g, b = colorsys.hsv_to_rgb(
-            h / 360.0,
-            s / 100.0,
-            v / 100.0,
-        )
+        r, g, b = colorsys.hsv_to_rgb(h / 360.0, s / 100.0, v / 100.0)
 
-        return (
-            round(r * 255),
-            round(g * 255),
-            round(b * 255),
-            round(a / 100.0 * 255),
-        )
+        return (round(r * 255), round(g * 255), round(b * 255), round(a))
 
     @staticmethod
     def _pack_rgba(r: int, g: int, b: int, a: int) -> int:
         return (r << 24) | (g << 16) | (b << 8) | a
 
     def set_value(self, value: int):
-        if value is None:  # TODO why the fuck is it None??
-            value = 0xbcbcbcff
+        if value is None:
+            value = self.get_example_value()
+
         r = value >> 24 & 0xFF
         g = value >> 16 & 0xFF
         b = value >> 8 & 0xFF
         a = value & 0xFF
 
-        h, s, v, ha = self._rgba_to_hsva(r, g, b, a)
+        h, s, v, _ = self._rgba_to_hsva(r, g, b, a)
 
         if self.formula_mode:
-            for widget in self.widgets:
-                widget.setFormula('x')
+            for widget, variable in zip(self.rgb_widgets, ('r', 'g', 'b', 'a')):
+                widget.setFormula(variable)
+
+            for widget, variable in zip(self.hsv_widgets, ('h', 's', 'v', 'a')):
+                widget.setFormula(variable)
+
             return
 
-        for widget, channel_value in zip(
-            self.rgb_widgets,
-            (r, g, b, a),
-        ):
+        for widget, channel_value in zip(self.rgb_widgets, (r, g, b, a)):
             widget.setValue(channel_value)
 
-        for widget, channel_value in zip(
-            self.hsv_widgets,
-            (h, s, v, ha),
-        ):
+        for widget, channel_value in zip(self.hsv_widgets, (h, s, v, a)):
             widget.setValue(channel_value)
 
     def get_value(self, default_value: int) -> int:
@@ -657,50 +692,59 @@ class ColorPropertyWidget(BasePropertyWidget):
         default_b = default_value >> 8 & 0xFF
         default_a = default_value & 0xFF
 
-        if self.color_space == 'rgba':
-            if self.formula_mode:
-                r = self.r_widget.evaluate_at(x=default_r)
-                g = self.g_widget.evaluate_at(x=default_g)
-                b = self.b_widget.evaluate_at(x=default_b)
-                a = self.a_widget.evaluate_at(x=default_a)
-            else:
-                r = self.r_widget.value()
-                g = self.g_widget.value()
-                b = self.b_widget.value()
-                a = self.a_widget.value()
+        default_h, default_s, default_v, _ = self._rgba_to_hsva(default_r, default_g, default_b, default_a)
+
+        if self.formula_mode:
+            eval_table = {
+                'r': default_r,
+                'g': default_g,
+                'b': default_b,
+                'a': default_a,
+                'h': default_h,
+                's': default_s,
+                'v': default_v
+            }
+
+            if self.color_space == 'rgba':
+                r = self.r_widget.evaluate_at(**eval_table)
+                g = self.g_widget.evaluate_at(**eval_table)
+                b = self.b_widget.evaluate_at(**eval_table)
+                a = self.a_widget.evaluate_at(**eval_table)
+
+                return self._pack_rgba(r, g, b, a)
+
+            h = self.h_widget.evaluate_at(**eval_table)
+            s = self.s_widget.evaluate_at(**eval_table)
+            v = self.v_widget.evaluate_at(**eval_table)
+            a = self.ha_widget.evaluate_at(**eval_table)
+
+            r, g, b, a = self._hsva_to_rgba(h, s, v, a)
 
             return self._pack_rgba(r, g, b, a)
 
-        default_h, default_s, default_v, default_ha = self._rgba_to_hsva(
-            default_r,
-            default_g,
-            default_b,
-            default_a,
-        )
+        if self.color_space == 'rgba':
+            r = self.r_widget.value()
+            g = self.g_widget.value()
+            b = self.b_widget.value()
+            a = self.a_widget.value()
 
-        if self.formula_mode:
-            h = self.h_widget.evaluate_at(x=default_h)
-            s = self.s_widget.evaluate_at(x=default_s)
-            v = self.v_widget.evaluate_at(x=default_v)
-            a = self.ha_widget.evaluate_at(x=default_ha)
-        else:
-            h = self.h_widget.value()
-            s = self.s_widget.value()
-            v = self.v_widget.value()
-            a = self.ha_widget.value()
+            return self._pack_rgba(r, g, b, a)
+
+        h = self.h_widget.value()
+        s = self.s_widget.value()
+        v = self.v_widget.value()
+        a = self.ha_widget.value()
 
         r, g, b, a = self._hsva_to_rgba(h, s, v, a)
 
         # Keep the hidden RGB representation synchronized with HSV edits.
-        if not self.formula_mode:
-            for widget, channel_value in zip(
-                self.rgb_widgets,
-                (r, g, b, a),
-            ):
-                widget.setValue(channel_value)
+        for widget, channel_value in zip(
+            self.rgb_widgets,
+            (r, g, b, a),
+        ):
+            widget.setValue(channel_value)
 
         return self._pack_rgba(r, g, b, a)
-
 
     @classmethod
     def get_example_value(cls) -> int:
@@ -718,6 +762,7 @@ def from_bin(data: str):
 class UnknownTypePropertyWidget(BasePropertyWidget):
 
     EDIT_ICON = None
+    KEEP_DEFAULT_DISPLAY = "Do not edit"
 
     def __init__(self, property_name: str, test_values: tuple[bytes, ...], formula_mode: bool, initial_value: bytes, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
@@ -730,7 +775,7 @@ class UnknownTypePropertyWidget(BasePropertyWidget):
         self.formula_mode_value = ""
 
         if formula_mode:
-            self.input_le.set_text("Default value")
+            self.input_le.set_text(UnknownTypePropertyWidget.KEEP_DEFAULT_DISPLAY)
             self.input_le.set_enabled(False)
             if self.EDIT_ICON is None:
                 self.EDIT_ICON = QIcon(':/assets/icons/BrickEditorIcon.png')
@@ -750,7 +795,7 @@ class UnknownTypePropertyWidget(BasePropertyWidget):
             self.input_le.set_text(self.formula_mode_value)
         else:
             self.formula_mode_value = self.input_le.get_text()
-            self.input_le.set_text("Default value")
+            self.input_le.set_text(UnknownTypePropertyWidget.KEEP_DEFAULT_DISPLAY)
         self.input_le.set_enabled(checked)
         self.on_value_changed()
 
@@ -799,7 +844,9 @@ def get_property_widget_cls(property_name: str, allow_unknown: bool = True) -> t
         return FloatPropertyWidget
     elif issubclass(property_meta_cls, brickedit.p.Vec2Meta):
         return Vec2PropertyWidget
-    elif issubclass(property_meta_cls, (brickedit.p.BrickSize, brickedit.p.ExitLocation)):
+    elif issubclass(property_meta_cls, brickedit.p.ExitLocation):
+        return None
+    elif issubclass(property_meta_cls, brickedit.p.BrickSize):
         return Vec3PropertyWidget
     elif issubclass(property_meta_cls, brickedit.p.NumFractionalDigits):
         return Integer8PropertyWidget
@@ -831,5 +878,8 @@ def get_property_widget(
                 return None
         else:
             return None
-    if initial_value is not None:
-        return widget_cls(property_name, test_values, formula_mode, initial_value, enabled, show_text)
+
+    # if initial_value is None:
+    #     logger.warning(f"Initial value is None for property widget_cls{property_name, test_values, formula_mode, initial_value, enabled, show_text}. Defaulting to {widget_cls.get_example_value() = } ")
+    #     initial_value = widget_cls.get_example_value()
+    return widget_cls(property_name, test_values, formula_mode, initial_value, enabled, show_text)
