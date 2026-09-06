@@ -58,7 +58,7 @@ import warnings
 import weakref
 from decimal import Decimal, ROUND_HALF_EVEN, localcontext
 from enum import Enum, auto
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 from asteval import Interpreter
@@ -226,8 +226,10 @@ class ChannelModel:
     Framework-agnostic - wire it into whatever QLineEdit you like."""
 
     def __init__(self, mode: ChannelMode = ChannelMode.FLOAT32, decimals: int = 6,
-                 ulp_tolerance: int = 2, allow_nan: bool = True, allow_inf: bool = True,
-                 minimum: Optional[float] = None, maximum: Optional[float] = None):
+                ulp_tolerance: int = 2, allow_nan: bool = True, allow_inf: bool = True,
+                minimum: Optional[float] = None, maximum: Optional[float] = None,
+                constraint: Optional[Callable[[float], bool]] = None,
+                constraint_message: str = "value does not satisfy the custom constraint"):
         self.mode = mode
         self.decimals = decimals
         self.ulp_tolerance = ulp_tolerance
@@ -235,6 +237,8 @@ class ChannelModel:
         self.allow_inf = allow_inf
         self.minimum = minimum
         self.maximum = maximum
+        self.constraint = constraint
+        self.constraint_message = constraint_message
 
         self._aeval = Interpreter(minimal=True, with_ifexp=True)
         self._aeval.symtable.update(pi=math.pi, e=math.e, inf=math.inf, nan=math.nan)
@@ -345,6 +349,8 @@ class ChannelModel:
             raise ValueError(f"value must be >= {self.minimum}")
         if self.maximum is not None and value > self.maximum:
             raise ValueError(f"value must be <= {self.maximum}")
+        if self.constraint is not None and not self.constraint(value):
+            raise ValueError(self.constraint_message)
         return value
 
     def set_value(self, value: float) -> float:
@@ -390,27 +396,37 @@ class FormulaChannelModel:
     """
 
     def __init__(self, numeric_model: ChannelModel, variable_name: str = "x",
-                 preview_value: float = 0.0):
+                preview_value: float = 0.0, extra_variables: Optional[dict] = None):
         self.numeric_model = numeric_model
         self.variable_name = variable_name
         self.preview_value = preview_value
+        self.preview_values: dict = {variable_name: preview_value, **(extra_variables or {})}
+
+    def add_known_variable(self, name: str, preview_value: float = 0.0) -> None:
+        self.preview_values[name] = preview_value
+
+    def remove_known_variable(self, name: str) -> None:
+        self.preview_values.pop(name, None)
 
     def validate_formula(self, text: str) -> None:
         text = text.strip()
         if not text:
             raise ValueError("empty formula")
-        # Deliberately calls the *raw* evaluator, bypassing bounds/nan
-        # checks - see class docstring for why.
-        previous_present = self.variable_name in self.numeric_model._aeval.symtable
-        previous_value = self.numeric_model._aeval.symtable.get(self.variable_name)
-        self.numeric_model._aeval.symtable[self.variable_name] = self.preview_value
+        symtable = self.numeric_model._aeval.symtable
+        previous = {}
+        added = []
+        for name, val in self.preview_values.items():
+            if name in symtable:
+                previous[name] = symtable[name]
+            else:
+                added.append(name)
+            symtable[name] = val
         try:
             self.numeric_model._raw_evaluate(text)
         finally:
-            if previous_present:
-                self.numeric_model._aeval.symtable[self.variable_name] = previous_value
-            else:
-                del self.numeric_model._aeval.symtable[self.variable_name]
+            for name in added:
+                del symtable[name]
+            symtable.update(previous)
 
     def evaluate_at(self, text: str, **variables) -> float:
         """Evaluate the formula for real. If `variables` doesn't include
@@ -566,12 +582,13 @@ class FormulaChannelEdit(LineEdit):
     result for a specific case (e.g. one object in a batch edit)."""
  
     formula_changed = Signal(str)
- 
+
     def __init__(self, mode: ChannelMode = ChannelMode.FLOAT32, variable_name: str = "x",
-                 preview_value: float = 0.0, parent=None, **model_kwargs):
+                preview_value: float = 0.0, extra_variables: Optional[dict] = None,
+                parent=None, **model_kwargs):
         super().__init__(parent=parent)
         self.numeric_model = ChannelModel(mode=mode, **model_kwargs)
-        self.model = FormulaChannelModel(self.numeric_model, variable_name, preview_value)
+        self.model = FormulaChannelModel(self.numeric_model, variable_name, preview_value, extra_variables)
         self._formula: str = str(preview_value)
         self._dirty = False
         self.set_validator(FormulaChannelValidator(self.model, self))
