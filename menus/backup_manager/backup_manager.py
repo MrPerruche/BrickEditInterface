@@ -65,9 +65,17 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
         # Backup entries for that vehicle
+        self.backups_expanded = False
+
         self.backup_entries = Surface()
         self.backup_entries_layout = self.backup_entries.layout()
         self.master_layout.addWidget(self.backup_entries)
+        self.backup_entries.setVisible(self.backups_expanded)
+        
+
+        self.backups_dropdown = Button("Expand backups", QIcon(':/assets/icons/ExpandSmallIcon.png'), False)
+        self.master_layout.addWidget(self.backups_dropdown)
+        self.backups_dropdown.clicked.connect(self.collapse_expand_backups)
 
 
         # ---------------
@@ -238,6 +246,13 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             self.backup_entries_layout.addWidget(backup_entry)
 
         self.update_excess_label()
+
+
+    def collapse_expand_backups(self):
+        self.backups_expanded = not self.backups_expanded
+        self.backups_dropdown.set_icon(QIcon(f":/assets/icons/{'CollapseSmallIcon.png' if self.backups_expanded else 'ExpandSmallIcon.png'}"))
+        self.backups_dropdown.set_text("Collapse backups" if self.backups_expanded else "Expand backups")
+        self.backup_entries.setVisible(self.backups_expanded)
 
 
     def create_manual_backup(self):
