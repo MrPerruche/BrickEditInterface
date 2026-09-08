@@ -58,7 +58,6 @@ import random
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-import numba
 import numpy as np
 from PIL import Image
 from scipy.ndimage import label as cc_label, find_objects
@@ -131,7 +130,7 @@ def load_color_grid(
 # tuples, since numba needs array-based data structures to compile this
 # to native code rather than falling back to Python-object mode.
 
-@numba.njit(cache=True)
+#@numba.njit(cache=True)
 def _largest_rectangle_impl(mask: np.ndarray) -> tuple[int, int, int, int]:
     rows, cols = mask.shape
     heights = np.zeros(cols, dtype=np.int32)
