@@ -50,6 +50,7 @@ python -m nuitka `
     --output-dir=compiled_build `
     --windows-icon-from-ico="assets/icons/brickeditinterface.ico" `
     --enable-plugin=pyside6 `
+    --include-package=scipy._external.array_api_compat `
     main.py
 ```
 
@@ -61,7 +62,7 @@ python -m nuitka `
     --output-dir=compiled_build `
     --windows-icon-from-ico="assets/icons/brickeditinterface.ico" `
     --enable-plugin=pyside6 `
-    --enable-plugin=numpy `
+    --include-package=scipy._external.array_api_compat `
     --remove-output `
     --output-filename="BrickEdit-Interface.exe" `
     main.py

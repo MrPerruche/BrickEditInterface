@@ -15,6 +15,11 @@ if TYPE_CHECKING:
 import brickedit
 
 
+def _make_pos_or_rot_widget(title: str, value_set: set[brickedit.Vec3]):
+    if len(value_set) < 1:
+        return Vec3PropertyWidget(title, (brickedit.Vec3(0, 0, 0),), False, brickedit.Vec3(0, 0, 0))
+    return Vec3PropertyWidget(title, tuple(value_set), len(value_set) > 1, next(iter(value_set)))
+
 
 class PropertySet(Widget):
 
@@ -34,6 +39,8 @@ class PropertySet(Widget):
         self.master_layout.addLayout(self.properties_layout)
 
         self.property_widgets = []
+        self.pos_widget = None
+        self.rot_widget = None
 
         self.failed_properties = set()
         self.set_property_set(properties, frozen_properties, positions, rotations)
@@ -57,11 +64,11 @@ class PropertySet(Widget):
             #TODO: Make rotation and position into Vec3PropertyWidgets
 
             # Brick's position
-            self.pos_widget = Vec3PropertyWidget("Position", (brickedit.Vec3(0.0, 0.0, 0.0),), False, brickedit.Vec3(0.0, 0.0, 0.0))
+            self.pos_widget = _make_pos_or_rot_widget("Position", positions)
             self.properties_layout.addWidget(self.pos_widget)
 
             # Brick's rotation
-            self.rot_widget = Vec3PropertyWidget("Rotation", (brickedit.Vec3(0.0, 0.0, 0.0),), False, brickedit.Vec3(0.0, 0.0, 0.0))
+            self.rot_widget = _make_pos_or_rot_widget("Rotation", rotations)
             self.properties_layout.addWidget(self.rot_widget)
 
             for (prop, values) in sorted_properties:
@@ -93,6 +100,8 @@ class PropertySet(Widget):
 
         cache: dict[str, dict[Hashable, Hashable | None]] = defaultdict(dict)
 
+        assert self.pos_widget is not None and self.rot_widget is not None, "Widgets are None! PropertySet.update_bricks is called before PropertySet is properly initialized."        
+
         for brick in bricks:
 
             for pw in self.property_widgets:
@@ -119,7 +128,7 @@ class PropertySet(Widget):
                 brick.set_property(pw_prop, new_value)
 
                 # Set brick's transform
-                brick.rot = self.rot_widget.get_value(self.rot_widget.get_example_value())
-                brick.pos = self.pos_widget.get_value(self.pos_widget.get_example_value())
+                brick.rot = self.rot_widget.get_value(brick.rot)
+                brick.pos = self.pos_widget.get_value(brick.pos)
 
         # print(bricks, len(self.property_widgets))
