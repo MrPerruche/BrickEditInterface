@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QVBoxLayout
 from ui.dialogs import CannotSaveUneditedDialog
 from ui.widgets import Widget, Switcher, SwitcherEntry, Label
 from ui.components.brick.grouping_methods import *
+from ui.components.brick.property_utils import get_or_make_property_display_name
 from ui.components.brick.property_set import PropertySet
 
 from utils import wipe_layout, clamp
@@ -172,9 +173,9 @@ class VehicleBricksEditor(Widget):
 
         for brick in bricks:
 
-            brick_rot = brick.rot
-            brick_pos = brick.pos
-            
+            brick_idx = self.mw.vehicle_selector_banner.get_brvfile_ref().bricks.index(brick)
+            brick_name = brick.meta().name()
+
             rotations.add(brick.rot)
             positions.add(brick.pos)
             brick_properties = brick.get_all_properties() | brick.ppatch
@@ -208,17 +209,12 @@ class VehicleBricksEditor(Widget):
         property_set.properties_edited.connect(self.save_current_property_set)
         self.live_property_set = property_set
         
+        if not active_gm_idx:
+            property_set.brick_title.set_text(f"{get_or_make_property_display_name(brick_name)} #{brick_idx}")
+        else:
+            property_set.brick_title.hide()
 
         self.property_set_container.addWidget(property_set)
-
-        if not active_gm_idx:
-            property_set.pos_widget.set_value(brick_pos)
-            property_set.rot_widget.set_value(brick_rot)
-
-            
-        # TODO: don't hide them for formula mode
-        property_set.pos_widget.setVisible(not active_gm_idx)
-        property_set.rot_widget.setVisible(not active_gm_idx)
 
 
 

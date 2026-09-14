@@ -25,7 +25,11 @@ class PropertySet(Widget):
 
     properties_edited = Signal()
 
-    def __init__(self, bs: 'BrickSelector', properties: dict[str, set], frozen_properties: set[str], positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3]):
+    def __init__(
+        self, bs: 'BrickSelector', properties: dict[str, set], frozen_properties: set[str],
+        positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3]
+        ):
+
         super().__init__()
 
         self.bs = bs
@@ -33,6 +37,9 @@ class PropertySet(Widget):
         self.master_layout = QVBoxLayout()
         self.master_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.master_layout)
+
+        self.brick_title = StyledLabel("", LabelStyle.HEADER_5, True)
+        self.master_layout.addWidget(self.brick_title)
 
         self.properties_layout = QVBoxLayout()
         self.properties_layout.setContentsMargins(0, 0, 0, 0)
@@ -50,7 +57,9 @@ class PropertySet(Widget):
         self.properties_edited.emit()
 
 
-    def set_property_set(self, properties: dict[str, set], frozen_properties: set[str], positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3]):
+    def set_property_set(self, properties: dict[str, set], frozen_properties: set[str],
+    positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3]
+    ):
         self.setUpdatesEnabled(False)
 
         try:
@@ -60,8 +69,6 @@ class PropertySet(Widget):
             sorted_properties: list[tuple[str, set]] = sorted([(k, v) for k, v in properties.items()], key=lambda x: x[0])
 
             self.failed_properties = set()
-
-            #TODO: Make rotation and position into Vec3PropertyWidgets
 
             # Brick's position
             self.pos_widget = _make_pos_or_rot_widget("Position", positions)
