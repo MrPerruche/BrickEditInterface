@@ -1,3 +1,5 @@
+from math import e
+
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtGui import QIcon
 
@@ -7,7 +9,6 @@ from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface
 from ui.components.brick.property_widgets import ColorPropertyWidget
 from ui.dialogs import VehicleLoadingIssueDialog
 from ui.models import TooltipContents
-
 
 from brickedit import *
 
@@ -241,11 +242,13 @@ class DowngradeVehicleMenu(base.BaseMenu):
                 if brvf is None: return
                 for brick in brvf.bricks:
                     if brick.meta().name() == bt.MATH_BRICK.name():
-                        has_greater_operation = True if brick.get_property(p.OPERATION) == p.Operation.GT else has_greater_operation
-                        has_less_operation = True if brick.get_property(p.OPERATION) == p.Operation.LT else has_less_operation
-
-                    has_sq_to_c_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_CIRCLE.name() else has_sq_to_c_brick
-                    has_sq_to_qc_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name() else has_sq_to_qc_brick
+                        op = brick.get_property(p.OPERATION)
+                        # comparisons
+                        has_greater_operation = True if op == p.Operation.GT else has_greater_operation
+                        has_less_operation = True if op == p.Operation.LT else has_less_operation
+                    else:
+                        has_sq_to_c_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_CIRCLE.name() else has_sq_to_c_brick
+                        has_sq_to_qc_brick = True if brick.meta().name() == bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name() else has_sq_to_qc_brick
 
                 self.operation_handling_title.setVisible(has_greater_operation or has_less_operation)
 
@@ -287,20 +290,75 @@ class DowngradeVehicleMenu(base.BaseMenu):
         brvfile.version = self.get_versions()[1]
 
         if self.get_versions_str()[0] == _SUPPORTED_VERSIONS[1] and self.get_versions_str()[1] == _SUPPORTED_VERSIONS[0]:
-            for i, brick in enumerate(brvfile.bricks[:]):
+            for brick in brvfile.bricks[:]:
                 if brick.meta().name() == bt.MATH_BRICK.name():
-                    if brick.get_property(p.OPERATION) == p.Operation.GT and self.greater_handling_setting.get_current_idx() == 1:
+                    op = brick.get_property(p.OPERATION)
+                    if op == p.Operation.GT and self.greater_handling_setting.get_current_idx() == 1:
                         brick.set_property(
                             p.BRICK_COLOR,
                             self.greater_handling_color.get_value(0xbcbcbcff)
                             )
-                    elif brick.get_property(p.OPERATION) == p.Operation.LT and self.less_handling_setting.get_current_idx() == 1:
+
+                    elif op == p.Operation.LT and self.less_handling_setting.get_current_idx() == 1:
                         brick.set_property(
                             p.BRICK_COLOR,
                             self.less_handling_color.get_value(0xbcbcbcff)
                             )
-                    elif brick.get_property(p.OPERATION) in (p.Operation.GE, p.Operation.LE):
-                        brick.set_property(p.OPERATION, p.Operation.LT if brick.get_property(p.OPERATION) == p.Operation.LE else p.Operation.GT)
+
+                    elif op in (p.Operation.GE, p.Operation.LE):
+                        brick.set_property(p.OPERATION, p.Operation.LT if op == p.Operation.LE else p.Operation.GT)
+
+                    elif op == p.Operation.RECIPROCAL:
+                        brick.set_property(p.OPERATION, p.Operation.DIV)
+
+                        old_a = (
+                        brick.get_property(p.INPUT_CNL_A_VALUE),
+                        brick.get_property(p.INPUT_CNL_A_INPUT_AXIS),
+                        brick.get_property(p.INPUT_CNL_A_SOURCE_BRICKS)
+                        )
+                        new_a = (
+                            1.0, # InputCnl_A_Value
+                            p.InputCnl_A_InputAxis.CONST,
+                            p.InputCnl_A_SourceBricks.EMPTY
+                        )
+
+                        brick.set_property(p.INPUT_CNL_A_VALUE, new_a[0])
+                        brick.set_property(p.INPUT_CNL_A_INPUT_AXIS, new_a[1])
+                        brick.set_property(p.INPUT_CNL_A_SOURCE_BRICKS, new_a[2])
+
+                        brick.set_property(p.INPUT_CNL_B_VALUE, old_a[0])
+                        brick.set_property(p.INPUT_CNL_B_INPUT_AXIS, old_a[1])
+                        brick.set_property(p.INPUT_CNL_B_SOURCE_BRICKS, old_a[2])
+                    
+                    elif op == p.Operation.NEGATE:
+                        brick.set_property(p.OPERATION, p.Operation.MUL)
+
+                        brick.set_property(p.INPUT_CNL_B_INPUT_AXIS, p.InputCnl_B_InputAxis.CONST)
+                        brick.set_property(p.INPUT_CNL_B_VALUE, -1.0)
+                        brick.set_property(p.INPUT_CNL_B_SOURCE_BRICKS, p.InputCnl_B_SourceBricks.EMPTY)
+
+                    elif op == p.Operation.SQUARE:
+                        brick.set_property(p.OPERATION, p.Operation.POW)
+
+                        brick.set_property(p.INPUT_CNL_B_VALUE, 2.0)
+                        brick.set_property(p.INPUT_CNL_B_INPUT_AXIS, p.InputCnl_B_InputAxis.CONST)
+                        brick.set_property(p.INPUT_CNL_B_SOURCE_BRICKS, p.InputCnl_B_SourceBricks.EMPTY)
+
+                    
+            
+
+                    brick.reset_property(p.INPUT_CNL_C_INPUT_AXIS)
+                    brick.reset_property(p.INPUT_CNL_D_INPUT_AXIS)
+                    brick.reset_property(p.INPUT_CNL_E_INPUT_AXIS)
+
+                    brick.reset_property(p.INPUT_CNL_C_SOURCE_BRICKS)
+                    brick.reset_property(p.INPUT_CNL_D_SOURCE_BRICKS)
+                    brick.reset_property(p.INPUT_CNL_E_SOURCE_BRICKS)
+
+                    brick.reset_property(p.INPUT_CNL_C_VALUE)
+                    brick.reset_property(p.INPUT_CNL_D_VALUE)
+                    brick.reset_property(p.INPUT_CNL_E_VALUE)
+
                 elif brick.meta().name() in (bt.SCALABLE_SQUARE_TO_CIRCLE.name(), bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()):
                     if self.sq_to_c_handling_setting.get_current_idx() in (1, 2):
                         new_meta = bt.SCALABLE_BRICK

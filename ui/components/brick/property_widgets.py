@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=Hashable)
 
-
+_NONE_PROPERTIES = ( # Properties which can ever be None
+    brickedit.p.EXIT_LOCATION
+)
 
 class BasePropertyWidget(Widget):
 
@@ -355,6 +357,7 @@ class Vec3PropertyWidget(BasePropertyWidget):
         self.initial_value = initial_value
         self._is_called_by_function_flag: bool = False
         self._is_locked: bool = False
+        self._enabled = enabled
 
         extra_variables = {"x": 0.0, "y": 0.0, "z": 0.0}
         self.x_widget = FormulaChannelEdit(variable_name="x", extra_variables=extra_variables) if formula_mode else NumberChannelEdit()
@@ -380,7 +383,7 @@ class Vec3PropertyWidget(BasePropertyWidget):
         self.master_layout.addWidget(self.y_widget)
         self.master_layout.addWidget(self.z_widget)
 
-        self.set_enabled(enabled)
+        self.set_enabled(False if property_name in _NONE_PROPERTIES and initial_value is None else enabled)
 
 
     def _on_lock_toggled(self):
@@ -426,10 +429,11 @@ class Vec3PropertyWidget(BasePropertyWidget):
             self.y_widget.setFormula('y')
             self.z_widget.setFormula('z')
         else:
-            assert value is not None, f"Value is None for {self.property_name}"
-            self.x_widget.setValue(value.x)
-            self.y_widget.setValue(value.y)
-            self.z_widget.setValue(value.z)
+            if self.property_name not in _NONE_PROPERTIES or self._enabled:
+                assert value is not None, f"Value is None for {self.property_name}"
+                self.x_widget.setValue(value.x)
+                self.y_widget.setValue(value.y)
+                self.z_widget.setValue(value.z)
 
     def get_value(self, default_value: brickedit.Vec3) -> bool:
         eval_table = {
@@ -851,21 +855,19 @@ def get_property_widget_cls(property_name: str, allow_unknown: bool = True) -> t
 
     if issubclass(property_meta_cls, brickedit.p.EnumMeta):
         return AsciiPropertyWidget
-    elif issubclass(property_meta_cls, brickedit.p.TextMeta):
+    if issubclass(property_meta_cls, brickedit.p.TextMeta):
         return TextPropertyWidget
-    elif issubclass(property_meta_cls, brickedit.p.BooleanMeta):
+    if issubclass(property_meta_cls, brickedit.p.BooleanMeta):
         return BooleanPropertyWidget
-    elif issubclass(property_meta_cls, brickedit.p.Float32Meta):
+    if issubclass(property_meta_cls, brickedit.p.Float32Meta):
         return FloatPropertyWidget
-    elif issubclass(property_meta_cls, brickedit.p.Vec2Meta):
+    if issubclass(property_meta_cls, brickedit.p.Vec2Meta):
         return Vec2PropertyWidget
-    elif issubclass(property_meta_cls, brickedit.p.ExitLocation):
-        return None
-    elif issubclass(property_meta_cls, brickedit.p.BrickSize):
+    if issubclass(property_meta_cls, brickedit.p.Vec3Meta):
         return Vec3PropertyWidget
-    elif issubclass(property_meta_cls, brickedit.p.NumFractionalDigits):
+    if issubclass(property_meta_cls, brickedit.p.Int8Meta):
         return Integer8PropertyWidget
-    elif issubclass(property_meta_cls, (brickedit.p.Color3ChannelsMeta, brickedit.p.Color4ChannelsMeta)):
+    if issubclass(property_meta_cls, brickedit.p.Color4ChannelsMeta):
         return ColorPropertyWidget
 
     return UnknownTypePropertyWidget if allow_unknown else None
