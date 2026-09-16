@@ -114,76 +114,81 @@ class VehicleSelector(Widget):
 
 
     def _reload(self, *args, ignore_old: bool = False):
-        self.is_reloading = True
-        container = Widget()
-        self.vehicle_cards_layout = QVBoxLayout(container)
-        self.vehicle_cards_layout.setContentsMargins(0, 0, 0, 0)
+        self.setUpdatesEnabled(False)
+        try:
+            self.is_reloading = True
+            container = Widget()
+            self.vehicle_cards_layout = QVBoxLayout(container)
+            self.vehicle_cards_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.vehicle_cards.clear()
+            self.vehicle_cards.clear()
 
-        filter: str = self.search_box.get_text()
-        if filter:
-            filter = filter.lower().strip()
+            filter: str = self.search_box.get_text()
+            if filter:
+                filter = filter.lower().strip()
 
-        # get all post 1.0 vehicles
-        entries = sorted(
-            os.scandir(self.vehicles_path),
-            key=lambda e: e.stat().st_mtime,
-            reverse=True,
-        )
-        path_list = [os.path.join(self.vehicles_path, e.name) for e in entries if e.is_dir()]
+            # get all post 1.0 vehicles
+            entries = sorted(
+                os.scandir(self.vehicles_path),
+                key=lambda e: e.stat().st_mtime,
+                reverse=True,
+            )
+            path_list = [os.path.join(self.vehicles_path, e.name) for e in entries if e.is_dir()]
 
-        to_be_loaded_remaining = self.vehicles_loaded  # Creating widgets is super slow
-        too_old = 0
-        errors = 0
-        too_many = 0
+            to_be_loaded_remaining = self.vehicles_loaded  # Creating widgets is super slow
+            too_old = 0
+            errors = 0
+            too_many = 0
 
-        # Add vehicle cards
-        for path in path_list:
+            # Add vehicle cards
+            for path in path_list:
 
-            # Get first byte of vehicle
-            version = brickedit.FILE_MAIN_VERSION
-            vehicle_path = os.path.join(path, "Vehicle.brv")
-            if os.path.exists(vehicle_path):
-                with open(vehicle_path, "rb") as f:  # slightly cursed
-                    version = int.from_bytes(f.read(1), "little")
+                # Get first byte of vehicle
+                version = brickedit.FILE_MAIN_VERSION
+                vehicle_path = os.path.join(path, "Vehicle.brv")
+                if os.path.exists(vehicle_path):
+                    with open(vehicle_path, "rb") as f:  # slightly cursed
+                        version = int.from_bytes(f.read(1), "little")
 
-            # Is vehicle valid checks?
-            if version < brickedit.FILE_MIN_SUPPORTED_VERSION:
-                too_old += 1
-                continue
-            if to_be_loaded_remaining <= 0:
-                too_many += 1
-                continue
-            metadata_path = os.path.join(path, "MetaData.brm")  # Make sure theres metadata
-            if not os.path.exists(metadata_path):
-                errors += 1
-                continue
+                # Is vehicle valid checks?
+                if version < brickedit.FILE_MIN_SUPPORTED_VERSION:
+                    too_old += 1
+                    continue
+                if to_be_loaded_remaining <= 0:
+                    too_many += 1
+                    continue
+                metadata_path = os.path.join(path, "MetaData.brm")  # Make sure theres metadata
+                if not os.path.exists(metadata_path):
+                    errors += 1
+                    continue
 
-            vehicle_card_data, e = VehicleCardData.load_path_silent(path)
-            if e is not None:  # Exception occured, cannot be loaded
-                errors += 1
-                continue
+                vehicle_card_data, e = VehicleCardData.load_path_silent(path)
+                if e is not None:  # Exception occured, cannot be loaded
+                    errors += 1
+                    continue
 
-            # Apply search filter
-            if filter and (name if (name := vehicle_card_data.name.lower().strip()) else 'unnamed').find(filter) == -1:
-                continue
+                # Apply search filter
+                if filter and (name if (name := vehicle_card_data.name.lower().strip()) else 'unnamed').find(filter) == -1:
+                    continue
 
-            # Build vehicle card
-            vehicle_card = VehicleCard(path, False, vehicle_card_data=vehicle_card_data)
-            vehicle_card.clicked.connect(self.on_vehicle_clicked)
-            self.vehicle_cards.append(vehicle_card)
-            self.vehicle_cards_layout.addWidget(vehicle_card)
+                # Build vehicle card
+                vehicle_card = VehicleCard(path, False, vehicle_card_data=vehicle_card_data)
+                vehicle_card.clicked.connect(self.on_vehicle_clicked)
+                self.vehicle_cards.append(vehicle_card)
+                self.vehicle_cards_layout.addWidget(vehicle_card)
 
-            to_be_loaded_remaining -= 1
+                to_be_loaded_remaining -= 1
 
-        # temp import
-        # from PySide6.QtWidgets import QLayout, QApplication
+            # temp import
+            # from PySide6.QtWidgets import QLayout, QApplication
 
-        self.vehicle_cards_layout.setAlignment(Qt.AlignTop)
-        # self.vehicle_cards_layout.setSizeConstraint(QLayout.SetMinimumSize)
-        self.scroll_area.updateGeometry()
-        self.scroll_area.setWidget(container)  # Show changes and delete old list
+            self.vehicle_cards_layout.setAlignment(Qt.AlignTop)
+            # self.vehicle_cards_layout.setSizeConstraint(QLayout.SetMinimumSize)
+            self.scroll_area.updateGeometry()
+            self.scroll_area.setWidget(container)  # Show changes and delete old list
+
+        finally:
+            self.setUpdatesEnabled(True)
 
         # if another reload request has been submitted while busy reloading, reload again
         self.is_reloading = False

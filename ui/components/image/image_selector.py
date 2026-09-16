@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QFileDialog
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap, QIcon
 
 from ui.widgets import Widget, Surface, Label, Button
@@ -20,6 +20,8 @@ class ImageSelector(Widget):
     EXPLORER_ICON = None
 
     thumbnail_size = 100, 58
+
+    on_new_image_selected = Signal(object)
 
     def __init__(self, mw):
         super().__init__()
@@ -79,6 +81,7 @@ class ImageSelector(Widget):
         adjusted_icon = qicon.scaled(*self.thumbnail_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.icon_label.setPixmap(adjusted_icon)
         self.pil_img = pil_img
+        self.on_new_image_selected.emit(self)
 
     def try_set_icon_from_path(self, path: str | None, show_dialogs = True):
         success = False

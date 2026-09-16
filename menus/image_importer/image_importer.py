@@ -15,6 +15,7 @@ from menus.image_importer.dialogs.import_progress import ImportProgressDialog
 from menus.image_importer.img_conversion.decompose_worker import DecomposeWorker, DecomposeResult, launch_with_threading
 from menus.image_importer.img_conversion.image_layers import decompose_image
 from menus.image_importer.img_conversion.quantize import quantize_image
+from menus.image_importer.widgets.img_resolution_setting import ImgResolutionSetting
 from utils import max_float32_for_tolerance
 
 from enum import Enum
@@ -190,6 +191,15 @@ class ImageImporter(base.BaseMenu):
         self.import_image_btn = Button("Import image")
         self.import_image_btn.clicked.connect(self.on_import_image_btn_clicked)
         self.master_layout.addWidget(self.import_image_btn)
+
+
+        # IMPORT SETTINGS
+        self.import_settings_title = StyledLabel("Import settings", LabelStyle.HEADER_3)
+        self.master_layout.addWidget(self.import_settings_title)
+
+        self.resolution_settings = ImgResolutionSetting(False, (1 ,1))
+        self.image_selector.on_new_image_selected.connect(self.resolution_settings.on_image_loaded)
+        self.master_layout.addWidget(self.resolution_settings)
 
         # CHANGE SETTINGS
         self.update_layer_thickness()
