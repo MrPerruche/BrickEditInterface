@@ -81,7 +81,8 @@ class ImageSelector(Widget):
         adjusted_icon = qicon.scaled(*self.thumbnail_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.icon_label.setPixmap(adjusted_icon)
         self.pil_img = pil_img
-        self.on_new_image_selected.emit(self)
+        if pil_img is not None:  # Signal is specifically new image. image is None = no image = do not signal
+            self.on_new_image_selected.emit(self)
 
     def try_set_icon_from_path(self, path: str | None, show_dialogs = True):
         success = False

@@ -233,9 +233,10 @@ class ImageImporter(base.BaseMenu):
         grp_format = ["none", "2d", "3d_greedy", "3d_slow"][self.optimization_method.get_current_idx()]
         quantization = self.quantization_algorithm.get_current_idx()
         color_count = self.colors_slider.get_value()
+        resolution = self.resolution_settings.get_new_resolution()
 
         # Quantize image
-        img = self.image_selector.get_pil_copy()
+        img = self.image_selector.get_pil_copy(resolution)
         if quantization:
             quantization_str = ["_", "median_cut", "kmeans_oklab"][quantization]
             img = quantize_image(img, color_count, quantization_str)
@@ -312,8 +313,8 @@ class ImageImporter(base.BaseMenu):
                 color = color_id_to_br[color_id]
                 z = (layer_index + .5) * layer_width
 
-                size_vec = brickedit.Vec3(width, height, layer_width)
-                pos_vec = brickedit.Vec3(x, y, z) + size_vec * 0.5
+                size_vec = brickedit.Vec3(float(width), float(height), float(layer_width))
+                pos_vec = brickedit.Vec3(float(x), float(y), float(z)) + size_vec * 0.5
 
                 # TODO: Add controls over properties such as materials, welding etc. & Control if we use Scalable bricks or floats.
                 brvfile.add(brickedit.Brick(
@@ -326,6 +327,7 @@ class ImageImporter(base.BaseMenu):
                         brickedit.p.BRICK_MATERIAL: brickedit.p.BrickMaterial.CONCRETE
                     }
                 ))
+                #▲ print(brvfile.bricks[-1])
                 i += 1
 
         # Make sure brick count is okay
