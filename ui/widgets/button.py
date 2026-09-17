@@ -38,6 +38,7 @@ class Button(Widget):
 
         self.clicked = self.qt_widget.clicked
         self.toggled = self.qt_widget.toggled
+        self.pressed = self.qt_widget.pressed
 
         self.set_text(text)
         register_has_theme_and_apply(self)

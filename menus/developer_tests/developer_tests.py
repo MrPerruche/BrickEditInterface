@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel
 from PySide6.QtGui import QIcon, QRegularExpressionValidator
 
-from ui.widgets import Label, Button, Slider, ComboBox, LineEdit, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle, Switcher, SwitcherEntry
+from ui.widgets import Label, Button, Slider, ComboBox, LineEdit, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle, Switcher, SwitcherEntry, BoolSwitch
 from ui.dialogs import CorruptStateDialog
 import ui.theme as theme
 from ui.models import TooltipContents
@@ -43,6 +43,13 @@ class DeveloperTestMenu(base.BaseMenu):
         button11 = Button("Open Corrupt State Dialog")
         button11.clicked.connect(self.button11_clicked)
         layout1.addWidget(button11)
+
+        bslay = QHBoxLayout()
+        bslabel = Label("Boolean switch here")
+        bslay.addWidget(bslabel)
+        bs11 = BoolSwitch(False)
+        bslay.addWidget(bs11)
+        layout1.addLayout(bslay)
 
         layout1.addStretch()
 
