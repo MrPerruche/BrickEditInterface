@@ -65,28 +65,33 @@ class ImgResolutionSetting(Widget):
         self.ignore_on_ml_values_changed_signal = False
 
         # MASTER LAYOUT SETUP
-        self.true_master_layout = QVBoxLayout()
-        self.true_master_layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(self.true_master_layout)
-
-        self.surface = Surface()
-        self.true_master_layout.addWidget(self.surface)
-        self.master_layout = self.surface.layout()
+        self.master_layout = QVBoxLayout()
+        self.master_layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self.master_layout)
 
         # Surface label
-        self.title_label = StyledLabel("Image resolution", style=LabelStyle.LARGE_5)
-        self.master_layout.addWidget(self.title_label)
+        self.title_layout = QHBoxLayout()
+        self.title_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.title_layout)
+
+        self.title_label = Label("Image resolution")
+        self.title_layout.addWidget(self.title_label, stretch=2)
 
         # Mode selection
         self.mode_switcher = Switcher(
-            [SwitcherEntry(mode, layout=QVBoxLayout()) for mode in self.MODES]
+            [SwitcherEntry(mode, layout=QVBoxLayout(), auto_add_layout=False) for mode in self.MODES]
         )
+        
+        # Mode selection menus
         for i in range(len(self.MODES)):
             layout = self.mode_switcher.get_layout(i)
+            widget = self.mode_switcher.items[i].get_widget()
             assert layout is not None, "Layout is none -> ImgResolutionSetting.mode_switcher is poorly initialized"
+            self.master_layout.addWidget(widget)
             layout.setContentsMargins(0, 0, 0, 0)
         self.mode_switcher.set_index(ImgResolutionSetting.PERCENTAGE_IDX)
-        self.master_layout.addWidget(self.mode_switcher)
+
+        self.title_layout.addWidget(self.mode_switcher, stretch=3)
 
         # PERCENTAGE LAYOUT
         percentage_layout = self.mode_switcher.get_layout(ImgResolutionSetting.PERCENTAGE_IDX)
@@ -140,7 +145,7 @@ class ImgResolutionSetting(Widget):
         self.info_layout.setContentsMargins(0, 0, 0, 0)
         self.info_layout.setSpacing(0)
         # Separator
-        self.info_layout.addWidget(Separator())
+        # self.info_layout.addWidget(Separator())
         # Stuff on same line
         self.info_data_layout = QHBoxLayout()
         self.info_layout.addLayout(self.info_data_layout)

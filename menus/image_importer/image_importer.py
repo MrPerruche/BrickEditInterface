@@ -5,7 +5,7 @@ from PIL import Image
 
 from menus import base
 
-from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface
+from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface, Separator
 from ui.components.image.image_selector import ImageSelector
 from ui.components import Tutorial
 from ui.models import TooltipContents
@@ -188,10 +188,6 @@ class ImageImporter(base.BaseMenu):
         self.update_color_count()
 
 
-        self.import_image_btn = Button("Import image")
-        self.import_image_btn.clicked.connect(self.on_import_image_btn_clicked)
-        self.master_layout.addWidget(self.import_image_btn)
-
 
         # IMPORT SETTINGS
         self.import_settings_title = StyledLabel("Import settings", LabelStyle.HEADER_3)
@@ -200,6 +196,14 @@ class ImageImporter(base.BaseMenu):
         self.resolution_settings = ImgResolutionSetting(False, (1 ,1))
         self.image_selector.on_new_image_selected.connect(self.resolution_settings.on_image_loaded)
         self.master_layout.addWidget(self.resolution_settings)
+
+        # Separator
+        self.master_layout.addWidget(Separator())
+
+        # FINAL BUTTON
+        self.import_image_btn = Button("Import image")
+        self.import_image_btn.clicked.connect(self.on_import_image_btn_clicked)
+        self.master_layout.addWidget(self.import_image_btn)
 
         # CHANGE SETTINGS
         self.update_layer_thickness()
