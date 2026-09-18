@@ -98,16 +98,34 @@ class VehicleBricksEditor(Widget):
 
 
     def _clear_property_set_data(self):
-        wipe_layout(self.property_set_container, delete_widgets=True)
+        # what's one worm?
+        # Collect every PropertySet that currently exists (the live one AND
+        # any cached ones) BEFORE touching anything, deduping by identity.
+        # This matters because once the user edits a property,
+        # save_current_property_set() stores self.live_property_set into
+        # self.gms_to_property_sets too - so the live widget can be the same
+        # object as one of the cached ones. Deleting it once via wipe_layout
+        # and then again in the loop below is what caused:
+        # "libshiboken: Internal C++ object (PropertySet) already deleted."
+        all_property_sets = {
+            id(property_set): property_set
+            for page_list in self.gms_to_property_sets
+            for property_set in page_list
+            if property_set is not None
+        }
+        if self.live_property_set is not None:
+            all_property_sets[id(self.live_property_set)] = self.live_property_set
+
+        # Just detach from the layout here - don't let wipe_layout delete,
+        # since we handle deletion ourselves right below (once per widget).
+        wipe_layout(self.property_set_container, delete_widgets=False)
 
         self.live_property_set = None
         self.gms_to_brick_lists = [[] for _ in GMS]
         self.current_page_indices = [0 for _ in GMS]
 
-        for page_list in self.gms_to_property_sets:
-            for property_set in page_list:
-                if property_set is not None:
-                    property_set.deleteLater()
+        for property_set in all_property_sets.values():
+            property_set.deleteLater()
 
 
     def _reload(self):
