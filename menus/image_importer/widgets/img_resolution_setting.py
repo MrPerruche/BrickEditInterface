@@ -145,7 +145,7 @@ class ImgResolutionSetting(Widget):
         self.info_layout.setContentsMargins(0, 0, 0, 0)
         self.info_layout.setSpacing(0)
         # Separator
-        # self.info_layout.addWidget(Separator())
+        self.info_layout.addWidget(Separator())
         # Stuff on same line
         self.info_data_layout = QHBoxLayout()
         self.info_layout.addLayout(self.info_data_layout)
