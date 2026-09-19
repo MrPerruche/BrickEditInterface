@@ -4,6 +4,7 @@ import math
 import struct
 from random import uniform
 import numpy as np
+import subprocess
 from brickedit import *
 
 from typing import NoReturn
@@ -355,3 +356,155 @@ def stack_qcolors(*colors: str | QColor) -> QColor:
 def stack_str_colors(*colors: str | QColor) -> str:
     """Returns in #AARRGGBB format"""
     return stack_qcolors(*colors).name(QColor.NameFormat.HexArgb)
+
+
+"""Restart helper for PySide6 apps.
+
+Works on Windows and Linux, when run with Python (script or ``-m``) and when
+compiled with Nuitka (--standalone or --onefile).
+
+Usage:
+    from restart import restart_application, wait_for_previous_instance
+
+    # First thing in your entry point, before creating QApplication or
+    # acquiring any single-instance lock:
+    wait_for_previous_instance()
+
+    # Anywhere else (button, menu action...):
+    restart_application()
+"""
+
+import shutil
+import subprocess
+import sys
+import time
+
+from PySide6.QtCore import QCoreApplication
+
+_WAIT_ENV = "APP_RESTART_WAIT_PID"
+
+
+def _is_compiled() -> bool:
+    # Nuitka injects `__compiled__` as a global into every compiled module.
+    # (Nuitka does not set `sys.frozen`, so don't rely on that.)
+    return "__compiled__" in globals()
+
+
+def _compiled_executable() -> str:
+    """Path of the *original* binary, not the onefile temp extraction."""
+    compiled = globals().get("__compiled__")
+    candidates = (
+        getattr(compiled, "original_argv0", None),  # recent Nuitka versions
+        sys.argv[0],  # binary as invoked (onefile and standalone)
+        sys.executable,  # last resort; in onefile this is a temp copy
+    )
+    for candidate in candidates:
+        if not candidate:
+            continue
+        if not os.path.dirname(candidate):  # bare command name, e.g. "myapp"
+            found = shutil.which(candidate)
+            if found:
+                return os.path.abspath(found)
+        elif os.path.exists(candidate):
+            return os.path.abspath(candidate)
+    return os.path.abspath(sys.argv[0])
+
+
+def _build_command() -> list[str]:
+    if _is_compiled():
+        return [_compiled_executable(), *sys.argv[1:]]
+
+    # Python 3.10+: exact original command line, so `python -m pkg` and
+    # interpreter flags (-X, -O, ...) survive the restart.
+    orig_argv = getattr(sys, "orig_argv", None)
+    if orig_argv:
+        return [sys.executable, *orig_argv[1:]]
+
+    return [sys.executable, os.path.abspath(sys.argv[0]), *sys.argv[1:]]
+
+
+def restart() -> bool:
+    """Start a new instance of the app, then quit the current one.
+
+    Returns False (and leaves the current instance running) if the new
+    process could not be started.
+    """
+    command = _build_command()
+
+    env = os.environ.copy()
+    env[_WAIT_ENV] = str(os.getpid())
+    # A Nuitka onefile child must not hand its bootstrap state to the new
+    # instance, otherwise the new one may not extract/start properly.
+    for key in [k for k in env if k.startswith("NUITKA_ONEFILE")]:
+        del env[key]
+
+    kwargs: dict = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = (
+            subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+    else:
+        kwargs["start_new_session"] = True  # survive terminal close
+
+    try:
+        subprocess.Popen(
+            command,
+            env=env,
+            cwd=os.getcwd(),
+            stdin=subprocess.DEVNULL,
+            **kwargs,
+        )
+    except OSError:
+        return False
+
+    app = QCoreApplication.instance()
+    if app is not None:
+        app.quit()
+    else:
+        sys.exit(0)
+    return True
+
+
+# --------------------------------------------------------------------------
+# Startup side: wait until the previous instance is really gone, so locks,
+# ports, config files, single-instance guards... are released.
+# --------------------------------------------------------------------------
+
+
+def _pid_alive(pid: int) -> bool:
+    if sys.platform == "win32":
+        import ctypes
+
+        SYNCHRONIZE = 0x00100000
+        WAIT_TIMEOUT = 0x102
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(SYNCHRONIZE, False, pid)
+        if not handle:
+            return False
+        try:
+            return kernel32.WaitForSingleObject(handle, 0) == WAIT_TIMEOUT
+        finally:
+            kernel32.CloseHandle(handle)
+
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    try:  # a zombie is dead for our purposes
+        with open(f"/proc/{pid}/stat") as f:
+            return f.read().rsplit(")", 1)[1].split()[0] != "Z"
+    except OSError:
+        return True
+
+
+def wait_for_previous_instance(timeout: float = 15.0) -> None:
+    """Call at the very start of the app. No-op on a normal launch."""
+    raw = os.environ.pop(_WAIT_ENV, None)
+    if not raw or not raw.isdigit():
+        return
+    pid = int(raw)
+    deadline = time.monotonic() + timeout
+    while _pid_alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.05)

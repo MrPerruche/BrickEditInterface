@@ -157,13 +157,14 @@ class Switcher(Widget):
             self.idx = max(0, min(idx, len(self.items) - 1))
 
         # Hide current
-        for item in self.items:
-            widget = item.get_widget()
-            if widget is not None:
-                widget.hide()
         current_widget = self.items[self.idx].get_widget()
-        if current_widget is not None:
-            current_widget.show()
+        for entry in self.items:
+            widget = entry.get_widget()
+            if widget is None:
+                continue
+            if widget.parentWidget() is None:
+                widget.setParent(self)   # temporary owner
+            widget.setVisible(widget is current_widget)
 
         # Update label
         item = self.items[self.idx]
@@ -178,11 +179,6 @@ class Switcher(Widget):
         self.right_arrow.set_enabled(
             self.enabled and (self.looping or self.idx != len(self.items) - 1)
         )
-
-        # Show new widget
-        current_widget = item.get_widget()
-        if current_widget is not None:
-            current_widget.show()
 
         self.index_changed.emit(self.idx)
 

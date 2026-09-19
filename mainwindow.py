@@ -64,6 +64,7 @@ class BrickEditInterface(QMainWindow):
             VehicleUpscalerMenu(self),
             DowngradeVehicleMenu(self),
             ImageImporter(self),
+            SettingsMenu(self),
         ]
         self.in_dev_menus = [
             DeveloperTestMenu(self),
@@ -75,7 +76,8 @@ class BrickEditInterface(QMainWindow):
         menu_configs = [
             {
                 'name': menu.get_menu_name(),
-                'icon_info': menu._make_menu_info()
+                'icon_info': menu.get_menu_info(),
+                'bottom': False,
             }
             for menu in self.menus
         ]
@@ -135,4 +137,6 @@ class BrickEditInterface(QMainWindow):
         if Version(new_version) <= remind_updates_after:
             return
 
-        UpdateFoundDialog.create(self, VERSION, new_version).exec()
+        dlg = UpdateFoundDialog.create(self, VERSION, new_version)
+        dlg.outcome_2_selected.connect()
+        dlg.exec()

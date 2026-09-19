@@ -11,7 +11,9 @@ from utils import tint_icon
 
 class Sidebar(QWidget):
     """Sidebar navigation for menu selection."""
-    
+
+    SPACING = 6
+
     menu_changed = Signal(int)
 
     def __init__(self, menu_configs):
@@ -40,8 +42,8 @@ class Sidebar(QWidget):
         self.container = QWidget()
         self.container.setObjectName("sidebarContainer")
         layout = QVBoxLayout(self.container)
-        layout.setContentsMargins(6, 6, 0, 0)
-        layout.setSpacing(6)
+        layout.setContentsMargins(Sidebar.SPACING, Sidebar.SPACING, 0, 0)
+        layout.setSpacing(Sidebar.SPACING)
         
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.container.setAttribute(Qt.WA_StyledBackground, True)
@@ -52,7 +54,9 @@ class Sidebar(QWidget):
         for index, config in enumerate(menu_configs):
             btn = QToolButton()
             btn.setToolTip(config.get('name', f'Menu {index}'))
-            menu_icon_info = config.get('icon_info', MenuInfo(QIcon(':/assets/icons/placeholder.png'), True))
+            menu_icon_info = config.get('icon_info', None)
+            if menu_icon_info is None:
+                raise ValueError(f"Missing icon_info for menu {config['name']}")
             btn.setIcon(menu_icon_info.qicon)
             btn.setIconSize(QSize(24, 24))
             btn.setCheckable(True)
@@ -65,12 +69,21 @@ class Sidebar(QWidget):
             )
 
             self.buttons.append(btn)
-            layout.addWidget(btn)
+
+            if not menu_icon_info.bottom_menu:
+                layout.addWidget(btn)
 
         if self.buttons:
             self.buttons[0].setChecked(True)
 
         layout.addStretch()
+
+        for index, config in enumerate(menu_configs):
+            if config.get('icon_info').bottom_menu:
+                layout.addWidget(self.buttons[index])
+
+        layout.addSpacing(Sidebar.SPACING)
+
         scroll.setWidget(self.container)
         main_layout.addWidget(scroll)
 

@@ -37,9 +37,11 @@ class SettingsManagerV2:
     def reset(self, name: str, must_exist=False):
         if must_exist or name in self.settings:
             del self.settings[name]
+        self.save()
 
     def reset_all(self):
         self.settings = {}
+        self.save()
 
     def get_all_settings(self):
         return self.defaults | self.settings

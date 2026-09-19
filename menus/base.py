@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 class MenuInfo:
     qicon: QIcon
     can_be_colored: bool
+    bottom_menu: bool = False
     tutorial: Tutorial | None = None
 
 
@@ -67,14 +68,17 @@ class BaseMenu(QWidget):
     def _apply_theme(self, theme: Theme) -> None:
         self.setStyleSheet(f"BaseMenu {{ background-color: {theme.background.color}; }}")
 
-    def get_menu_name(self) -> str:
-        """Return the display name of this menu."""
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement get_menu_name()")
-
     def get_menu_info(self) -> MenuInfo:
         if self.menu_info is None:
             self.menu_info = self._make_menu_info()
         return self.menu_info
+
+
+    # --- MUST BE IMPLEMENTED!
+
+    def get_menu_name(self) -> str:
+        """Return the display name of this menu."""
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement get_menu_name()")
 
     def _make_menu_info(self) -> MenuInfo:
         """Return the icon for this menu."""

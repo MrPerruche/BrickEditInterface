@@ -208,7 +208,7 @@ class HomeMenu(base.BaseMenu):
         return "Welcome"
 
     def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False, _build_tutorial(self.mw))
+        return base.MenuInfo(QIcon(':/assets/icons/brickeditinterface.ico'), False, tutorial=_build_tutorial(self.mw))
 
     def show_license(self):
         license_window = LicenseDialog()
