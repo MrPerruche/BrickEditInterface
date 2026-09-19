@@ -26,6 +26,11 @@ class BackupSystem:
         self.main_window = mw
         self.not_eligible_for_lt = set()
 
+        mw.settings.register("st_backup_count_limit", 6)
+        mw.settings.register("st_backup_size_limit_kb", 8192)
+        mw.settings.register("lt_backup_count_limit", 3)
+        mw.settings.register("lt_backup_size_limit_kb", 8192)
+
 
     def full_backup_procedure(self, vehicle_path, description="No description provided."):
         if not (path.exists(vehicle_path) and path.isdir(vehicle_path)):
@@ -141,13 +146,13 @@ class BackupSystem:
         count = {"st": 0, "lt": 0, "ug": 0}  # I'm too lazy to make if statements. Hey, if we ever add mid-term...
         size = {"st": 0, "lt": 0, "ug": 0}
         max_count = {
-            "st": self.main_window.settings.st_backup_count_limit,
-            "lt": self.main_window.settings.lt_backup_count_limit,
+            "st": self.main_window.settings.get("st_backup_count_limit"),
+            "lt": self.main_window.settings.get("lt_backup_count_limit"),
             "ug": 1e99
         }
         max_size = {
-            "st": self.main_window.settings.st_backup_size_limit_kb * 1024,
-            "lt": self.main_window.settings.lt_backup_size_limit_kb * 1024,
+            "st": self.main_window.settings.get("st_backup_size_limit_kb") * 1024,
+            "lt": self.main_window.settings.get("lt_backup_size_limit_kb") * 1024,
             "ug": 1e99
         }
 

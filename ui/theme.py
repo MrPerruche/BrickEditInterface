@@ -336,7 +336,8 @@ class ThemeManager(QObject):
         super().__init__()
 
         self._current = DARK
-        self.set_theme_from_name(settings_manager.theme)
+        settings_manager.register('theme', DARK.name)
+        self.set_theme_from_name(settings_manager.get('theme'))
 
     def current(self) -> Theme:
         """Returns current theme object."""
@@ -351,8 +352,7 @@ class ThemeManager(QObject):
     def set_theme(self, theme: Theme) -> None:
         """Sets current theme and update all widgets."""
         self._current = theme
-        settings_manager.theme = theme.name
-        settings_manager.save()
+        settings_manager.set('theme', theme.name)
         self.theme_changed.emit(theme)
 
     def set_theme_from_name(self, name: str) -> None:

@@ -101,8 +101,6 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.open_settings_file_button.clicked.connect(self.open_settings_file)
         self.control_layout.addWidget(self.open_settings_file_button)
 
-        self.main_window.settings.st_backup_count_limit
-
         # Short term
         self.st_label = Label(f"Short term backups limit, per vehicle")
         self.st_label.set_tooltip(TooltipContents(
@@ -118,7 +116,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
         self.st_count_limit_slider = Slider(
             values = range(0, self.MAX_BACKUP_COUNT),
-            default_value = self.main_window.settings.st_backup_count_limit
+            default_value = self.main_window.settings.get("st_backup_count_limit")
         )
         self.st_count_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'st_count'))
         self.st_backup_count_layout.addWidget(self.st_count_limit_slider, 10)
@@ -134,7 +132,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
     
         self.st_size_limit_slider = Slider(
             values = range(0, self.MAX_BACKUP_SIZE_KB // self.BACKUP_SIZE_STEP_KB),
-            default_value = self.main_window.settings.st_backup_size_limit_kb // self.BACKUP_SIZE_STEP_KB
+            default_value = self.main_window.settings.get("st_backup_size_limit_kb") // self.BACKUP_SIZE_STEP_KB
         )
         self.st_size_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'st_size'))
         self.st_backup_size_layout.addWidget(self.st_size_limit_slider, 10)
@@ -158,7 +156,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
         self.lt_count_limit_slider = Slider(
             values = range(0, self.MAX_BACKUP_COUNT),
-            default_value = self.main_window.settings.lt_backup_count_limit
+            default_value = self.main_window.settings.get("lt_backup_count_limit")
         )
         self.lt_count_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'lt_count'))
         self.lt_count_limit_layout.addWidget(self.lt_count_limit_slider, 10)
@@ -174,7 +172,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
         self.lt_size_limit_slider = Slider(
             values = range(0, self.MAX_BACKUP_SIZE_KB // self.BACKUP_SIZE_STEP_KB),
-            default_value = self.main_window.settings.lt_backup_size_limit_kb // self.BACKUP_SIZE_STEP_KB
+            default_value = self.main_window.settings.get("lt_backup_size_limit_kb") // self.BACKUP_SIZE_STEP_KB
         )
         self.lt_size_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'lt_size'))
         self.lt_size_limit_layout.addWidget(self.lt_size_limit_slider, 10)
@@ -299,12 +297,15 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
     def open_settings_file(self):
-        target = self.main_window.settings.get_settings_file_path().parent
+        target = self.main_window.settings.get_settings_path().parent
         QDesktopServices.openUrl(QUrl.fromLocalFile(target))
 
 
     def reset_settings(self):
-        self.main_window.settings.create_default_settings()
+        self.main_window.settings.reset("st_backup_count_limit")
+        self.main_window.settings.reset("st_backup_size_limit_kb")
+        self.main_window.settings.reset("lt_backup_count_limit")
+        self.main_window.settings.reset("lt_backup_size_limit_kb")
         self.update_slider_labels()
         self.update_slider_values()
 
@@ -312,13 +313,13 @@ class SettingsAndBackupsMenu(base.BaseMenu):
     def slider_updated(self, value, type: str):
         match type:
             case 'st_count':
-                self.main_window.settings.st_backup_count_limit = value
+                self.main_window.settings.set("st_backup_count_limit", value)
             case 'st_size':
-                self.main_window.settings.st_backup_size_limit_kb = value * self.BACKUP_SIZE_STEP_KB
+                self.main_window.settings.set("st_backup_size_limit_kb", value * self.BACKUP_SIZE_STEP_KB)
             case 'lt_count':
-                self.main_window.settings.lt_backup_count_limit = value
+                self.main_window.settings.set("lt_backup_count_limit", value)
             case 'lt_size':
-                self.main_window.settings.lt_backup_size_limit_kb = value * self.BACKUP_SIZE_STEP_KB
+                self.main_window.settings.set("lt_backup_size_limit_kb", value * self.BACKUP_SIZE_STEP_KB)
             case _: pass
 
         self.update_slider_labels()
@@ -326,18 +327,18 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
     def update_slider_labels(self):
-        self.st_count_limit_label.set_text(f"{self.main_window.settings.st_backup_count_limit} Backups")
+        self.st_count_limit_label.set_text(f"{self.main_window.settings.get("st_backup_count_limit")} Backups")
 
-        st_text = repr_file_size(self.main_window.settings.st_backup_size_limit_kb * 1024, 2, 10_000)
+        st_text = repr_file_size(self.main_window.settings.get("st_backup_size_limit_kb") * 1024, 2, 10_000)
         self.st_size_limit_label.set_text(st_text)
 
-        self.lt_count_limit_label.set_text(f"{self.main_window.settings.lt_backup_count_limit} Backups")
+        self.lt_count_limit_label.set_text(f"{self.main_window.settings.get("lt_backup_count_limit")} Backups")
 
-        lt_text = repr_file_size(self.main_window.settings.lt_backup_size_limit_kb * 1024, 2, 10_000)
+        lt_text = repr_file_size(self.main_window.settings.get("lt_backup_size_limit_kb") * 1024, 2, 10_000)
         self.lt_size_limit_label.set_text(lt_text)
 
     def update_slider_values(self):
-        self.st_count_limit_slider.set_value(self.main_window.settings.st_backup_count_limit)
-        self.st_size_limit_slider.set_value(self.main_window.settings.st_backup_size_limit_kb // self.BACKUP_SIZE_STEP_KB)
-        self.lt_count_limit_slider.set_value(self.main_window.settings.lt_backup_count_limit)
-        self.lt_size_limit_slider.set_value(self.main_window.settings.lt_backup_size_limit_kb // self.BACKUP_SIZE_STEP_KB)
+        self.st_count_limit_slider.set_value(self.main_window.settings.get("st_backup_count_limit"))
+        self.st_size_limit_slider.set_value(self.main_window.settings.get("st_backup_size_limit_kb") // self.BACKUP_SIZE_STEP_KB)
+        self.lt_count_limit_slider.set_value(self.main_window.settings.get("lt_backup_count_limit"))
+        self.lt_size_limit_slider.set_value(self.main_window.settings.get("lt_backup_size_limit_kb") // self.BACKUP_SIZE_STEP_KB)

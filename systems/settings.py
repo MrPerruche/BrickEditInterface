@@ -3,109 +3,87 @@ from pathlib import Path
 from platformdirs import user_config_dir
 from sys import exit as sys_exit
 
-from PySide6.QtWidgets import QMessageBox
 
-
-class SettingsManager:
+class SettingsManagerV2:
 
     APP_NAME = "BrickEditInterface"
     SAVE_FILE = "settings.toml"
     CURRENT_FILE_VERSION = 0
 
-    DEFAULT_ST_BACKUP_COUNT_LIMIT = 6
-    DEFAULT_ST_BACKUP_SIZE_LIMIT_KB = 8192
-    DEFAULT_LT_BACKUP_COUNT_LIMIT = 3
-    DEFAULT_LT_BACKUP_SIZE_LIMIT_KB = 8192
-
-    DEFAULT_THEME = 'dark'
-
-
     def __init__(self):
-        self.create_default_settings()
-        self.load()
+        self.defaults = {}
+        self.settings = {}
+        self.register('file_version', SettingsManagerV2.CURRENT_FILE_VERSION)
 
-    def create_default_settings(self):
-        self.st_backup_count_limit = self.DEFAULT_ST_BACKUP_COUNT_LIMIT
-        self.st_backup_size_limit_kb = self.DEFAULT_ST_BACKUP_SIZE_LIMIT_KB
-        self.lt_backup_count_limit = self.DEFAULT_LT_BACKUP_COUNT_LIMIT
-        self.lt_backup_size_limit_kb = self.DEFAULT_LT_BACKUP_SIZE_LIMIT_KB
-        self.theme = 'dark'
+    # --- API ---
 
+    def register(self, name: str, default):
+        self.defaults[name] = default
 
-    def get_settings_path(self):
-        config_dir = Path(user_config_dir(self.APP_NAME))
-        settings_file = config_dir / self.SAVE_FILE
+    def get(self, name: str, fallback = None):
+        """Fallbacks typically should be pointless unless you are retrieving unregistered settings."""
+        return self.settings[name] if name in self.settings else self.defaults.get(name, fallback)
+
+    def get_default(self, name: str):
+        return self.defaults[name]
+
+    def set(self, name: str, value):
+        self._set_settings({**self.settings, name: value})
+
+    def reset(self, name: str, must_exist=False):
+        if must_exist or name in self.settings:
+            del self.settings[name]
+
+    def reset_all(self):
+        self.settings = {}
+
+    def get_all_settings(self):
+        return self.defaults | self.settings
+
+    # --- PRIVATE STUFF
+
+    def _set_settings(self, settings: dict):
+        self.settings = settings
+        self.save()
+
+    def _set_defaults(self, defaults: dict):
+        self.defaults = defaults
+
+    # --- IO
+
+    def get_settings_path(self, return_none_if_missing=False):
+        config_dir = Path(user_config_dir(SettingsManagerV2.APP_NAME))
+        settings_file = config_dir / SettingsManagerV2.SAVE_FILE
 
         config_dir.mkdir(parents=True, exist_ok=True)
 
-        if not settings_file.exists():
+        if return_none_if_missing and not settings_file.exists():
             return None
 
         return settings_file
 
 
-    def get_settings_file_path(self):
-        config_dir = Path(user_config_dir(self.APP_NAME))
-        settings_file = config_dir / self.SAVE_FILE
-
-        config_dir.mkdir(parents=True, exist_ok=True)
-
-        return settings_file
-        
-
-
     def save(self):
-        settings = {
-            "file_version": self.CURRENT_FILE_VERSION,
-            "st_backup_count_limit": self.st_backup_count_limit,
-            "st_backup_size_limit_kb": self.st_backup_size_limit_kb,
-            "lt_backup_count_limit": self.lt_backup_count_limit,
-            "lt_backup_size_limit_kb": self.lt_backup_size_limit_kb,
-            "theme": self.theme
-        }
-        # Make sure the path exist. We don't do anything of the result
-        settings_path = self.get_settings_file_path()
+        settings = self.get_all_settings()
+        settings_path = self.get_settings_path()
         # Save
         with open(settings_path, "wb") as f:
             tomli_w.dump(settings, f)
 
     def load(self):
-        settings_path = self.get_settings_path()
+        settings_path = self.get_settings_path(True)
         if settings_path is None:
             return
         try:
             with open(settings_path, "rb") as f:
-                settings = tomllib.load(f)
-
-                file_version = settings.get("file_version", -1)
-                self.st_backup_count_limit = settings.get("st_backup_count_limit", self.st_backup_count_limit)
-                self.st_backup_size_limit_kb = settings.get("st_backup_size_limit_kb", self.st_backup_size_limit_kb)
-                self.lt_backup_count_limit = settings.get("lt_backup_count_limit", self.lt_backup_count_limit)
-                self.lt_backup_size_limit_kb = settings.get("lt_backup_size_limit_kb", self.lt_backup_size_limit_kb)
-                self.theme = settings.get("theme", 'dark')
-
-                if file_version > self.CURRENT_FILE_VERSION or file_version == -1:
-                    QMessageBox.warning(None, "Unknown file version", "The settings file you are loading may contain error. Please try to update BrickEdit-Interface.")
-
+                self._set_settings(tomllib.load(f))
         except Exception as e:
-            dlg = QMessageBox()
-            dlg.setIcon(QMessageBox.Critical)
-            dlg.setWindowTitle("Error")
-            dlg.setText(f"""\
-Failed to load user settings!
-Please report the following error to the author: {type(e).__name__}: {e}.
+            from ui.dialogs import CorruptSettingsDialog
 
-Press Cancel to close BrickEdit-Interface.
-If you press OK, you may reset your settings!
-""")
-            dlg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
-            dlg.setDefaultButton(QMessageBox.Cancel)
+            dlg = CorruptSettingsDialog.create(self.mw, e)
             result = dlg.exec()
-
-            if result == QMessageBox.Ok:
-                pass
-            else:
-                sys_exit(1)
+            print(result)
+            sys_exit(1)  # TODO only testing
 
 
-settings_manager = SettingsManager()
+settings_manager = SettingsManagerV2()
