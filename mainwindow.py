@@ -1,14 +1,19 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout, QScrollArea, QMessageBox
 
-from sidebar import Sidebar
-from menus import *
-from utils import VERSION, DEV_VERSION
+from packaging.version import Version
+
 from systems.settings import settings_manager
 from systems.backup import BackupSystem
 from systems.update import UpdateChecker
+
 from ui.theme import Theme, register_has_theme_and_apply
 from ui.components import VehicleSelectionDrawer
+from ui.dialogs import UpdateFoundDialog
+
+from sidebar import Sidebar
+from menus import *
+from utils import VERSION, DEV_VERSION
 
 class BrickEditInterface(QMainWindow):
     """Main application window for the BrickEdit interface."""
@@ -30,7 +35,7 @@ class BrickEditInterface(QMainWindow):
         )
 
         # Start systems
-        self.update_checker.update_available.connect(self.report_new_update)
+        self.update_checker.update_available.connect(self.maybe_report_new_update)
         self.update_checker.start()
 
         # Set up central widget and layout
@@ -123,21 +128,11 @@ class BrickEditInterface(QMainWindow):
             }}""")
         
 
-    def report_new_update(self, version: str):
-        dlg = QMessageBox()
-        dlg.setWindowTitle("New version available")
-        dlg.setText(f"""\
-A new version of BrickEdit-Interface is available: Version {VERSION} → {version}.
-We heavily recommend you keep this app up to date. Do not reports bug on outdated versions.""")
-        dlg.setInformativeText("Open the download page?")
-        dlg.setIcon(QMessageBox.Information)
-        dlg.setModal(False)
+    def maybe_report_new_update(self, new_version: str):
 
-        ok_button = dlg.addButton("Download", QMessageBox.AcceptRole)
-        dlg.addButton(QMessageBox.Cancel)
-        dlg.setDefaultButton(QMessageBox.Cancel)
-        
-        # Show (non blocking)
-        ok_button.clicked.connect(self.update_checker.open_download_page)
-        dlg.show()
-        self._update_dlg = dlg  # Keep a ref
+        remind_updates_after = Version(self.settings.get("remind_updates_after", "0.0.0"))
+        # print(f"{remind_updates_after=}, {Version(new_version)=}, {self.settings.get_all_settings()=}")
+        if Version(new_version) <= remind_updates_after:
+            return
+
+        UpdateFoundDialog.create(self, VERSION, new_version).exec()

@@ -3,6 +3,9 @@ from pathlib import Path
 from platformdirs import user_config_dir
 from sys import exit as sys_exit
 
+from logging import getLogger
+_logger = getLogger(__name__)
+
 
 class SettingsManagerV2:
 
@@ -43,8 +46,8 @@ class SettingsManagerV2:
 
     # --- PRIVATE STUFF
 
-    def _set_settings(self, settings: dict):
-        if not self.loaded:
+    def _set_settings(self, settings: dict, force: bool = False):
+        if not self.loaded and not force:
             return
         self.settings = settings
         self.save()
@@ -76,10 +79,11 @@ class SettingsManagerV2:
     def load(self):
         settings_path = self.get_settings_path(True)
         if settings_path is None:
+            _logger.debug("No settings file found")
             return
         try:
             with open(settings_path, "rb") as f:
-                data = f.read()
+                self._set_settings(tomllib.load(f), force=True)
         except Exception as e:
             from ui.dialogs import CorruptSettingsDialog
 
