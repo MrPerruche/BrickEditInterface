@@ -28,6 +28,6 @@ class CorruptSettingsDialog(BooleanOutcomeDialog):
             icon=CorruptSettingsDialog.ERROR_ICON(),
             title="BrickEdit-Interface",
             text=str.format(CorruptSettingsDialog.TEXT, type(exc).__name__, exc),
-            outcome_1="Close BEI",
-            outcome_2="Reset settings"
+            outcome_1_text="Close BEI",
+            outcome_2_text="Reset settings"
         )

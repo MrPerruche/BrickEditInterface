@@ -14,6 +14,7 @@ class SettingsManagerV2:
         self.defaults = {}
         self.settings = {}
         self.register('file_version', SettingsManagerV2.CURRENT_FILE_VERSION)
+        self.loaded = False
 
     # --- API ---
 
@@ -43,6 +44,8 @@ class SettingsManagerV2:
     # --- PRIVATE STUFF
 
     def _set_settings(self, settings: dict):
+        if not self.loaded:
+            return
         self.settings = settings
         self.save()
 
@@ -76,14 +79,17 @@ class SettingsManagerV2:
             return
         try:
             with open(settings_path, "rb") as f:
-                self._set_settings(tomllib.load(f))
+                data = f.read()
         except Exception as e:
             from ui.dialogs import CorruptSettingsDialog
 
-            dlg = CorruptSettingsDialog.create(self.mw, e)
-            result = dlg.exec()
-            print(result)
-            sys_exit(1)  # TODO only testing
+            dlg = CorruptSettingsDialog.create(e)
+            dlg.outcome_1_selected.connect(lambda: sys_exit(0))
+            dlg.outcome_2_selected.connect(self.reset_all)
+            dlg.exec()
+
+        self.loaded = True
+
 
 
 settings_manager = SettingsManagerV2()

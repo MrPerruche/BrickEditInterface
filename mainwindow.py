@@ -23,6 +23,7 @@ class BrickEditInterface(QMainWindow):
 
         # Systems
         self.settings = settings_manager
+        self.settings.load()
         self.backups = BackupSystem(self)
         self.update_checker = UpdateChecker(
             "MrPerruche", "BrickEditInterface", VERSION
