@@ -34,6 +34,9 @@ class SettingsManagerV2:
     def set(self, name: str, value):
         self._set_settings({**self.settings, name: value})
 
+    def merge(self, items: dict):
+        self._set_settings({**self.settings, **items})
+
     def reset(self, name: str, must_exist=False):
         if must_exist or name in self.settings:
             del self.settings[name]

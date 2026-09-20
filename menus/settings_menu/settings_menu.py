@@ -1,26 +1,145 @@
+from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtGui import QIcon
 
+import os
+
+from systems.settings import settings_manager
 from menus import base
 from utils import restart
 
-from ui.widgets import Button
+from ui.widgets import Label, StyledLabel, LabelStyle, Button, Separator, Slider, ComboBox
 from ui.dialogs import ConfirmRestartDialog
+from ui.theme import theme_manager
 
 
+
+UI_SCALE_SLIDER_VALUES = sorted(
+    list(range(50, 100)) +
+    list(range(100, 200, 2)) +
+    list(range(200, 400+1, 5)) +
+    [125, 175]
+)
 
 class SettingsMenu(base.BaseMenu):
 
     def __init__(self, mw, header=True):
         super().__init__(mw, header)
 
+        self.dirty = False
 
-        self.reset_btn = Button("Reset all settings")
+        # UI SETTINGS
+        self.ui_settings_label = StyledLabel("User Interface", LabelStyle.HEADER_3)
+        self.master_layout.addWidget(self.ui_settings_label)
+
+        # Theme
+        self.theme_lay = QHBoxLayout()
+        self.theme_lay.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.theme_lay)
+
+        self.theme_label = Label("Theme")
+        self.theme_lay.addWidget(self.theme_label)
+
+        self.theme_cb = ComboBox(False)
+        for theme in theme_manager.themes:
+            self.theme_cb.add_item(theme.display_name)
+        self.theme_cb.set_current_idx(theme_manager.current_idx())
+        self.theme_cb.item_changed.connect(self.now_dirty)
+        self.theme_lay.addWidget(self.theme_cb)
+
+        # UI Scale
+        self.ui_scale_lay = QHBoxLayout()
+        self.ui_scale_lay.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.ui_scale_lay)
+
+        self.ui_scale_label = Label("Scale")
+        self.ui_scale_lay.addWidget(self.ui_scale_label)
+
+        # Get highest scale in allowed scales <= scale setting
+        current_scale = int(settings_manager.get("ui_scale") * 100)
+        slider_scale_idx = 0
+        for i, val in enumerate(UI_SCALE_SLIDER_VALUES):
+            if val >= current_scale:
+                slider_scale_idx = i
+                break
+        self.ui_scale_slider = Slider(UI_SCALE_SLIDER_VALUES, slider_scale_idx)
+        self.ui_scale_slider.value_changed.connect(self.ui_scale_slider_changed)
+        self.ui_scale_lay.addWidget(self.ui_scale_slider)
+
+
+        # APPLY BUTTONS
+        self.master_layout.addWidget(Separator())
+
+        self.apply_layout = QHBoxLayout()
+        self.apply_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.apply_layout)
+
+        self.apply_btn = Button("Apply changes")
+        self.apply_btn.clicked.connect(self.on_apply_changes_clicked)
+        self.apply_layout.addWidget(self.apply_btn)
+
+        self.reset_btn = Button("Reset all")
         self.reset_btn.clicked.connect(self.on_reset_btn_clicked)
-        self.master_layout.addWidget(self.reset_btn)
+        self.apply_layout.addWidget(self.reset_btn)
+
+        # END OF INIT
+        self.ui_scale_slider_changed()
+        self.set_dirty(False)
 
         self.master_layout.addStretch(1)
 
 
+    def _is_restart_required(self):
+        if self.ui_scale_slider.get_value() != int(settings_manager.get("ui_scale") * 100):
+            return True
+        return False
+
+    def _apply_changes_internally(self):
+        # Themes
+        current_theme_idx = theme_manager.current_idx()
+        new_theme_idx = self.theme_cb.get_current_idx()
+        if current_theme_idx != new_theme_idx:
+            theme_manager.set_theme(theme_manager.themes[new_theme_idx])
+
+        # UI Scale
+        new_scale = self.ui_scale_slider.get_value() / 100
+        old_scale = settings_manager.get("ui_scale")
+        if new_scale != old_scale:  # float != float is okay because these floats never have a reason to loose precision
+            settings_manager.set("ui_scale", new_scale)
+            os.environ["QT_SCALE_FACTOR"] = str(new_scale)
+
+
+    def _apply_changes_full(self, must_restart: bool):
+        self._apply_changes_internally()
+        self.set_dirty(False)
+        if must_restart:
+            restart()
+
+
+    # ------
+
+    def ui_scale_slider_changed(self):
+        self.ui_scale_slider.set_text(f"{self.ui_scale_slider.get_value()}%", 37)
+        self.now_dirty()
+
+    # ------
+
+    def now_dirty(self):
+        self.set_dirty(True)
+
+    def set_dirty(self, is_dirty: bool):
+        self.dirty = is_dirty
+        self.apply_btn.set_danger(is_dirty)
+
+    def on_apply_changes_clicked(self):
+
+        must_restart = self._is_restart_required()
+
+        if must_restart:
+            dlg = ConfirmRestartDialog.create(self.mw, "Restart BEI?", "BrickEdit-Interface must be restarted in order to apply changes safely.")
+            dlg.outcome_2_selected.connect(lambda: self._apply_changes_full(True))
+            dlg.exec()
+        else:
+            self._apply_changes_full(False)
 
     def on_reset_btn_clicked(self):
         dlg = ConfirmRestartDialog.create(self.mw, "Restart BEI?", "BrickEdit-Interface must be restarted in order to reset all settings safely.")

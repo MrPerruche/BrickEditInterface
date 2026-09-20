@@ -1,17 +1,7 @@
 """BrickEdit Interface - Main entry point."""
 
+import os
 from sys import argv, exit as sys_exit
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QIcon, QFontDatabase, QFont
-import resources_rc  # your compiled Qt resources
-from systems.log import setup_logging
-
-from mainwindow import BrickEditInterface
-
-import traceback
-from PySide6.QtCore import QObject, QEvent
-from PySide6.QtGui import QWindow
-from PySide6.QtWidgets import QWidget
 
 # If random widgets start appearing and dissapearing for a split second again before startup, this stuff can be used to find them
 #  (uncomment below app too)
@@ -24,8 +14,22 @@ from PySide6.QtWidgets import QWidget
 #         return False
 
 def main():
+    from systems.settings import settings_manager
+    UI_SCALE_SAFEGUARDS = (0.25, 5.0)
+    settings_manager.load()
+    settings_manager.register('ui_scale', 1.0)
+    ui_scale = settings_manager.get('ui_scale')
+    os.environ['QT_SCALE_FACTOR'] = str(max(UI_SCALE_SAFEGUARDS[0], min(UI_SCALE_SAFEGUARDS[1], ui_scale)))
+
+
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtGui import QIcon, QFontDatabase, QFont
+    import resources_rc  # your compiled Qt resources
+
+    from systems.log import setup_logging
     setup_logging()
 
+    from mainwindow import BrickEditInterface
     app = QApplication(argv)
     # spy = ShowSpy()
     # app.installEventFilter(spy)

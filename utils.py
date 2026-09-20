@@ -9,6 +9,8 @@ from brickedit import *
 
 from typing import NoReturn
 
+from systems.settings import settings_manager
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter
@@ -35,6 +37,15 @@ class Sentinel:
 
     def __repr__(self):
         return f"<{self.name}>"
+
+
+def s(value):
+    """Returns size multiplied by os.environ["QT_SCALE_FACTOR"] (technically "ui_scale" from settings_manager) or 1 if not set."""
+    return value * settings_manager.get("ui_scale")
+
+def si(value):
+    """Returns INTEGER of size multiplied by os.environ["QT_SCALE_FACTOR"] (technically "ui_scale" from settings_manager) or 1 if not set."""
+    return int(value * settings_manager.get("ui_scale"))
 
 
 def clamp(value, min_value, max_value):

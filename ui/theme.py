@@ -175,7 +175,7 @@ class Theme:
     base: ThemeColor = ThemeColor("#ffffffff")
 
 
-DARK = Theme(name="dark", display_name="Dark theme", is_highcontrast=False,
+DARK = Theme(name="dark", display_name="Dark", is_highcontrast=False,
     background=ThemeColor("#101420ff"),
     sidebar=ThemeColor("#1b2238ff"),
     surface=ThemeColor("#80809030"),
@@ -188,7 +188,7 @@ DARK = Theme(name="dark", display_name="Dark theme", is_highcontrast=False,
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-LIGHT = Theme(name="light", display_name="Light theme", is_highcontrast=False,
+LIGHT = Theme(name="light", display_name="Light", is_highcontrast=False,
     background = ThemeColor("#ebe9e7ff"),
     sidebar=ThemeColor("#dddbd8ff"),
     surface=ThemeColor("#ffffff80", "#80808040"),
@@ -201,7 +201,7 @@ LIGHT = Theme(name="light", display_name="Light theme", is_highcontrast=False,
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-NIGHT = Theme(name="night", display_name="Night theme", is_highcontrast=False,
+NIGHT = Theme(name="night", display_name="Night", is_highcontrast=False,
     background = ThemeColor("#000000ff"),
     sidebar=ThemeColor("#000000ff"),
     surface=ThemeColor("#60607840"),
@@ -214,7 +214,7 @@ NIGHT = Theme(name="night", display_name="Night theme", is_highcontrast=False,
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-HIGH_CONTRAST = Theme(name="highcontrast", display_name="High contrast theme", is_highcontrast=True,
+HIGH_CONTRAST = Theme(name="highcontrast", display_name="High contrast", is_highcontrast=True,
     background=ThemeColor("#000000ff"),
     sidebar=ThemeColor("#000000ff"),
     surface=ThemeColor("#ffffff20"),
@@ -228,7 +228,7 @@ HIGH_CONTRAST = Theme(name="highcontrast", display_name="High contrast theme", i
     danger_border=ThemeColor("#ac191eff")
 )
 
-BR_DEFAULT = Theme(name="br_default", display_name="BR Default theme", is_highcontrast=False,
+BR_DEFAULT = Theme(name="br_default", display_name="BR Default", is_highcontrast=False,
     background=ThemeColor("#222327ff"),  # SRC: Basic widget background
     sidebar=ThemeColor("#323439ff"),  # SRC: Value input background
     surface=ThemeColor(strongest_overlay("#222327ff", "#323439ff")),  # Background -> Sidebar
@@ -241,7 +241,7 @@ BR_DEFAULT = Theme(name="br_default", display_name="BR Default theme", is_highco
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-BR_BLUE = Theme(name="br_blue", display_name="BR Blue theme", is_highcontrast=False,
+BR_BLUE = Theme(name="br_blue", display_name="BR Blue", is_highcontrast=False,
     background=ThemeColor("#2a3978ff"),  # SRC: Basic widget background
     sidebar=ThemeColor("#3c50a5ff"),  # SRC: Value input background
     surface=ThemeColor(strongest_overlay("#2a3978ff", "#3c50a5ff")),  # Background -> Sidebar
@@ -254,7 +254,7 @@ BR_BLUE = Theme(name="br_blue", display_name="BR Blue theme", is_highcontrast=Fa
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-BR_CYAN = Theme(name="br_cyan", display_name="BR Cyan theme", is_highcontrast=False,
+BR_CYAN = Theme(name="br_cyan", display_name="BR Cyan", is_highcontrast=False,
     background=ThemeColor("#2a5749ff"),  # SRC: Basic widget background
     sidebar=ThemeColor("#3c7966ff"),  # SRC: Value input background
     surface=ThemeColor(strongest_overlay("#2a5749ff", "#3c7966ff")),  # Background -> Sidebar
@@ -267,7 +267,7 @@ BR_CYAN = Theme(name="br_cyan", display_name="BR Cyan theme", is_highcontrast=Fa
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-BR_GRAY = Theme(name="br_gray", display_name="BR Gray theme", is_highcontrast=False,
+BR_GRAY = Theme(name="br_gray", display_name="BR Gray", is_highcontrast=False,
     background=ThemeColor("#4d4d4dff"),  # SRC: Basic widget background
     sidebar=ThemeColor("#6c6c6cff"),  # SRC: Value input background
     surface=ThemeColor(strongest_overlay("#4d4d4dff", "#6c6c6cff")),  # Background -> Sidebar
@@ -280,7 +280,7 @@ BR_GRAY = Theme(name="br_gray", display_name="BR Gray theme", is_highcontrast=Fa
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-BR_ORANGE = Theme(name="br_orange", display_name="BR Orange theme", is_highcontrast=False,
+BR_ORANGE = Theme(name="br_orange", display_name="BR Orange", is_highcontrast=False,
     background=ThemeColor("#7b4815ff"),  # SRC: Basic widget background
     sidebar=ThemeColor("#a96520ff"),  # SRC: Value input background
     surface=ThemeColor(strongest_overlay("#7b4815ff", "#a96520ff")),  # Background -> Sidebar
@@ -293,7 +293,7 @@ BR_ORANGE = Theme(name="br_orange", display_name="BR Orange theme", is_highcontr
     danger_surface=ThemeColor("#ee283050"),
     danger_border=ThemeColor("#ac191eff")
 )
-BR_VIOLET = Theme(name="br_violet", display_name="BR Violet theme", is_highcontrast=False,
+BR_VIOLET = Theme(name="br_violet", display_name="BR Violet", is_highcontrast=False,
     background=ThemeColor("#32033aff"),
     sidebar=ThemeColor("#470753ff"),
     surface=ThemeColor("#d422fb21"),

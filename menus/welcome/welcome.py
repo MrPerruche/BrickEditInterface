@@ -125,9 +125,9 @@ class HomeMenu(base.BaseMenu):
         title_block_layout.addStretch()
 
         # Theme
-        self.theme_switcher = Switcher([theme.display_name for theme in theme_manager.themes], theme_manager.current_idx(), looping=True)
-        self.theme_switcher.index_changed.connect(self.update_theme)
-        self.master_layout.addWidget(self.theme_switcher)
+        # self.theme_switcher = Switcher([theme.display_name for theme in theme_manager.themes], theme_manager.current_idx(), looping=True)
+        # self.theme_switcher.index_changed.connect(self.update_theme)
+        # self.master_layout.addWidget(self.theme_switcher)
 
 
         # Center the whole block in the window
