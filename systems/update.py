@@ -1,6 +1,7 @@
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QThread, QUrl, Signal
-import requests
+from urllib.request import urlopen
+import json
 from packaging.version import Version
 import logging
 
@@ -20,10 +21,11 @@ class UpdateChecker(QThread):
         try:
             _logger.info("Checking for updates...")
             url = f"https://api.github.com/repos/{self.owner}/{self.repo}/releases/latest"
-            r = requests.get(url, timeout=10)
-            r.raise_for_status()
 
-            latest = r.json()["tag_name"].lstrip("v")
+            with urlopen(url, timeout=10) as r:
+                data = json.load(r)
+
+            latest = data["tag_name"].lstrip("v")
 
             if Version(latest) > Version(self.current_version):
                 _logger.info(f"Update found and available: {latest}")
