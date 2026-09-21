@@ -99,7 +99,7 @@ class ImgResolutionSetting(Widget):
         # Percentage
         self.pl_input_layout = QHBoxLayout()
         percentage_layout.addLayout(self.pl_input_layout)
-        self.pl_input_label = Label("Resize percentage:")
+        self.pl_input_label = Label("Resize percentage")
         self.pl_input_layout.addWidget(self.pl_input_label)
         self.pl_input_number = NumberChannelEdit(ChannelMode.FLOAT64, minimum=0.1, maximum=1_000, allow_nan=False, allow_inf=False,)  # Allow 1/1000 - x10 scaling
         self.pl_input_number.setValue(100)
@@ -145,7 +145,7 @@ class ImgResolutionSetting(Widget):
         self.info_layout.setContentsMargins(0, 0, 0, 0)
         self.info_layout.setSpacing(0)
         # Separator
-        self.info_layout.addWidget(Separator())
+        # self.info_layout.addWidget(Separator())
         # Stuff on same line
         self.info_data_layout = QHBoxLayout()
         self.info_layout.addLayout(self.info_data_layout)

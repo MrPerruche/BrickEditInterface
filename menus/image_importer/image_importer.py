@@ -1,11 +1,11 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtGui import QIcon
 
-from PIL import Image
+from PIL import ImageFilter
 
 from menus import base
 
-from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface, Separator
+from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface, Separator, BoolSwitch
 from ui.components.image.image_selector import ImageSelector
 from ui.components import Tutorial
 from ui.models import TooltipContents
@@ -15,6 +15,7 @@ from menus.image_importer.dialogs.import_progress import ImportProgressDialog
 from menus.image_importer.img_conversion.decompose_worker import DecomposeWorker, DecomposeResult, launch_with_threading
 from menus.image_importer.img_conversion.image_layers import decompose_image
 from menus.image_importer.img_conversion.quantize import quantize_image
+from menus.image_importer.img_conversion.image_misc_utils import srgb_to_linear
 from menus.image_importer.widgets.img_resolution_setting import ImgResolutionSetting
 from utils import max_float32_for_tolerance
 
@@ -56,6 +57,20 @@ class Quantization(Enum):
         ][idx]
 
 
+BLUR_LEVELS = (
+    [i/100 for i in range(0, 30, 2)] +
+    [i/100 for i in range(30, 2_00, 10)] +
+    [i/100 for i in range(2_00, 4_00, 20)] +
+    [i/100 for i in range(4_00, 10_00, 50)] +
+    [i/100 for i in range(10_00, 20_00, 200)] +
+    [i/100 for i in range(20_00, 50_00+1, 500)]
+)
+
+COLOR_LEVELS = (
+    [i for i in range(2, 65)] +
+    [i for i in range(65, 255+1, 5)]
+)
+
 
 WHAT_IS_ZFIGHTING = TooltipContents(
     "What is Z-fighting?",
@@ -72,6 +87,13 @@ WHAT_IS_QUANTIZATION = TooltipContents(
     "Quantization reduces the number of color in an image. "
     "Having less colors makes optimizations MUCH more efficient (if any is selected).\n"
     "Tip: K-means++ in OKLAB will typically give the best results."    
+)
+WHY_BLUR = TooltipContents(
+    "Why blur?",
+    "Noisy images can make fuzzy edges when images are quantized. These fuzzy edges defeat the "
+    "purpose of using quantization to make optimizations more efficient. Very slighly blurring "
+    "the image can help against fuzzy edges. BEI uses gausian blur.\n"
+    "We recommend 0.1 - 0.3 px blur for slightly noisy images, and 0.3 - 1.5 px blur for complex images. "
 )
 
 
@@ -182,10 +204,25 @@ class ImageImporter(base.BaseMenu):
         self.quantization_settings_layout.addWidget(self.quantization_settings_title)
 
         self.color_count: int = 24
-        self.colors_slider = Slider(range(2, 255), 24)
+        self.colors_slider = Slider(COLOR_LEVELS, COLOR_LEVELS.index(self.color_count))
         self.quantization_settings_layout.addWidget(self.colors_slider)
         self.colors_slider.value_changed.connect(self.update_color_count)
         self.update_color_count()
+
+
+
+        # BLUR
+        self.blur_layout = QHBoxLayout()
+        self.blur_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.blur_layout)
+
+        self.blur_label = Label("Blur")
+        self.blur_label.set_tooltip(WHY_BLUR)
+        self.blur_layout.addWidget(self.blur_label)
+
+        self.blur_slider = Slider(BLUR_LEVELS, 0)
+        self.blur_slider.value_changed.connect(self.update_blur_label)
+        self.blur_layout.addWidget(self.blur_slider)
 
 
 
@@ -197,6 +234,16 @@ class ImageImporter(base.BaseMenu):
         self.image_selector.on_new_image_selected.connect(self.resolution_settings.on_image_loaded)
         self.master_layout.addWidget(self.resolution_settings)
 
+        self.color_correction_lay = QHBoxLayout()
+        self.color_correction_lay.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.color_correction_lay)
+
+        self.color_correction_label = Label("Color correction")
+        self.color_correction_lay.addWidget(self.color_correction_label)
+
+        self.color_correction_bs = BoolSwitch(True)
+        self.color_correction_lay.addWidget(self.color_correction_bs)
+
         # Separator
         self.master_layout.addWidget(Separator())
 
@@ -206,6 +253,7 @@ class ImageImporter(base.BaseMenu):
         self.master_layout.addWidget(self.import_image_btn)
 
         # CHANGE SETTINGS
+        self.update_blur_label()
         self.update_layer_thickness()
         self.optimization_method.set_current_idx(1)
         self.quantization_algorithm.set_current_idx(2)
@@ -239,8 +287,18 @@ class ImageImporter(base.BaseMenu):
         color_count = self.colors_slider.get_value()
         resolution = self.resolution_settings.get_new_resolution()
 
-        # Quantize image
         img = self.image_selector.get_pil_copy(resolution)
+
+        # Blur image
+        blur = self.blur_slider.get_value()
+        if blur > 0:
+            img = img.filter(ImageFilter.GaussianBlur(radius=blur))
+
+        # Apply color correction (Linear RGB -> sRGB 2.2)
+        if self.color_correction_bs.get_value():
+            img = srgb_to_linear(img)
+
+        # Quantize image
         if quantization:
             quantization_str = ["_", "median_cut", "kmeans_oklab"][quantization]
             img = quantize_image(img, color_count, quantization_str)
@@ -346,6 +404,9 @@ class ImageImporter(base.BaseMenu):
         )
 
 
+    def update_blur_label(self):
+        blur = self.blur_slider.get_value()
+        self.blur_slider.set_text(f"{blur} px", 44)
 
     def update_max_layers(self):
         self.max_layers = self.max_layers_slider.get_value()

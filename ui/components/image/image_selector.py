@@ -10,7 +10,10 @@ from PIL import Image, UnidentifiedImageError
 
 
 def is_single_frame_image(image: Image.Image):
-    return image.n_frames == 1
+    try:
+        return image.n_frames == 1
+    except AttributeError:
+        return True
 
 @lru_cache(maxsize=1)
 def _get_image_name_filter() -> str:
