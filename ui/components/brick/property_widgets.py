@@ -19,9 +19,6 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=Hashable)
 
-_NONE_PROPERTIES = ( # Properties which can ever be None
-    brickedit.p.EXIT_LOCATION
-)
 
 class BasePropertyWidget(Widget):
 
@@ -379,11 +376,12 @@ class Vec3PropertyWidget(BasePropertyWidget):
             self.lock_button.set_checkable(True)
             self.master_layout.addWidget(self.lock_button)
             self.lock_button.clicked.connect(self._on_lock_toggled)
+
         self.master_layout.addWidget(self.x_widget)
         self.master_layout.addWidget(self.y_widget)
         self.master_layout.addWidget(self.z_widget)
 
-        self.set_enabled(False if property_name in _NONE_PROPERTIES and initial_value is None else enabled)
+        self.set_enabled(enabled)
 
 
     def _on_lock_toggled(self):
@@ -429,11 +427,10 @@ class Vec3PropertyWidget(BasePropertyWidget):
             self.y_widget.setFormula('y')
             self.z_widget.setFormula('z')
         else:
-            if self.property_name not in _NONE_PROPERTIES or self._enabled:
-                assert value is not None, f"Value is None for {self.property_name}"
-                self.x_widget.setValue(value.x)
-                self.y_widget.setValue(value.y)
-                self.z_widget.setValue(value.z)
+            assert value is not None, f"Value is None for {self.property_name}"
+            self.x_widget.setValue(value.x)
+            self.y_widget.setValue(value.y)
+            self.z_widget.setValue(value.z)
 
     def get_value(self, default_value: brickedit.Vec3) -> bool:
         eval_table = {
@@ -457,12 +454,12 @@ class Vec3PropertyWidget(BasePropertyWidget):
 
 
 
-class Integer8PropertyWidget(BasePropertyWidget):
+class UnsignedInteger8PropertyWidget(BasePropertyWidget):
 
     args = {
         'mode': ChannelMode.INT,
-        'minimum': -128,
-        'maximum': 127,
+        'minimum': 0,
+        'maximum': 255,
         'allow_nan': False,
         'allow_inf': False
     }
@@ -865,9 +862,9 @@ def get_property_widget_cls(property_name: str, allow_unknown: bool = True) -> t
         return Vec2PropertyWidget
     if issubclass(property_meta_cls, brickedit.p.Vec3Meta):
         return Vec3PropertyWidget
-    if issubclass(property_meta_cls, brickedit.p.Int8Meta):
-        return Integer8PropertyWidget
-    if issubclass(property_meta_cls, brickedit.p.Color4ChannelsMeta):
+    if issubclass(property_meta_cls, brickedit.p.UInt8Meta):
+        return UnsignedInteger8PropertyWidget
+    if issubclass(property_meta_cls, brickedit.p.ColorMeta):
         return ColorPropertyWidget
 
     return UnknownTypePropertyWidget if allow_unknown else None
@@ -898,5 +895,7 @@ def get_property_widget(
 
     # if initial_value is None:
     #     logger.warning(f"Initial value is None for property widget_cls{property_name, test_values, formula_mode, initial_value, enabled, show_text}. Defaulting to {widget_cls.get_example_value() = } ")
-    #     initial_value = widget_cls.get_example_value()
+    #     initial_value = widget_cls.get_example_value():
+    if issubclass(brickedit.p.pmeta_registry.get(property_name), brickedit.p.OptionalVec3Meta) and initial_value is None:
+        return None
     return widget_cls(property_name, test_values, formula_mode, initial_value, enabled, show_text)

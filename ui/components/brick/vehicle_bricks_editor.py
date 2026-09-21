@@ -22,9 +22,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-_NONE_PROPERTIES = ( # Properties which can ever be None
-    brickedit.p.EXIT_LOCATION
-)
 
 GMS: list[BaseGM] = [
     NoGroupingGM(),
@@ -208,11 +205,7 @@ class VehicleBricksEditor(Widget):
                     # continue
                 if isinstance(val, bytearray):
                     val = bytes(val)
-                if prop not in _NONE_PROPERTIES:
-                    properties[prop].add(val)
-                else:
-                    if prop in brick.ppatch:
-                        properties[prop].add(val)
+                properties[prop].add(val)
 
 
         # Make property set DEBUG
