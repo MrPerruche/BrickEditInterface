@@ -13,7 +13,7 @@ from ui.dialogs import UpdateFoundDialog
 
 from sidebar import Sidebar
 from menus import *
-from utils import VERSION, DEV_VERSION
+from var import VERSION_NUMBER, IS_DEV_VERSION
 
 class BrickEditInterface(QMainWindow):
     """Main application window for the BrickEdit interface."""
@@ -31,7 +31,7 @@ class BrickEditInterface(QMainWindow):
         self.settings.load()
         self.backups = BackupSystem(self)
         self.update_checker = UpdateChecker(
-            "MrPerruche", "BrickEditInterface", VERSION
+            "MrPerruche", "BrickEditInterface", VERSION_NUMBER  # Early access crashes if VERSION
         )
 
         # Start systems
@@ -69,7 +69,7 @@ class BrickEditInterface(QMainWindow):
         self.in_dev_menus = [
             DeveloperTestMenu(self),
         ]
-        if DEV_VERSION:
+        if IS_DEV_VERSION:
             self.menus.extend(self.in_dev_menus)
         
         # Build menu configurations for sidebar

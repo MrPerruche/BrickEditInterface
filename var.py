@@ -1,0 +1,16 @@
+# Must not import anything that isn't built-in! Including no PySide6!
+
+MAJOR = 2
+MINOR = 0
+PATCH = 0
+EARLY = 4  # None = RELEASE, 0 = DEV? 1+ = EARLY ACCESS
+
+IS_PRIVATE_VERSION = EARLY is not None
+IS_DEV_VERSION = EARLY == 0
+IS_EARLY_ACCESS = EARLY > 0
+
+VERSION_NUMBER = f"{MAJOR}.{MINOR}.{PATCH}"
+VERSION_FULL = f"{MAJOR}.{MINOR}.{PATCH}{f'-ea{EARLY}' if IS_EARLY_ACCESS else '-dev' if IS_DEV_VERSION else ''}"
+
+DISPLAY_VERSION_SHORT = f"{VERSION_NUMBER} (Dev)" if IS_DEV_VERSION else f"{VERSION_NUMBER} Early Access {EARLY}" if IS_EARLY_ACCESS else VERSION
+DISPLAY_VERSION = f"Version {DISPLAY_VERSION_SHORT}"

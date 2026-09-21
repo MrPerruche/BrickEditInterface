@@ -5,7 +5,7 @@ from PySide6.QtGui import QIcon, QDesktopServices
 from menus import base
 from ..shared_widgets import *
 
-from utils import DISPLAY_VERSION
+from var import DISPLAY_VERSION
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Switcher, Separator
 from ui.components import Tutorial
 from ui.theme import theme_manager

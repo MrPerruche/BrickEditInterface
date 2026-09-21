@@ -10,12 +10,13 @@ _logger = getLogger(__name__)
 class SettingsManagerV2:
 
     APP_NAME = "BrickEditInterface"
-    SAVE_FILE = "settings.toml"
     CURRENT_FILE_VERSION = 0
 
-    def __init__(self):
+    def __init__(self, save_file: str):
         self.defaults = {}
         self.settings = {}
+        assert save_file, "Invalid save file!"
+        self.save_file = save_file
         self.register('file_version', SettingsManagerV2.CURRENT_FILE_VERSION)
         self.loaded = False
 
@@ -64,7 +65,7 @@ class SettingsManagerV2:
 
     def get_settings_path(self, return_none_if_missing=False):
         config_dir = Path(user_config_dir(SettingsManagerV2.APP_NAME))
-        settings_file = config_dir / SettingsManagerV2.SAVE_FILE
+        settings_file = config_dir / self.save_file
 
         config_dir.mkdir(parents=True, exist_ok=True)
 
@@ -101,4 +102,5 @@ class SettingsManagerV2:
 
 
 
-settings_manager = SettingsManagerV2()
+settings_manager = SettingsManagerV2("settings.toml")
+

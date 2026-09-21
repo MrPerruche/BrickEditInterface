@@ -5,14 +5,17 @@ from PySide6.QtGui import QPixmap, QIcon
 from ui.widgets import Widget, Surface, Label, Button
 from ui.dialogs import AnimatedImageErrorDialog, UnexpectedErrorDialog, FileNotFoundDialog, NotAnImageErrorDialog
 
+from functools import lru_cache
 from PIL import Image, UnidentifiedImageError
 
 
 def is_single_frame_image(image: Image.Image):
     return image.n_frames == 1
 
-extensions = Image.registered_extensions().keys()
-name_filter = "Images (" + " ".join(f"*{ext}" for ext in extensions) 
+@lru_cache(maxsize=1)
+def _get_image_name_filter() -> str:
+    extensions = Image.registered_extensions().keys()
+    return "Images (" + " ".join(f"*{ext}" for ext in extensions)
 
 
 class ImageSelector(Widget):
@@ -66,7 +69,7 @@ class ImageSelector(Widget):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Image",
-            filter=name_filter
+            filter=_get_image_name_filter()
         )
 
         self.try_set_icon_from_path(file_path, show_dialogs = False)
