@@ -14,6 +14,9 @@ from sys import argv, exit as sys_exit
 #         return False
 
 def main():
+    import faulthandler
+    faulthandler.enable()
+    
     from systems.settings import settings_manager
     UI_SCALE_SAFEGUARDS = (0.25, 5.0)
     settings_manager.load()

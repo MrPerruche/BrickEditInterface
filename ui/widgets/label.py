@@ -39,6 +39,7 @@ class _QLabel(QLabel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.setMinimumWidth(0)
         self._icon_pixmap: QPixmap | None = None
         self._icon_size: int = 11
         self._icon_visible: bool = False
@@ -74,6 +75,15 @@ class _QLabel(QLabel):
             return
         self._overflow = mode
         self.setWordWrap(mode == TextOverflow.WRAP)
+
+        if mode in _ELIDE_MODES or mode == TextOverflow.NONE:
+            # Ignored: layout treats sizeHint/minimumSizeHint as non-binding for
+            # width, so the label can be shrunk freely by its parent. We still
+            # elide correctly on resize via _refresh_display_text().
+            self.setSizePolicy(QSizePolicy.Ignored, self.sizePolicy().verticalPolicy())
+        else:
+            self.setSizePolicy(QSizePolicy.Preferred, self.sizePolicy().verticalPolicy())
+
         self._refresh_display_text()
         self.update()
 
@@ -93,9 +103,11 @@ class _QLabel(QLabel):
         if self._overflow in _ELIDE_MODES:
             avail = max(0, self.contentsRect().width())
             elided = self.fontMetrics().elidedText(self._full_text, _ELIDE_MODES[self._overflow], avail)
-            QLabel.setText(self, elided)
+            if elided != QLabel.text(self):          # <-- stop the loop: no-op if unchanged
+                QLabel.setText(self, elided)
         else:
-            QLabel.setText(self, self._full_text)
+            if self._full_text != QLabel.text(self):  # <-- same guard for NONE mode
+                QLabel.setText(self, self._full_text)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
