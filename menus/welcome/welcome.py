@@ -1,12 +1,11 @@
-from PySide6.QtWidgets import QDialog, QTextEdit
-from PySide6.QtCore import QFile, QTextStream, QUrl
-from PySide6.QtGui import QIcon, QDesktopServices
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QDialog, QTextEdit
+from PySide6.QtCore import Qt, QFile, QTextStream, QUrl
+from PySide6.QtGui import QIcon, QDesktopServices, QPixmap
 
 from menus import base
-from ..shared_widgets import *
 
 from var import DISPLAY_VERSION
-from ui.widgets import Label, StyledLabel, LabelStyle, Button, Switcher, Separator
+from ui.widgets import Widget, Label, StyledLabel, LabelStyle, Button, Separator
 from ui.components import Tutorial
 from ui.theme import theme_manager
 
@@ -131,7 +130,7 @@ class HomeMenu(base.BaseMenu):
 
 
         # Center the whole block in the window
-        title_block_container = QWidget()
+        title_block_container = Widget()
         self.text_and_logo_layout.addLayout(title_block_layout)
 
         self.master_layout.addWidget(title_block_container, alignment=Qt.AlignCenter)

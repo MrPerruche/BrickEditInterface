@@ -54,7 +54,7 @@ class ImportProgressDialog(Dialog):
     cancelled = Signal()
 
     def __init__(self, mw, max_layer_count: int, decompose_worker):
-        super().__init__(mw=mw, icon=None, title="BrickEdit-Interface")
+        super().__init__(mw=mw, icon=None, title="Importing Image")
 
         self.max_layer_count = max_layer_count
         self.decompose_worker = decompose_worker

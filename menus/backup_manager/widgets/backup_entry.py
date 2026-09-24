@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtGui import QIcon, QColor
 
 from os import path
@@ -8,6 +8,7 @@ import shutil
 
 from systems.backup import BackupSystem
 
+from ui.dialogs import RecoverBackupDialog, DeleteBackupDialog
 from ui.widgets import Surface, SurfaceStyle, Label, Button, ToolButton
 from ui.theme import Theme, register_has_theme_and_apply
 from ui.models import TooltipContents
@@ -118,15 +119,9 @@ class BackupEntry(Surface):
 
 
     def recover_backup_btn(self):
-        dlg = QMessageBox()
-        dlg.setWindowTitle("Recover backup")
-        dlg.setText("Are you sure you want to recover this backup? This will overwrite the current vehicle.")
-        dlg.setIcon(QMessageBox.Warning)
-        dlg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
-        dlg.setDefaultButton(QMessageBox.Ok)
-        result = dlg.exec()
+        confirmed = RecoverBackupDialog.create(self.main_window).exec()
 
-        if result == QMessageBox.Ok:
+        if confirmed:
             brv_file = path.join(self.vehicle_path, "Vehicle.brv")
             # if not os.path.exists(brv_file):
             #     return
@@ -136,14 +131,8 @@ class BackupEntry(Surface):
             shutil.copy2(backup_brv_file, brv_file)
 
     def delete_backup_btn(self):
-        dlg = QMessageBox()
-        dlg.setWindowTitle("Delete backup")
-        dlg.setText(f"Are you sure you want to delete {self.backup_path}? This action cannot be undone.")
-        dlg.setIcon(QMessageBox.Warning)
-        dlg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
-        dlg.setDefaultButton(QMessageBox.Cancel)
-        result = dlg.exec()
-        if result == QMessageBox.Ok:
+        confirmed = DeleteBackupDialog.create(self.main_window, self.backup_path).exec()
+        if confirmed:
             self.call_on_backup_deleted(False, self.backup_path)
 
     def bin_backup_btn(self):

@@ -8,7 +8,7 @@ class AnimatedImageErrorDialog(BasicInfoDialog):
         return AnimatedImageErrorDialog(
             mw=mw,
             icon=AnimatedImageErrorDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="Unsupported Image",
             text="You cannot select animated images."
         )
 
@@ -19,6 +19,6 @@ class NotAnImageErrorDialog(BasicInfoDialog):
         return NotAnImageErrorDialog(
             mw=mw,
             icon=NotAnImageErrorDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="Invalid Image",
             text="Selected file is not an image."
         )

@@ -92,6 +92,11 @@ class Button(Widget):
     def set_checked(self, checked: bool):
         self.qt_widget.setChecked(checked)
 
+    def set_default(self, default: bool):
+        """Marks this button as the one triggered by pressing Enter."""
+        self.qt_widget.setAutoDefault(default)
+        self.qt_widget.setDefault(default)
+
     def set_text(self, text: str):
         self.og_text = text
         text = text if self.og_icon is None else self.icon_spacing_prepend + text

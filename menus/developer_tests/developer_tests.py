@@ -7,7 +7,6 @@ import ui.theme as theme
 from ui.models import TooltipContents
 
 from menus import base
-from ..shared_widgets import TabMenu
 
 
 class DeveloperTestMenu(base.BaseMenu):

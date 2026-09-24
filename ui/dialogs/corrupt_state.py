@@ -10,6 +10,6 @@ class CorruptStateDialog(BasicInfoDialog):
         return CorruptStateDialog(
             mw = mw,
             icon = CorruptStateDialog.ERROR_ICON(),
-            title = "BrickEdit-Interface",
+            title = "Corrupt State",
             text = str.format(CorruptStateDialog.DESC_TEXT, f": {description}\n\n" if description is not None else ". ")
         )

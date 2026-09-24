@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QScrollArea, QSizePolicy, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QScrollArea, QSizePolicy, QFileDialog
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, Signal
 
@@ -96,7 +96,7 @@ class VehicleSelector(Widget):
 
             if brmv < brickedit.FILE_MIN_SUPPORTED_VERSION or brvv < brickedit.FILE_MIN_SUPPORTED_VERSION:
                 # Show fail message box
-                QMessageBox.warning(self, "Invalid file", "Selected vehicle is too old to be loaded.")
+                # InvalidVehicleFileDialog.create(None, "Selected vehicle is too old to be loaded.").exec()
                 return
 
             self.vehicle_selected.emit(folder_path)

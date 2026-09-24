@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt, QSize, QDateTime, QTimer, Signal
 
@@ -10,7 +10,12 @@ from traceback import format_exc
 from ui.components import VehicleSelector, VehicleData
 from ui.widgets import Widget, Button, ToolButton, Label, LineEdit
 from ui.theme import Theme, register_has_theme_and_apply
-from ui.dialogs import VehicleSavedDialog, NothingEverHappensDialog
+from ui.dialogs import (
+    VehicleSavedDialog,
+    NothingEverHappensDialog,
+    VehicleSaveFailedDialog,
+    VehicleMetadataSaveFailedDialog,
+)
 
 from pathlib import Path
 from utils import tint_icon, str_time_since, get_vehicles_path
@@ -278,23 +283,23 @@ class VehicleSelectionDrawer(Widget):
             return True
 
         except PermissionError as e:
-            QMessageBox.critical(self, "Failed to save vehicle", f"BrickEdit-Interface was denied permission to save this vehicle.")
+            VehicleSaveFailedDialog.create(self.mw, "BrickEdit-Interface was denied permission to save this vehicle.").exec()
 
         except OSError as e:
-            QMessageBox.critical(self, "Failed to save vehicle", f"BrickEdit-Interface could not save this vehicle. Do you have sufficient storage?")
+            VehicleSaveFailedDialog.create(self.mw, "BrickEdit-Interface could not save this vehicle. Do you have sufficient storage?").exec()
 
         except Exception as e:
 
             if show_dialogs:
                 if str(e) == 'too long':
-                    QMessageBox.critical(self, "Failed to save vehicle", f"A vehicle can only contain up to 50,000 bricks.")
+                    VehicleSaveFailedDialog.create(self.mw, "A vehicle can only contain up to 50,000 bricks.").exec()
                 elif str(e) == 'skip':
                     pass
                 else:
-                    QMessageBox.critical(self, "Failed to save vehicle", f"""\
+                    VehicleSaveFailedDialog.create(self.mw, f"""\
 BrickEdit-Interface failed to save this vehicle for unknown reasons. Please report this issue on the BrickEdit discord.
 
-ERROR: {format_exc()}""",)
+ERROR: {format_exc()}""").exec()
 
         # Only reached here in case of error. Reset vehicle state if it was semi-created
         if is_new_vehicle:
@@ -332,7 +337,7 @@ ERROR: {format_exc()}""",)
         except PermissionError as e:
             if not show_dialogs:
                 return False
-            QMessageBox.critical(self, "Failed to save metadata", f"BrickEdit-Interface was denied permission to save metadata of this vehicle.")
+            VehicleMetadataSaveFailedDialog.create(self.mw, "BrickEdit-Interface was denied permission to save metadata of this vehicle.").exec()
             return False
 
         except OSError as e:
@@ -340,16 +345,16 @@ ERROR: {format_exc()}""",)
                 return False
             if isinstance(e, FileNotFoundError):
                 raise e from e
-            QMessageBox.critical(self, "Failed to save metadata", f"BrickEdit-Interface could not save metadata of this vehicle. Do you have sufficient storage?")
+            VehicleMetadataSaveFailedDialog.create(self.mw, "BrickEdit-Interface could not save metadata of this vehicle. Do you have sufficient storage?").exec()
             return False
 
         except Exception as e:
             if not show_dialogs:
                 return False
-            QMessageBox.critical(self, "Failed to save metadata", f"""\
+            VehicleMetadataSaveFailedDialog.create(self.mw, f"""\
 BrickEdit-Interface failed to save metadata of this vehicle for unknown reasons. Please report this issue on the BrickEdit discord.
 
-ERROR: {format_exc()}""")
+ERROR: {format_exc()}""").exec()
             return False
 
 

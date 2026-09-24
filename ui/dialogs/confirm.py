@@ -8,8 +8,9 @@ class ConfirmRestartDialog(BooleanOutcomeDialog):
         return ConfirmRestartDialog(
             mw=mw,
             icon=ConfirmRestartDialog.WARNING_ICON(),
-            title="BrickEdit-Interface",
+            title="Restart Required",
             text=f"<html><b>{header}</b><br>{text.replace('\n', '<br>')}</html>",
             outcome_1_text="Cancel",
-            outcome_2_text="Continue"
+            outcome_2_text="Continue",
+            default_outcome=1,
         )

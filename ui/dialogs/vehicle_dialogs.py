@@ -16,7 +16,7 @@ class CannotSaveDialog(BasicInfoDialog):
         return CannotSaveDialog(
             mw=mw,
             icon=CannotSaveDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="Cannot Save Vehicle",
             text=str.format(CannotSaveDialog.DESC_TEXT, reason if reason is not None else ". ")
         )
 
@@ -28,7 +28,7 @@ class CannotSaveUneditedDialog(BasicInfoDialog):
         return CannotSaveUneditedDialog(
             mw=mw,
             icon=CannotSaveDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="Cannot Save Vehicle",
             text=str.format(CannotSaveDialog.DESC_TEXT, "it has not been edited")
         )
 
@@ -40,7 +40,7 @@ class CannotSaveOverLimit(BasicInfoDialog):
         return CannotSaveOverLimit(
             mw=mw,
             icon=CannotSaveDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="Brick Limit Exceeded",
             text=f"Saving failed because this vehicle contains {brick_count:,} / 50,000 bricks."
         )
 
@@ -53,7 +53,7 @@ class VehicleLoadingIssueDialog(BasicInfoDialog):
         return VehicleLoadingIssueDialog(
             mw=mw,
             icon=VehicleLoadingIssueDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="No Vehicle Loaded" if is_expected_loaded else "Vehicle Already Loaded",
             text="You must load a vehicle in order to proceed." if is_expected_loaded else "You cannot proceed while a vehicle is loaded."
         )
 
@@ -75,11 +75,12 @@ class OverwriteOrCancelDialog(BooleanOutcomeDialog):
         return OverwriteOrCancelDialog(
             mw=mw,
             icon=OverwriteOrCancelDialog.WARNING_ICON(),
-            title="BrickEdit-Interface",
+            title="Overwrite Vehicle?",
             text="Performing this action requires no vehicle to be loaded, but one currently is.\n\n"
                  "Do you want to erase and overwrite the currently loaded vehicle?",
             outcome_1_text="Erase and overwrite",
-            outcome_2_text="Cancel"
+            outcome_2_text="Cancel",
+            default_outcome=2,
         )
 
 
@@ -91,7 +92,7 @@ class VehicleSavedDialog(BasicInfoDialog):
         return VehicleSavedDialog(
             mw=mw,
             icon=VehicleSavedDialog.CONFIRM_ICON(),
-            title="BrickEdit-Interface",
+            title="Vehicle Saved",
             text="This vehicle has been saved."
         )
 
@@ -108,7 +109,7 @@ class NothingEverHappensDialog(BasicInfoDialog):
         return NothingEverHappensDialog(
             mw=mw,
             icon=NothingEverHappensDialog.INFO_ICON(),
-            title="BrickEdit-Interface",
+            title="Vehicle Saved" if saved else "No Changes",
             text=(NothingEverHappensDialog.MSG_DID_SAVE if saved else '') + (
                 NothingEverHappensDialog.MSG_BASE_EASTEREGG if uniform(0, 1) < NothingEverHappensDialog.EASTEREGG_PROBABILITY else NothingEverHappensDialog.MSG_BASE
             )

@@ -11,7 +11,7 @@ class FileNotFoundDialog(BasicInfoDialog):
         return FileNotFoundDialog(
             mw=mw,
             icon=FileNotFoundDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="File Not Found",
             text=str.format(FileNotFoundDialog.FILE_NOT_FOUND_TEXT, path)
             if path is not None and path else FileNotFoundDialog.FILE_NOT_FOUND_NT
         )
@@ -26,8 +26,9 @@ class CorruptSettingsDialog(BooleanOutcomeDialog):
         return CorruptSettingsDialog(
             mw=None,
             icon=CorruptSettingsDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="Corrupt Settings",
             text=str.format(CorruptSettingsDialog.TEXT, type(exc).__name__, exc),
             outcome_1_text="Close BEI",
-            outcome_2_text="Reset settings"
+            outcome_2_text="Reset settings",
+            default_outcome=1,
         )

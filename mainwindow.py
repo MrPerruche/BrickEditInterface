@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout, QScrollArea, QMessageBox
+from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout, QScrollArea
 
 from packaging.version import Version
 
@@ -137,6 +137,6 @@ class BrickEditInterface(QMainWindow):
         if Version(new_version) <= remind_updates_after:
             return
 
-        dlg = UpdateFoundDialog.create(self, VERSION, new_version)
+        dlg = UpdateFoundDialog.create(self, VERSION_NUMBER, new_version)
         dlg.outcome_2_selected.connect()
         dlg.exec()

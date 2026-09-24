@@ -17,8 +17,8 @@ Open the download page?"""
 
 
     def __init__(self, mw, icon, title, text, outcome_1_text, outcome_2_text,
-                 future_version, parent=None):
-        super().__init__(mw, icon, title, text, outcome_1_text, outcome_2_text, parent)
+                 future_version, parent=None, default_outcome: int | None = None):
+        super().__init__(mw, icon, title, text, outcome_1_text, outcome_2_text, parent, default_outcome)
 
         self.future_version = future_version
 
@@ -45,11 +45,12 @@ Open the download page?"""
         return UpdateFoundDialog(
             mw=mw,
             icon=UpdateFoundDialog.INFO_ICON(),
-            title="BrickEdit-Interface",
+            title="Update Available",
             text=str.format(UpdateFoundDialog.TEXT, current_version, future_version),
             outcome_1_text="Maybe later",
             outcome_2_text="Download now",
-            future_version=future_version
+            future_version=future_version,
+            default_outcome=1,
         )
 
 

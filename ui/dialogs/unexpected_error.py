@@ -11,7 +11,7 @@ class UnexpectedErrorDialog(BasicInfoDialog):
         return UnexpectedErrorDialog(
             mw=mw,
             icon=UnexpectedErrorDialog.ERROR_ICON(),
-            title="BrickEdit-Interface",
+            title="Unexpected Error",
             text=UnexpectedErrorDialog.START_MSG +
                   (description if description is not None else "") +
                   "\n\n" +

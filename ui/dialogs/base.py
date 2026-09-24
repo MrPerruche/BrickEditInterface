@@ -91,9 +91,11 @@ class Dialog(Widget):
     def _add_content(self, widget):
         self.content_layout.addWidget(widget)
 
-    def _add_action(self, button: Button, auto_close: bool = True):
+    def _add_action(self, button: Button, auto_close: bool = True, default: bool = False):
         if auto_close:
             button.clicked.connect(self.close)
+        if default:
+            button.set_default(True)
         self.actions_layout.addWidget(button)
 
 
@@ -140,7 +142,7 @@ class BasicInfoDialog(Dialog):
 
         self.ok_button = Button("OK")
         self.ok_button.clicked.connect(self.finish)
-        self._add_action(self.ok_button)
+        self._add_action(self.ok_button, default=True)
 
 
     def finish(self):
@@ -162,7 +164,8 @@ class BooleanOutcomeDialog(Dialog):
         text: str,
         outcome_1_text: str,
         outcome_2_text: str,
-        parent=None
+        parent=None,
+        default_outcome: int | None = None,
     ):
         super().__init__(mw, icon, title, parent)
         self.set_return_object(False)
@@ -172,11 +175,11 @@ class BooleanOutcomeDialog(Dialog):
 
         self.outcome_1_button = Button(outcome_1_text)
         self.outcome_1_button.clicked.connect(self.on_outcome_1_selected)
-        self._add_action(self.outcome_1_button)
+        self._add_action(self.outcome_1_button, default=default_outcome == 1)
 
         self.outcome_2_button = Button(outcome_2_text)
         self.outcome_2_button.clicked.connect(self.on_outcome_2_selected)
-        self._add_action(self.outcome_2_button)
+        self._add_action(self.outcome_2_button, default=default_outcome == 2)
 
 
     def on_outcome_1_selected(self):

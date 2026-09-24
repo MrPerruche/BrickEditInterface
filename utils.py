@@ -12,7 +12,6 @@ from typing import NoReturn
 from systems.settings import settings_manager
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter
 
 
@@ -129,9 +128,8 @@ def get_vehicles_path() -> str | NoReturn:
             return flatpak_path
     
     else:
-        QMessageBox.critical(None, "Unsupported Operating System",
-            "BrickEdit-Interface does not support this operating system."
-        )
+        from ui.dialogs import UnsupportedOSDialog
+        UnsupportedOSDialog.create(None).exec()
         sys.exit(1)
 
 def repr_file_size(size_bytes: int, digits: int = 2, unit_change_threshold: int = 1024):
@@ -180,22 +178,24 @@ def max_float32_for_tolerance(tol: float) -> float:
 
 
 def try_serialize(brv: BRVFile, allow_unknown: bool = True) -> bytearray | None:
+    from ui.dialogs import SerializationFailedDialog
+
     try:
         return brv.serialize(allow_unknown=allow_unknown)
 
     # Message box in case of bugs
     except PermissionError as e:
-        QMessageBox.critical(None, "Failed to save changes",
+        SerializationFailedDialog.create(None,
             f"BrickEdit-Interface was denied permission to save changes: {str(e)}"
-        )
+        ).exec()
     except OSError as e:
-        QMessageBox.critical(None, "Failed to save changes",
+        SerializationFailedDialog.create(None,
             f"BrickEdit-Interface could not save changes: {str(e)}"
-        )
+        ).exec()
     except Exception as e:
-        QMessageBox.critical(None, "Failed to save changes",
+        SerializationFailedDialog.create(None,
             f"BrickEdit failed to save changes (most likely failed to serialize). Please report the following errors to the developers:\n\n{type(e).__name__}: {str(e)}"
-        )
+        ).exec()
         raise e
 
     return None
@@ -215,6 +215,7 @@ def try_serialize_metadata(
     visibility: int = VISIBILITY_PUBLIC,
     tags: Optional[list[str]] = None
 ) -> bytearray | None:
+    from ui.dialogs import SerializationFailedDialog
 
     try:
         return brm.serialize(
@@ -232,17 +233,17 @@ def try_serialize_metadata(
         )
     
     except PermissionError as e:
-        QMessageBox.critical(None, "Failed to save changes",
+        SerializationFailedDialog.create(None,
             f"BrickEdit-Interface was denied permission to save changes: {str(e)}"
-        )
+        ).exec()
     except OSError as e:
-        QMessageBox.critical(None, "Failed to save changes",
+        SerializationFailedDialog.create(None,
             f"BrickEdit-Interface could not save changes: {str(e)}"
-        )
+        ).exec()
     except Exception as e:
-        QMessageBox.critical(None, "Failed to save changes",
+        SerializationFailedDialog.create(None,
             f"BrickEdit failed to save changes (most likely failed to serialize). Please report the following errors to the developers:\n\n{type(e).__name__}: {str(e)}"
-        )
+        ).exec()
         raise e
 
     return None
