@@ -71,6 +71,31 @@ COLOR_LEVELS = (
     [i for i in range(65, 255+1, 5)]
 )
 
+MATERIALS = [  # list[tuple[name, display_name, is_transparent]]
+    (brickedit.p.BrickMaterial.ALUMINIUM, "Aluminium", False),
+    (brickedit.p.BrickMaterial.BRUSHED_ALUMINIUM, "Brushed Aluminium", False),
+    (brickedit.p.BrickMaterial.CARBON, "Carbon", False),
+    (brickedit.p.BrickMaterial.RIBBED_ALUMINIUM, "Channelled Aluminium", False),
+    (brickedit.p.BrickMaterial.CHROME, "Chrome", False),
+    (brickedit.p.BrickMaterial.FROSTED_GLASS, "Frosted Glass", True),
+    (brickedit.p.BrickMaterial.CONCRETE, "Concrete", False),
+    (brickedit.p.BrickMaterial.COPPER, "Copper", False),
+    (brickedit.p.BrickMaterial.FOAM, "Foam", False),
+    (brickedit.p.BrickMaterial.GLASS, "Glass", False),
+    (brickedit.p.BrickMaterial.GLOW, "Glow", False),
+    (brickedit.p.BrickMaterial.GOLD, "Gold", False),
+    (brickedit.p.BrickMaterial.LED_MATRIX, "LED Matrix", False),
+    (brickedit.p.BrickMaterial.OAK, "Oak", False),
+    (brickedit.p.BrickMaterial.PINE, "Pine", False),
+    (brickedit.p.BrickMaterial.PLASTIC, "Plastic", False),
+    (brickedit.p.BrickMaterial.WEATHERED_WOOD, "Rough Wood", False),
+    (brickedit.p.BrickMaterial.RUBBER, "Rubber", False),
+    (brickedit.p.BrickMaterial.RUSTED_STEEL, "Rusted Steel", False),
+    (brickedit.p.BrickMaterial.STEEL, "Steel", False),
+    (brickedit.p.BrickMaterial.TUNGSTEN, "Tungsten", False),
+]
+OPAQUE_MATERIALS_LIST = [material for material in MATERIALS if not material[2]]
+
 
 WHAT_IS_ZFIGHTING = TooltipContents(
     "What is Z-fighting?",
@@ -234,15 +259,21 @@ class ImageImporter(base.BaseMenu):
         self.image_selector.on_new_image_selected.connect(self.resolution_settings.on_image_loaded)
         self.master_layout.addWidget(self.resolution_settings)
 
-        self.color_correction_lay = QHBoxLayout()
-        self.color_correction_lay.setContentsMargins(0, 0, 0, 0)
-        self.master_layout.addLayout(self.color_correction_lay)
+        self.material_layout = QHBoxLayout()
+        self.material_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.material_layout)
 
-        self.color_correction_label = Label("Color correction")
-        self.color_correction_lay.addWidget(self.color_correction_label)
+        self.material_label = Label("Material")
+        self.material_layout.addWidget(self.material_label)
 
-        self.color_correction_bs = BoolSwitch(True)
-        self.color_correction_lay.addWidget(self.color_correction_bs)
+        self.material_cb = ComboBox()
+        for i, material in enumerate(OPAQUE_MATERIALS_LIST):
+            self.material_cb.add_item(material[1])
+            if material[0] == brickedit.p.BrickMaterial.COPPER:
+                self.material_cb.set_current_idx(i)
+        self.material_layout.addWidget(self.material_cb)
+
+
 
         # Separator
         self.master_layout.addWidget(Separator())
@@ -293,10 +324,6 @@ class ImageImporter(base.BaseMenu):
         blur = self.blur_slider.get_value()
         if blur > 0:
             img = img.filter(ImageFilter.GaussianBlur(radius=blur))
-
-        # Apply color correction (Linear RGB -> sRGB 2.2)
-        if self.color_correction_bs.get_value():
-            img = srgb_to_linear(img)
 
         # Quantize image
         if quantization:
@@ -360,6 +387,7 @@ class ImageImporter(base.BaseMenu):
 
         # Get data
         layer_width = self.layer_thickness_slider.get_value()
+        material = OPAQUE_MATERIALS_LIST[self.material_cb.get_current_idx()][0]
 
         # Build vehicle
         brvfile = brickedit.BRVFile(brickedit.FILE_MAIN_VERSION)
@@ -386,7 +414,7 @@ class ImageImporter(base.BaseMenu):
                     ppatch={
                         brickedit.p.BRICK_SIZE: size_vec,
                         brickedit.p.BRICK_COLOR: color,
-                        brickedit.p.BRICK_MATERIAL: brickedit.p.BrickMaterial.CONCRETE
+                        brickedit.p.BRICK_MATERIAL: material
                     }
                 ))
                 #▲ print(brvfile.bricks[-1])
