@@ -9,7 +9,7 @@ from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider,
 from ui.components.image.image_selector import ImageSelector
 from ui.components import Tutorial
 from ui.models import TooltipContents
-from ui.dialogs import VehicleLoadingIssueDialog, CannotSaveOverLimit
+from ui.dialogs import OverwriteOrCancelDialog, CannotSaveOverLimit
 
 from menus.image_importer.dialogs.import_progress import ImportProgressDialog
 from menus.image_importer.img_conversion.decompose_worker import DecomposeWorker, DecomposeResult, launch_with_threading
@@ -307,10 +307,10 @@ class ImageImporter(base.BaseMenu):
 
     def on_import_image_btn_clicked(self):
 
-        # Nothing loaded check
+        # Nothing loaded check: ask to overwrite
         if self.main_window.vehicle_selector_banner.is_vehicle_loaded():
-            VehicleLoadingIssueDialog.create(self.mw, False).exec()
-            return
+            if not OverwriteOrCancelDialog.create(self.mw).exec():
+                return
 
         # Get data
         grp_format = ["none", "2d", "3d_greedy", "3d_slow"][self.optimization_method.get_current_idx()]
@@ -379,11 +379,6 @@ class ImageImporter(base.BaseMenu):
 
 
     def handle_decompose_result(self, result: DecomposeResult):
-
-        # Nothing loaded check (just in case)
-        if self.main_window.vehicle_selector_banner.is_vehicle_loaded():
-            VehicleLoadingIssueDialog.create(self.mw, False).exec()
-            return
 
         # Get data
         layer_width = self.layer_thickness_slider.get_value()

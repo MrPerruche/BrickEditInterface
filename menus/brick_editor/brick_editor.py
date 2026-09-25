@@ -34,8 +34,13 @@ class EditBrickMenu(base.BaseMenu):
         self.save_button = Button("Save changes")
         self.save_button.clicked.connect(self.save_changes)
         self.master_layout.addWidget(self.save_button)
+        self.vbe.changes_updated.connect(self.update_save_button)
+        self.update_save_button()
 
         self.master_layout.addStretch()
+
+    def update_save_button(self):
+        self.save_button.set_disabled(not self.vbe.has_changes())
 
     def get_menu_name(self) -> str:
         return "Brick Editor"

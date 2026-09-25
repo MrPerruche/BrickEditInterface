@@ -174,6 +174,7 @@ class SettingsMenu(base.BaseMenu):
     def set_dirty(self, is_dirty: bool):
         self.dirty = is_dirty
         self.apply_btn.set_danger(is_dirty)
+        self.apply_btn.set_disabled(not is_dirty)
 
     def on_apply_changes_clicked(self):
 

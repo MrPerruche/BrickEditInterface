@@ -33,6 +33,7 @@ class PropertySet(Widget):
         super().__init__()
 
         self.bs = bs
+        self.edited = False
 
         self.master_layout = QVBoxLayout()
         self.master_layout.setContentsMargins(0, 0, 0, 0)
@@ -54,6 +55,7 @@ class PropertySet(Widget):
 
 
     def on_property_edited(self):
+        self.edited = True
         self.properties_edited.emit()
 
 

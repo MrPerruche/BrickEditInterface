@@ -1,4 +1,5 @@
 from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtCore import Signal
 
 from ui.dialogs import CannotSaveUneditedDialog
 from ui.widgets import Widget, Switcher, SwitcherEntry, Label
@@ -34,6 +35,8 @@ GMS: list[BaseGM] = [
 
 
 class VehicleBricksEditor(Widget):
+
+    changes_updated = Signal()
 
     def __init__(self,
         mw: 'BrickEditInterface',
@@ -119,10 +122,21 @@ class VehicleBricksEditor(Widget):
 
         self.live_property_set = None
         self.gms_to_brick_lists = [[] for _ in GMS]
+        # Must be reset too: stale entries would be deleteLater()'d again on the next clear.
+        self.gms_to_property_sets = [[] for _ in GMS]
         self.current_page_indices = [0 for _ in GMS]
 
         for property_set in all_property_sets.values():
-            property_set.deleteLater()
+            self._discard_property_set(property_set)
+
+
+    def _discard_property_set(self, property_set: PropertySet):
+        # Disconnect first: widgets of a set pending deletion may still emit value_changed.
+        try:
+            property_set.properties_edited.disconnect(self.save_current_property_set)
+        except (RuntimeError, TypeError):
+            pass
+        property_set.deleteLater()
 
 
     def _reload(self):
@@ -156,10 +170,23 @@ class VehicleBricksEditor(Widget):
 
 
 
-    def _reload_page(self):
+    def has_changes(self) -> bool:
+        return self.live_property_set is not None and self.live_property_set.edited
 
-        # Clear current page
+
+    def _reload_page(self):
+        self._reload_page_impl()
+        self.changes_updated.emit()
+
+
+    def _reload_page_impl(self):
+
+        # Clear current page. An unedited set isn't cached, so nothing else would ever delete it.
+        previous = self.live_property_set
+        self.live_property_set = None
         wipe_layout(self.property_set_container, delete_widgets=False)
+        if previous is not None and not any(previous is ps for page_list in self.gms_to_property_sets for ps in page_list):
+            self._discard_property_set(previous)
 
         # Get active menu stuff
         active_gm_idx = self.grouping_method_switcher.get_idx()
@@ -286,6 +313,7 @@ class VehicleBricksEditor(Widget):
     def _build_empty(self):
         self.no_bricks_selected.show()
         self.page_switcher.hide()
+        self.changes_updated.emit()
 
 
     def save_current_property_set(self):
@@ -296,6 +324,7 @@ class VehicleBricksEditor(Widget):
             logger.warning("Trying to save property set but live property set is currently None.")
             return
         self.gms_to_property_sets[gm_idx][page] = self.live_property_set
+        self.changes_updated.emit()
 
 
     # ----------
