@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ui.widgets import StyledLabel, LabelStyle, ToolButton
-from ui.theme import Theme, register_has_theme_and_apply
+from ui.theme import Theme, style_rules
 from ui.components.tutorial import Tutorial
 
 if TYPE_CHECKING:
@@ -21,6 +21,11 @@ class MenuInfo:
     tutorial: Tutorial | None = None
 
 
+
+
+@style_rules
+def _base_menu_rules(theme: Theme) -> str:
+    return f"BaseMenu {{ background-color: {theme.background.color}; }}"
 
 
 class BaseMenu(QWidget):
@@ -62,11 +67,7 @@ class BaseMenu(QWidget):
 
         # END DEFINITION
         self.setLayout(self.master_layout)
-        register_has_theme_and_apply(self)
 
-
-    def _apply_theme(self, theme: Theme) -> None:
-        self.setStyleSheet(f"BaseMenu {{ background-color: {theme.background.color}; }}")
 
     def get_menu_info(self) -> MenuInfo:
         if self.menu_info is None:

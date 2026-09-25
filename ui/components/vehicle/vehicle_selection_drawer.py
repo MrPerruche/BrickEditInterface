@@ -9,7 +9,7 @@ from traceback import format_exc
 
 from ui.components import VehicleSelector, VehicleData
 from ui.widgets import Widget, Button, ToolButton, Label, LineEdit
-from ui.theme import Theme, register_has_theme_and_apply
+from ui.theme import Theme, register_has_theme_and_apply, style_rules
 from ui.dialogs import (
     VehicleSavedDialog,
     NothingEverHappensDialog,
@@ -50,6 +50,14 @@ _logger = logging.getLogger(__name__)
 
 
 struct_u16 = struct.Struct('<H')
+
+@style_rules
+def _drawer_rules(theme: Theme) -> str:
+    return f"""
+        #vehicleSelectionDrawer {{
+            border-bottom: 2px solid {theme.border.color};
+        }}"""
+
 
 class VehicleSelectionDrawer(Widget):
     
@@ -552,12 +560,6 @@ ERROR: {format_exc()}""").exec()
         self.is_expanded = expanded
 
     def _apply_theme(self, theme: Theme):
-        self.setStyleSheet(f"""
-            #vehicleSelectionDrawer {{
-                border-bottom: 2px solid {theme.border.color};
-            }}
-        """)
-
         # --------------- COLLAPSED
 
         self.c_btn_expand.set_icon(tint_icon(QIcon(":/assets/icons/ExpandSmallIcon.png"), theme.text.color_hex_argb))

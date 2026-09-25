@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, Signal
 
 from ui.widgets import Widget, Label, Button
 
-from ui.theme import Theme, register_has_theme_and_apply, unregister
+from ui.theme import Theme, register_has_theme_and_apply, unregister, theme_manager
 
 
 from typing import TYPE_CHECKING
@@ -92,6 +92,7 @@ class Dialog(Widget):
         self.icon_and_content_layout.addWidget(self._content, stretch=1)
 
         self._actions = Widget()
+        self._actions.setObjectName("dialogActions")
         self.actions_layout = QHBoxLayout(self._actions)
         self.actions_layout.setContentsMargins(14, 10, 14, 14)
         self.actions_layout.setSpacing(8)
@@ -151,8 +152,13 @@ class Dialog(Widget):
 
 
     def _apply_theme(self, theme: Theme):
-        self.qt_dialog.setStyleSheet(f"background-color: {theme.sidebar.color};")
-        self._actions.setStyleSheet(f"background-color: {theme.background.color};")
+        # Rules must be scoped (type / objectName): a selector-less declaration here would beat the global
+        #  stylesheet rules of every widget in the dialog. Dialogs without the main window as parent (eg.
+        #  startup errors) don't inherit the global stylesheet, so they carry it themselves.
+        self.qt_dialog.setStyleSheet(theme_manager.style_sheet_for(self.qt_dialog, theme) + f"""
+            QDialog {{ background-color: {theme.sidebar.color}; }}
+            QWidget#dialogActions {{ background-color: {theme.background.color}; }}
+        """)
 
 
 

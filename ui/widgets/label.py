@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap, QTextLayout, QTextOption
 
 from ui.widgets.widget import Widget
-from ui.theme import Theme, register_has_theme_and_apply, reapply_theme
+from ui.theme import Theme, register_has_theme_and_apply, style_rules, set_style_property
 from ui.models import TooltipContents
 
 from typing import ClassVar
@@ -206,6 +206,17 @@ class _QLabel(QLabel):
         )
 
 
+@style_rules
+def _label_rules(theme: Theme) -> str:
+    return f"""
+        QLabel[beiLabel="true"] {{
+            color: {theme.text.color};
+        }}
+        QLabel[beiLabel="true"][muted=true] {{
+            color: {theme.text.muted};
+        }}"""
+
+
 class Label(Widget):
 
     Overflow = TextOverflow
@@ -240,6 +251,7 @@ class Label(Widget):
 
         self._layout.addWidget(self.qt_widget)
 
+        self.qt_widget.setProperty('beiLabel', True)  # Selected by _label_rules
         self.qt_widget.setProperty('muted', self.is_muted)
 
         if Label.info_icon is None:
@@ -252,8 +264,7 @@ class Label(Widget):
     def set_muted(self, muted: bool):
         if muted != self.is_muted:
             self.is_muted = muted
-            self.qt_widget.setProperty('muted', muted)
-            reapply_theme(self)
+            set_style_property(self.qt_widget, 'muted', muted)
 
     def get_text(self) -> str:
         return self.qt_widget.text()
@@ -314,15 +325,6 @@ class Label(Widget):
             self.info_icon, theme.text.color_hex_argb, size=self.info_icon_size
         ).pixmap(self.info_icon_size)
         self.qt_widget.set_icon(pixmap, self.info_icon_size)
-
-        self.setStyleSheet(f"""
-            QLabel {{
-                color: {theme.text.color};
-            }}
-            QLabel[muted=true] {{
-                color: {theme.text.muted};
-            }}
-        """)
 
 
 

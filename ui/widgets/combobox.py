@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QComboBox, QStyledItemDelegate, QStyle, QHBoxLayout
-from PySide6.QtGui import QIcon, QColor, QBrush
-from PySide6.QtCore import Qt, QRect
+from PySide6.QtWidgets import QComboBox, QStyledItemDelegate, QStyle, QStyleOptionComboBox, QHBoxLayout
+from PySide6.QtGui import QIcon, QColor, QBrush, QPainter, QPixmap
+from PySide6.QtCore import Qt, QRect, QSize
 
 from ui.widgets import Widget
 from ui.theme import Theme, register_has_theme_and_apply, theme_manager
@@ -101,6 +101,41 @@ class ComboBoxItemDelegate(QStyledItemDelegate):
 
 
 
+class _ArrowComboBox(QComboBox):
+    """QComboBox that paints its own drop-down arrow. A stylesheet can only point `image:` at a fixed
+    file, so the arrow could never follow the theme's text color. The stylesheet hides the native
+    arrow (`image: none`), this paints the tinted one exactly where Qt would have."""
+
+    ARROW_SIZE = 12
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._arrow: QPixmap | None = None
+        self._arrow_disabled: QPixmap | None = None
+
+    def set_arrow_pixmaps(self, normal: QPixmap, disabled: QPixmap):
+        self._arrow, self._arrow_disabled = normal, disabled
+        self.update()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        pixmap = self._arrow if self.isEnabled() else self._arrow_disabled
+        if pixmap is None:
+            return
+        opt = QStyleOptionComboBox()
+        self.initStyleOption(opt)
+        rect = self.style().subControlRect(
+            QStyle.ComplexControl.CC_ComboBox, opt, QStyle.SubControl.SC_ComboBoxArrow, self
+        )
+        size = self.ARROW_SIZE
+        target = QRect(
+            rect.center().x() - size // 2 + 1, rect.center().y() - size // 2 + 1, size, size
+        )
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.drawPixmap(target, pixmap)
+
+
 class ComboBox(Widget):
 
     def __init__(self, tint_icons: bool = True, parent=None):
@@ -112,7 +147,7 @@ class ComboBox(Widget):
         self.master_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.master_layout)
 
-        self.qt_widget = QComboBox()
+        self.qt_widget = _ArrowComboBox()
         self.master_layout.addWidget(self.qt_widget)
         
         self.delegate = ComboBoxItemDelegate(
@@ -161,6 +196,11 @@ class ComboBox(Widget):
                     self.qt_widget.setItemIcon(i, icon)
 
         self.delegate.set_theme(theme)
+        arrow_icon = QIcon(":/assets/icons/ExpandSmallIcon.png")
+        self.qt_widget.set_arrow_pixmaps(
+            tint_icon(arrow_icon, theme.text.color_hex_argb, size=24).pixmap(24, 24),
+            tint_icon(arrow_icon, theme.text.muted_hex_argb, size=24).pixmap(24, 24),
+        )
         self.setStyleSheet(f"""
             QComboBox {{
                 color: {theme.text.color};
@@ -198,7 +238,7 @@ class ComboBox(Widget):
             }}
 
             QComboBox::down-arrow {{
-                image: url(:/assets/icons/ExpandSmallIcon.png);
+                image: none;  /* painted by _ArrowComboBox, in the theme's text color */
                 width: 12px;
                 height: 12px;
             }}

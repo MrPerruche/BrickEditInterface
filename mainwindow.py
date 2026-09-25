@@ -8,13 +8,28 @@ from systems.settings import settings_manager
 from systems.backup import BackupSystem
 from systems.update import UpdateChecker
 
-from ui.theme import Theme, register_has_theme_and_apply
+from ui.theme import Theme, register_has_theme_and_apply, theme_manager, style_rules
 from ui.components import VehicleSelectionDrawer
 from ui.dialogs import UpdateFoundDialog, UpToDateDialog, UpdateCheckFailedDialog
 
 from sidebar import Sidebar
 from menus import *
 from var import VERSION_NUMBER, IS_PRIVATE_VERSION
+
+@style_rules
+def _tooltip_rules(theme: Theme) -> str:
+    # Tooltips are styled through the *hovered widget's* ancestors, so their rule lives in the global sheet
+    return f"""
+        QToolTip {{
+            background-color: {theme.background.color};
+            color: {theme.text.color};
+
+            border: 2px solid {theme.border.color};
+            border-radius: 4px;
+
+            font-size: 13pt;
+        }}"""
+
 
 class BrickEditInterface(QMainWindow):
     """Main application window for the BrickEdit interface."""
@@ -26,6 +41,9 @@ class BrickEditInterface(QMainWindow):
         self.resize(360, 720)
         self.setMinimumWidth(360)
         self.setWindowTitle("BrickEdit Interface")
+
+        # This window carries the global stylesheet (see ThemeManager). Before any widget is created.
+        theme_manager.set_style_host(self)
 
         # Systems
         self.settings = settings_manager
@@ -109,22 +127,9 @@ class BrickEditInterface(QMainWindow):
         register_has_theme_and_apply(self)
 
     def _apply_theme(self, theme: Theme) -> None:
-        # Tooltips are styled through the *hovered widget's* ancestors, so this has to live on the window
-        #  (app-level is ~4x slower to re-apply, central-level would skip dialogs). It is the priciest
-        #  remaining part of a theme change since it re-polishes every widget.
-        self.setStyleSheet(f"""
-            QToolTip {{
-                background-color: {theme.background.color};
-                color: {theme.text.color};
-
-                border: 2px solid {theme.border.color};
-                border-radius: 4px;
-
-                font-size: 13pt;
-            }}""")
-
         # Palettes, not stylesheets: a stylesheet on an ancestor re-polishes every descendant.
-        #  Must come AFTER the setStyleSheet above: re-polishing restores widgets' previous palette.
+        #  Must come AFTER the global stylesheet is applied (ThemeManager.set_theme does that before
+        #  emitting theme_changed): re-polishing restores widgets' previous palette.
         pal = self.centralWidget().palette()
         pal.setColor(QPalette.ColorRole.Window, theme.background.color_qcolor)
         self.centralWidget().setPalette(pal)

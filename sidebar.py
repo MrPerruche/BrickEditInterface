@@ -5,8 +5,40 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon
 
 from menus.base import MenuInfo
-from ui.theme import Theme, register_has_theme_and_apply
+from ui.theme import Theme, register_has_theme_and_apply, style_rules
 from utils import tint_icon
+
+
+@style_rules
+def _sidebar_rules(theme: Theme) -> str:
+    # QToolButton rules are scoped to the sidebar (they used to live in the sidebar's own stylesheet)
+    return f"""
+        Sidebar {{
+            background-color: {theme.sidebar.color};
+        }}
+
+        QWidget#sidebarContainer {{
+            background-color: {theme.sidebar.color};
+        }}
+
+        QScrollArea#menuScroll {{
+            background-color: {theme.sidebar.color};
+            border: none;
+        }}
+
+        Sidebar QToolButton {{
+            border-radius: 6px;
+            background-color: transparent;
+            color: {theme.sidebar.color};
+        }}
+
+        Sidebar QToolButton:hover {{
+            background-color: {theme.surface.color_double};
+        }}
+
+        Sidebar QToolButton:checked {{
+            background-color: {theme.accent.color};
+        }}"""
 
 
 class Sidebar(QWidget):
@@ -91,36 +123,6 @@ class Sidebar(QWidget):
 
 
     def _apply_theme(self, theme: Theme) -> None:
-        # Update styles
-        self.setStyleSheet(f"""
-            Sidebar {{
-                background-color: {theme.sidebar.color};
-            }}
-
-            QWidget#sidebarContainer {{
-                background-color: {theme.sidebar.color};
-            }}
-
-            QScrollArea#menuScroll {{
-                background-color: {theme.sidebar.color};
-                border: none;
-            }}
-
-            QToolButton {{
-                border-radius: 6px;
-                background-color: transparent;
-                color: {theme.sidebar.color};
-            }}
-
-            QToolButton:hover {{
-                background-color: {theme.surface.color_double};
-            }}
-
-            QToolButton:checked {{
-                background-color: {theme.accent.color};
-            }}
-        """)
-
         # Update QIcons
         icon_col = theme.text.color_hex_argb
         for btn, menu_cfg in zip(self.buttons, self.menu_configs):

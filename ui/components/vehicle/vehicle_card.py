@@ -101,6 +101,53 @@ class VehicleCardData:
         
 
 
+def format_vehicle_card_texts(vehicle_card_data: "VehicleCardData") -> tuple[str, str, str]:
+    """(display name, date text, brick count text) shown on a vehicle card."""
+    name = vehicle_card_data.name
+    brick_count = vehicle_card_data.brick_count
+    creation_time = vehicle_card_data.creation_time
+    last_update_time = vehicle_card_data.last_update_time
+    brick_count_uncertain = vehicle_card_data.ambiguous_brick_count
+
+    # Display name
+    display_name = name if name is not None and name else "Unnamed"
+
+    # Brick count
+    if brick_count <= 0:
+        display_brick_count = "Empty" + ("*" if brick_count_uncertain[0] else "")
+    elif brick_count == 1:
+        display_brick_count = "1*\nbrick" if brick_count_uncertain[0] else "1\nbrick"
+    else:
+        display_brick_count = f"{brick_count}{'*' if brick_count_uncertain[0] else ''}\nbricks"
+
+    # Make times safe (if above 9 quint limit, set to 0)
+    if creation_time > 0x7F_FF_FF_FF_FF_FF_FF_FF:
+        creation_time = 0
+    if last_update_time > 0x7F_FF_FF_FF_FF_FF_FF_FF:
+        last_update_time = 0
+    # Make datetimes from .NET ticks
+    current_datetime = datetime.now(UTC)
+    creation_datetime = safe_from_net_ticks(creation_time)
+    last_update_datetime = safe_from_net_ticks(last_update_time)
+    if creation_datetime is None:
+        creation_datetime = safe_from_net_ticks(0)
+    if last_update_datetime is None:
+        last_update_datetime = safe_from_net_ticks(0)
+    # Datetime -> Jan 23, 4567
+    creation_date_str = f"{creation_datetime.strftime('%b')} {creation_datetime.day}, {creation_datetime.year}"
+    last_update_date_str = f"{last_update_datetime.strftime('%b')} {last_update_datetime.day}, {last_update_datetime.year}"
+    # Create timedeltas for time since
+    creation_since = current_datetime - creation_datetime
+    last_update_since = current_datetime - last_update_datetime
+    # Format timedeltas
+    creation_since_str = str_time_since(int(creation_since.total_seconds()))
+    last_update_since_str = str_time_since(int(last_update_since.total_seconds()))
+    # Show text
+    creation_str = f"Created {creation_date_str} ({creation_since_str})" if creation_time != 0 else "Creation date unknown"
+    last_update_str = f"Last saved {last_update_date_str} ({last_update_since_str})" if last_update_time != 0 else "Last saved date unknown"
+    return display_name, f"{creation_str}\n{last_update_str}", display_brick_count
+
+
 class VehicleCard(Widget):
 
     clicked = Signal(str)
@@ -243,53 +290,10 @@ class VehicleCard(Widget):
         update_thumbnail: bool,
         vehicle_card_data: VehicleCardData
     ):
-        name = vehicle_card_data.name
-        brick_count = vehicle_card_data.brick_count
-        creation_time = vehicle_card_data.creation_time
-        last_update_time = vehicle_card_data.last_update_time
-        brick_count_uncertain = vehicle_card_data.ambiguous_brick_count
-
-        # Display name
-        display_name = name if name is not None and name else "Unnamed"
+        display_name, date_text, display_brick_count = format_vehicle_card_texts(vehicle_card_data)
         self.name_label.set_text(display_name)
-
-        # Brick count
-        if brick_count <= 0:
-            display_brick_count = "Empty" + ("*" if brick_count_uncertain[0] else "")
-        elif brick_count == 1:
-            display_brick_count = "1*\nbrick" if brick_count_uncertain[0] else "1\nbrick"
-        else:
-            display_brick_count = f"{brick_count}{'*' if brick_count_uncertain[0] else ''}\nbricks"
-
         self.brick_count_label.set_text(display_brick_count)
-
-
-        # Make times safe (if above 9 quint limit, set to 0)
-        if creation_time > 0x7F_FF_FF_FF_FF_FF_FF_FF:
-            creation_time = 0
-        if last_update_time > 0x7F_FF_FF_FF_FF_FF_FF_FF:
-            last_update_time = 0
-        # Make datetimes from .NET ticks
-        current_datetime = datetime.now(UTC)
-        creation_datetime = safe_from_net_ticks(creation_time)
-        last_update_datetime = safe_from_net_ticks(last_update_time)
-        if creation_datetime is None:
-            creation_datetime = safe_from_net_ticks(0)
-        if last_update_datetime is None:
-            last_update_datetime = safe_from_net_ticks(0)
-        # Datetime -> Jan 23, 4567
-        creation_date_str = f"{creation_datetime.strftime('%b')} {creation_datetime.day}, {creation_datetime.year}"
-        last_update_date_str = f"{last_update_datetime.strftime('%b')} {last_update_datetime.day}, {last_update_datetime.year}"
-        # Create timedeltas for time since
-        creation_since = current_datetime - creation_datetime
-        last_update_since = current_datetime - last_update_datetime
-        # Format timedeltas
-        creation_since_str = str_time_since(int(creation_since.total_seconds()))
-        last_update_since_str = str_time_since(int(last_update_since.total_seconds()))
-        # Show text
-        creation_str = f"Created {creation_date_str} ({creation_since_str})" if creation_time != 0 else "Creation date unknown"
-        last_update_str = f"Last saved {last_update_date_str} ({last_update_since_str})" if last_update_time != 0 else "Last saved date unknown"
-        self.date_label.set_text(f"{creation_str}\n{last_update_str}")
+        self.date_label.set_text(date_text)
 
 
         # Thumbnail

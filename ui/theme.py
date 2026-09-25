@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from PySide6.QtGui import QColor
-from PySide6.QtCore import QObject, Signal
-from typing import Protocol
+from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import QObject, Signal, Qt
+from typing import Callable, Protocol
 
 from systems.settings import settings_manager
 
@@ -324,7 +325,25 @@ DEV_TEST = Theme(name="dev", display_name="Debug theme", is_highcontrast=False,
     danger_border=ThemeColor("#ac191eff")
 )
 
+StyleRules = Callable[[Theme], str]
+
+
 class ThemeManager(QObject):
+    """Holds the current theme and owns the *global stylesheet*.
+
+    Global stylesheet: instead of every widget building and applying its own stylesheet on each theme
+    change (which re-polishes its whole subtree, hundreds of times), widgets register a function that
+    returns their QSS rules (see `style_rules`) and tag themselves with a dynamic property those rules
+    select on. The rules of every widget are joined and applied ONCE on the style host (the main window),
+    which is much faster.
+
+    Mixing with per-widget stylesheets: Qt merges the stylesheets of a widget and all its ancestors, and
+    the closest one wins conflicts, whatever the specificity. So a widget that still calls setStyleSheet
+    keeps overriding the global rules (which is also how per-instance looks, like the danger pulse of a
+    Button, are done). Consequence for ancestors: never give an ancestor a selector-less declaration
+    (eg. `setStyleSheet("background-color: red")`), it would beat the global rules of ALL its descendants.
+    Always scope by type, objectName or property.
+    """
     theme_changed = Signal(object)  # emits a Theme
     themes = (
         DARK, LIGHT, NIGHT, HIGH_CONTRAST,
@@ -334,6 +353,10 @@ class ThemeManager(QObject):
 
     def __init__(self):
         super().__init__()
+
+        self._style_host: QWidget | None = None
+        self._rule_providers: list[StyleRules] = []
+        self._sheet_cache: dict[str, str] = {}
 
         self._current = DARK
         settings_manager.register('theme', DARK.name)
@@ -353,6 +376,9 @@ class ThemeManager(QObject):
         """Sets current theme and update all widgets."""
         self._current = theme
         settings_manager.set('theme', theme.name)
+        # Global sheet first (repolishes the whole tree, which also resets some palettes), then let
+        #  widgets do their non-stylesheet work (icons, palettes...) in _apply_theme.
+        self._refresh_style_host()
         self.theme_changed.emit(theme)
 
     def set_theme_from_name(self, name: str) -> None:
@@ -361,7 +387,64 @@ class ThemeManager(QObject):
                 continue
             self.set_theme(theme)
 
+    # --- Global stylesheet
+
+    def register_style_rules(self, provider: StyleRules) -> StyleRules:
+        """Registers a function (Theme -> QSS text) whose rules become part of the global stylesheet.
+        Usable as a decorator (see `style_rules`). Scope every selector with a property, eg.
+        `QLabel[beiLabel="true"]`, so Qt's own widgets (tooltips are QLabels!) are never matched."""
+        self._rule_providers.append(provider)
+        self._sheet_cache.clear()
+        self._refresh_style_host()
+        return provider
+
+    def global_stylesheet(self, theme: Theme | None = None) -> str:
+        """Rules of every registered provider for `theme` (default: current). Cached per theme."""
+        theme = theme if theme is not None else self._current
+        sheet = self._sheet_cache.get(theme.name)
+        if sheet is None:
+            sheet = "\n".join(provider(theme) for provider in self._rule_providers)
+            self._sheet_cache[theme.name] = sheet
+        return sheet
+
+    def set_style_host(self, widget: QWidget) -> None:
+        """The widget carrying the global stylesheet: every widget below it is styled by it. Must be the
+        main window, NOT QApplication (applying a sheet app-wide is ~4x slower)."""
+        self._style_host = widget
+        self._refresh_style_host()
+
+    def style_sheet_for(self, widget: QWidget, theme: Theme | None = None) -> str:
+        """Global stylesheet a top-level `widget` must carry itself, "" if it already inherits it from the
+        style host. Needed by windows without the main window as parent (eg. startup error dialogs).
+        Prepend it to the widget's own sheet from its _apply_theme (theme_changed reaches it as usual)."""
+        w = widget
+        while w is not None:
+            if w is self._style_host:
+                return ""
+            w = w.parentWidget()
+        return self.global_stylesheet(theme)
+
+    def _refresh_style_host(self) -> None:
+        if self._style_host is not None:
+            self._style_host.setStyleSheet(self.global_stylesheet())
+
 theme_manager = ThemeManager()
+
+
+def style_rules(provider: StyleRules) -> StyleRules:
+    """Decorator: `@style_rules` on a `(theme) -> QSS text` function adds it to the global stylesheet."""
+    return theme_manager.register_style_rules(provider)
+
+
+def set_style_property(widget: QWidget, name: str, value) -> None:
+    """Sets a dynamic property that global rules select on (eg. `[surfaceState="hover"]`) and restyles
+    that widget only. Plain setProperty() doesn't restyle. No-op when the value doesn't change, and
+    when the widget was never polished (not shown yet), since it reads the property when first shown."""
+    if widget.property(name) == value:
+        return
+    widget.setProperty(name, value)
+    if widget.testAttribute(Qt.WidgetAttribute.WA_WState_Polished):
+        repolish(widget)
 
 
 class SupportsTheme(Protocol):

@@ -2,7 +2,28 @@ from PySide6.QtWidgets import QLayout, QVBoxLayout, QScrollArea, QDialog, QSizeP
 from PySide6.QtCore import Qt
 
 from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry
-from ui.theme import register_has_theme_and_apply, Theme
+from ui.theme import Theme, style_rules
+
+
+@style_rules
+def _tutorial_rules(theme: Theme) -> str:
+    return f"""
+        Tutorial {{
+            background-color: {theme.background.color};
+        }}
+
+        QScrollArea[tutorialScroll] {{
+            background-color: {theme.background.color};
+            border: none;
+        }}
+
+        QWidget[tutorialContent] {{
+            background-color: {theme.background.color};
+        }}
+
+        QWidget[tutorialWarning] {{
+            border-bottom: 2px solid {theme.border.color};
+        }}"""
 
 
 class Tutorial(QDialog):
@@ -63,7 +84,6 @@ class Tutorial(QDialog):
             self.setWindowTitle(title_text)
             self.setMinimumSize(300, 200)
             self.resize(325, 650)
-        register_has_theme_and_apply(self)
 
 
 
@@ -160,23 +180,3 @@ class Tutorial(QDialog):
             self.master_layout.addStretch(1)
 
         self.show()
-
-    def _apply_theme(self, theme: Theme):
-        self.setStyleSheet(f"""
-        Tutorial {{
-            background-color: {theme.background.color};
-        }}
-
-        QScrollArea[tutorialScroll] {{
-            background-color: {theme.background.color};
-            border: none;
-        }}
-        
-        QWidget[tutorialContent] {{
-            background-color: {theme.background.color};
-        }}
-        
-        QWidget[tutorialWarning] {{
-            border-bottom: 2px solid {theme.border.color};
-        }}
-        """)

@@ -3,11 +3,57 @@ from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon, QColor
 
 from ui.widgets.widget import Widget
-from ui.theme import Theme, register_has_theme_and_apply, theme_manager
+from ui.theme import Theme, register_has_theme_and_apply, theme_manager, style_rules
 from ui.animations.pulse import PulseAnimation
 from ui.models import TooltipContents
 
 from utils import tint_icon
+
+
+def _button_qss(selector: str, theme: Theme, bg: str, hover: str, pressed: str, border: str) -> str:
+    """Button rules, for the global sheet (normal colors) and the per-instance danger override (blended)."""
+    return f"""
+            {selector} {{
+                color: {theme.text.color};
+                background-color: {bg};
+
+                border: 2px solid {border};
+                border-radius: 4px;
+
+                padding: 1px 4px;
+                
+
+                font-size: 13pt;
+            }}
+
+            {selector}:hover {{
+                background-color: {hover};
+                border-color: {border};
+            }}
+
+            {selector}:pressed {{
+                background-color: {pressed};
+            }}
+
+            {selector}:checked {{
+                background-color: {theme.accent.color};
+                border-color: {theme.accent_border.color};
+            }}
+
+            {selector}:disabled {{
+                color: {theme.text.muted};
+                background-color: {theme.surface.muted};
+                border-color: {theme.border.muted};
+            }}"""
+
+
+@style_rules
+def _button_rules(theme: Theme) -> str:
+    return _button_qss(
+        'QPushButton[beiButton="true"]', theme,
+        bg=theme.surface.color, hover=theme.surface.color_double,
+        pressed=theme.surface.muted, border=theme.border.color,
+    )
 
 
 class Button(Widget):
@@ -28,6 +74,7 @@ class Button(Widget):
         self.og_text = text
         self.icon_spacing_prepend = " "
         self.qt_widget = QPushButton("(button name not updated in init!)")
+        self.qt_widget.setProperty("beiButton", True)  # Selected by _button_rules
         self._layout.addWidget(self.qt_widget)
         
         self.og_icon = icon
@@ -120,6 +167,8 @@ class Button(Widget):
 
     def _apply_theme(self, theme: Theme):
         if self.danger.is_active():
+            # Per-instance look that changes every animation frame: an own stylesheet on this widget,
+            #  which wins over the global rules. Same rules, blended colors.
             bg = self._blend(
                 theme.surface.color_hex_argb,
                 theme.danger_surface.color_hex_argb,
@@ -140,47 +189,9 @@ class Button(Widget):
                 theme.danger.color_hex_argb,
                 self.danger.current_value(),
             )
-        else:
-            bg = theme.surface.color
-            hover = theme.surface.color_double
-            pressed = theme.surface.muted
-            border = theme.border.color
-
-
-        style = f"""
-            QPushButton {{
-                color: {theme.text.color};
-                background-color: {bg};
-
-                border: 2px solid {border};
-                border-radius: 4px;
-
-                padding: 1px 4px;
-                
-
-                font-size: 13pt;
-            }}
-
-            QPushButton:hover {{
-                background-color: {hover};
-                border-color: {border};
-            }}
-
-            QPushButton:pressed {{
-                background-color: {pressed};
-            }}
-
-            QPushButton:checked {{
-                background-color: {theme.accent.color};
-                border-color: {theme.accent_border.color};
-            }}
-
-            QPushButton:disabled {{
-                color: {theme.text.muted};
-                background-color: {theme.surface.muted};
-                border-color: {theme.border.muted};
-            }}"""
-        self.setStyleSheet(style)
+            self.setStyleSheet(_button_qss("QPushButton", theme, bg, hover, pressed, border))
+        elif self.styleSheet():
+            self.setStyleSheet("")  # Back to the global rules
 
         # if self.og_icon is None, then None is passed to set_icon which will remove icon if it exists
         icon = self.og_icon if (not self.tint_icon) or self.og_icon is None else tint_icon(self.og_icon, theme.text.color_hex_argb)
