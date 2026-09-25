@@ -7,8 +7,9 @@ Built around one reusable primitive (`greedy_cover_with_wildcards`) that
 covers a set of "must be this color" cells using rectangles allowed to
 bulge into "don't care" cells that a higher layer will end up owning.
 
-No dependencies beyond numpy + PIL + scipy (scipy.ndimage.label, used
-narrowly inside greedy_cover_with_wildcards -- see note below).
+No dependencies beyond numpy + PIL (connected components are labelled by
+`_label_components_4`, used inside greedy_cover_with_wildcards -- see note
+below).
 
 --------------------------------------------------------------------------
 Pipeline
@@ -24,7 +25,7 @@ Pipeline
 you described (none / 2d / 3d_greedy / 3d_slow).
 
 --------------------------------------------------------------------------
-Note on scipy usage (read this if you're wondering why it's back)
+Note on connected components (why they are used at all)
 --------------------------------------------------------------------------
 An earlier version of this module extracted every color's connected
 components ONCE up front and kept a full-canvas boolean mask per
@@ -60,9 +61,6 @@ from typing import Callable, Optional
 
 import numpy as np
 from PIL import Image
-from scipy.ndimage import label as cc_label, find_objects
-
-_CONNECTIVITY_4 = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
 
 
 Rect = tuple[int, int, int, int, int]  # r0, c0, r1, c1, color_id
@@ -190,18 +188,96 @@ def compute_components(must_cover: np.ndarray) -> list[tuple[slice, slice, np.nd
     and those are applied later, not here). See `decompose_worker.py`'s
     per-worker-process cache for where this gets reused.
     """
-    labeled, n_components = cc_label(must_cover, structure=_CONNECTIVITY_4)
-    if n_components == 0:
+    return _label_components_4(must_cover)
+
+
+def _label_components_4(mask: np.ndarray) -> list[tuple[slice, slice, np.ndarray]]:
+    """
+    4-connected component labelling without scipy. Components are returned
+    in raster order of their first cell (same order scipy.ndimage.label +
+    find_objects produced), each as (row_slice, col_slice, local_mask).
+
+    Works on horizontal runs instead of pixels: every row is split into runs
+    of True cells with numpy, runs in adjacent rows that share a column are
+    linked (found with searchsorted, no per-pixel Python), and a tiny
+    union-find merges them. Python-level work scales with the number of runs,
+    not pixels.
+    """
+    mask = np.asarray(mask, dtype=bool)
+    h, w = mask.shape
+    if h == 0 or w == 0 or not mask.any():
         return []
-    boxes = find_objects(labeled)
+
+    padded = np.zeros((h, w + 2), dtype=np.int8)
+    padded[:, 1:-1] = mask
+    d = np.diff(padded, axis=1)
+    rows, starts = np.nonzero(d == 1)
+    _, ends = np.nonzero(d == -1)
+    ends = ends - 1  # inclusive last column of each run
+    rows = rows.astype(np.int64)
+    starts = starts.astype(np.int64)
+    ends = ends.astype(np.int64)
+    n = len(rows)
+
+    # Runs are sorted by (row, start), so these keys are globally sorted.
+    stride = w + 1
+    start_key = rows * stride + starts
+    end_key = rows * stride + ends
+    nxt = (rows + 1) * stride
+    lo = np.searchsorted(end_key, nxt + starts, side="left")    # first run in next row with end >= start
+    hi = np.searchsorted(start_key, nxt + ends, side="right")   # past last run in next row with start <= end
+    cnt = np.maximum(hi - lo, 0)
+    total = int(cnt.sum())
+
+    # Merge linked runs with vectorized "hook the larger root onto the
+    # smaller one, then pointer-jump" passes. Labels only ever decrease and a
+    # component's smallest run index never moves, so each component settles
+    # on its first run in raster order (which is what keeps raster ordering).
+    roots = np.arange(n, dtype=np.int64)
+    if total:
+        u = np.repeat(np.arange(n, dtype=np.int64), cnt)
+        v = np.repeat(lo, cnt) + (np.arange(total, dtype=np.int64) - np.repeat(np.cumsum(cnt) - cnt, cnt))
+        while True:
+            lu, lv = roots[u], roots[v]
+            differ = lu != lv
+            if not differ.any():
+                break
+            lu, lv = lu[differ], lv[differ]
+            lo_l, hi_l = np.minimum(lu, lv), np.maximum(lu, lv)
+            np.minimum.at(roots, hi_l, lo_l)
+            while True:
+                jumped = roots[roots]
+                if np.array_equal(jumped, roots):
+                    break
+                roots = jumped
+    _, comp = np.unique(roots, return_inverse=True)
+
+    order = np.argsort(comp, kind="stable")  # stable: runs stay in raster order inside a component
+    comp_s = comp[order]
+    bounds = np.flatnonzero(np.r_[True, comp_s[1:] != comp_s[:-1]])
+    ends_b = np.r_[bounds[1:], n]
+    rows_s, starts_s, ends_s = rows[order], starts[order], ends[order]
+    c0s = np.minimum.reduceat(starts_s, bounds).tolist()
+    c1s = np.maximum.reduceat(ends_s, bounds).tolist()
+    r0s = rows_s[bounds].tolist()
+    r1s = rows_s[ends_b - 1].tolist()
+    rows_l, starts_l, ends_l = rows_s.tolist(), starts_s.tolist(), ends_s.tolist()
+
+    strips: dict[int, np.ndarray] = {}
     components = []
-    for comp_id, box in enumerate(boxes, start=1):
-        if box is None:
-            continue
-        row_slice, col_slice = box
-        local_labeled = labeled[row_slice, col_slice]
-        local_must_cover = local_labeled == comp_id
-        components.append((row_slice, col_slice, local_must_cover))
+    for k, (b, e) in enumerate(zip(bounds.tolist(), ends_b.tolist())):
+        r0, r1, c0, c1 = r0s[k], r1s[k], c0s[k], c1s[k]
+        if e - b == 1:  # single run (the norm for noisy images): a solid strip
+            width = c1 - c0 + 1
+            local = strips.get(width)
+            if local is None:
+                local = strips[width] = np.ones((1, width), dtype=bool)
+                local.setflags(write=False)  # shared between components; callers must copy before mutating
+        else:
+            local = np.zeros((r1 - r0 + 1, c1 - c0 + 1), dtype=bool)
+            for i in range(b, e):
+                local[rows_l[i] - r0, starts_l[i] - c0:ends_l[i] - c0 + 1] = True
+        components.append((slice(r0, r1 + 1), slice(c0, c1 + 1), local))
     return components
 
 
@@ -252,7 +328,7 @@ def greedy_cover_with_wildcards(
     """
     rects: list[tuple[int, int, int, int]] = []
 
-    # find_objects locates every component's bounding box in a single
+    # compute_components locates every component's bounding box in a single
     # efficient pass -- the earlier version recomputed each component's
     # bbox by re-scanning the FULL canvas per component (`labeled ==
     # comp_id` + `.any(...)`), which is exactly the same "huge repeated
@@ -435,7 +511,7 @@ def decompose_layered(
     per-restart `allowed` regions do -- so a caller running many restarts
     against the same image (e.g. DecomposeWorker's local-search loop) can
     pass the SAME dict across every restart to skip re-running
-    `scipy.ndimage.label` + `find_objects` for colors it's already seen.
+    `compute_components` for colors it's already seen.
     Pass None (the default) to always compute fresh, exactly as before.
     """
     if max_layers <= 1:

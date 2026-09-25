@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QHBoxLayout
-from PySide6.QtCore import QUrl, QSize, Qt
+from PySide6.QtCore import QUrl, QSize, Qt, QTimer
 from PySide6.QtGui import QDesktopServices, QIcon
 
 import os.path as path
@@ -273,6 +273,16 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
     def update_excess_label(self):
+        """Deferred and coalesced: scanning every vehicle's backups is slow, and this gets requested at
+        startup and on every vehicle change. Calls made in quick succession result in a single scan."""
+        timer = getattr(self, "_excess_timer", None)
+        if timer is None:
+            timer = self._excess_timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(self._update_excess_label_now)
+        timer.start(100)
+
+    def _update_excess_label_now(self):
         excess = self.main_window.backups.find_all_excess(get_vehicles_path())
         excess_size = 0
         for excess_dir in excess:

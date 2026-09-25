@@ -18,7 +18,6 @@ PySide6==6.11.2
 PySide6-stubs==6.7.3.0
 PySide6_Addons==6.11.2
 PySide6_Essentials==6.11.2
-scipy==1.18.1
 Send2Trash==2.1.0
 shiboken6==6.11.2
 tomli_w==1.2.0

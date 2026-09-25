@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QScrollArea, QSizePolicy, QFileDialog
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 
 import os
 from enum import Enum
@@ -78,7 +78,8 @@ class VehicleSelector(Widget):
         # BOTTOM TEXT AND STUFF
         self.master_layout.addWidget(self.scroll_area)
         self.master_layout.addStretch(1)
-        self._reload()
+        # Scanning vehicles + building cards is slow: let the window show up first.
+        QTimer.singleShot(100, self, self._reload)
         register_has_theme_and_apply(self)
 
     

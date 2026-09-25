@@ -1,5 +1,6 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedLayout, QScrollArea
+from PySide6.QtGui import QPalette
+from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedLayout, QScrollArea
 
 from packaging.version import Version
 
@@ -41,7 +42,7 @@ class BrickEditInterface(QMainWindow):
         # Set up central widget and layout
         central = QWidget()
         central.setObjectName("appCentral")
-        central.setAttribute(Qt.WA_StyledBackground, True)
+        central.setAutoFillBackground(True)  # Background is a palette color, not a stylesheet (repolishes the whole tree)
         self.setCentralWidget(central)
 
         master_layout = QVBoxLayout(central)
@@ -97,6 +98,7 @@ class BrickEditInterface(QMainWindow):
             scroll.setWidgetResizable(True)
             scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
             scroll.setFrameShape(QScrollArea.NoFrame)
+            scroll.setStyleSheet("QScrollArea { border: none; }")  # Theme independent: set once
 
             scroll.setWidget(menu)
             self.menu_stack.addWidget(scroll)
@@ -107,17 +109,9 @@ class BrickEditInterface(QMainWindow):
         register_has_theme_and_apply(self)
 
     def _apply_theme(self, theme: Theme) -> None:
-        self.centralWidget().setStyleSheet(f"""
-            QWidget#appCentral {{
-                background-color: {theme.background.color};
-            }}
-        """)
-
-        for i in range(self.menu_stack.count()):
-            scroll = self.menu_stack.widget(i)
-            if isinstance(scroll, QScrollArea):
-                scroll.setStyleSheet("QScrollArea { border: none; }")
-
+        # Tooltips are styled through the *hovered widget's* ancestors, so this has to live on the window
+        #  (app-level is ~4x slower to re-apply, central-level would skip dialogs). It is the priciest
+        #  remaining part of a theme change since it re-polishes every widget.
         self.setStyleSheet(f"""
             QToolTip {{
                 background-color: {theme.background.color};
@@ -128,7 +122,13 @@ class BrickEditInterface(QMainWindow):
 
                 font-size: 13pt;
             }}""")
-        
+
+        # Palettes, not stylesheets: a stylesheet on an ancestor re-polishes every descendant.
+        #  Must come AFTER the setStyleSheet above: re-polishing restores widgets' previous palette.
+        pal = self.centralWidget().palette()
+        pal.setColor(QPalette.ColorRole.Window, theme.background.color_qcolor)
+        self.centralWidget().setPalette(pal)
+
 
     def maybe_report_new_update(self, new_version: str):
 

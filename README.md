@@ -21,8 +21,8 @@ Windows Defenders believes the file is a virus because I did not pay hundreds of
     2. See the `resources.qrc` file. You will see all pathes lead to either a license or assets such as images.
     3. Run the following command: `pyside6-rcc resources.qrc -o resources_rc.py`
 10. Do not close the terminal window. You should now be able to run `python main.py` by double clicking (and selecting Python 3.13 if necessary)
-11. Compile the program by running `python -m nuitka --onefile --windows-console-mode=disable --windows-icon-from-ico="assets/icons/brickeditinterface.ico" --output-dir=compiled_build --enable-plugin=pyside6 main.py`. This will take a few minutes
-12. You are done. The compiled build is available in `compiled_build/main.exe`. Run it by double click the executable.
+11. Compile the program by running `python -m nuitka --standalone --windows-console-mode=disable --windows-icon-from-ico="assets/icons/brickeditinterface.ico" --output-dir=compiled_build --enable-plugin=pyside6 main.py`. This will take a few minutes
+12. You are done. The compiled build is the `compiled_build/main.dist` folder. Run `main.exe` inside it by double clicking it (keep it in that folder: it needs the files next to it).
 
 
 # For developers:
@@ -42,7 +42,9 @@ Remember: this program is compiled using Nuitka. `eval()`, `exec()` and similar,
 
 ## Compilation:
 
-FOR TESTING:
+Both commands below use `--standalone` (a folder with the exe and its libraries; faster to start than `--onefile`, which has to unpack itself every launch).
+Nuitka caches compiled C files between runs, so only the first build is slow. Do not delete `compiled_build/` between test builds, or you lose that cache.
+
 ```ps1
 python -m nuitka `
     --standalone `
@@ -50,20 +52,27 @@ python -m nuitka `
     --output-dir=compiled_build `
     --windows-icon-from-ico="assets/icons/brickeditinterface.ico" `
     --enable-plugin=pyside6 `
-    --include-package=scipy._external.array_api_compat `
+    --lto=yes `
+    --python-flag=no_docstrings `
+    --nofollow-import-to=numpy.f2py,numpy.testing,tkinter,unittest `
+    --noinclude-dlls="*qt6pdf*" `
+    --company-name="MrPerruche" `
+    --product-name="BrickEdit-Interface" `
+    --file-description="BrickEdit-Interface" `
+    --file-version=VERSION HERE `
+    --product-version=VERSION HERE `
+    --remove-output `
+    --output-filename="BrickEdit-Interface.exe" `
+    --report=compiled_build/compilation-report.xml `
     main.py
 ```
 
-FOR RELEASE (OPTIMIZED, LONGER TO COMPILE):
-```ps1
-python -m nuitka `
-    --standalone `
-    --windows-console-mode=disable `
-    --output-dir=compiled_build `
-    --windows-icon-from-ico="assets/icons/brickeditinterface.ico" `
-    --enable-plugin=pyside6 `
-    --include-package=scipy._external.array_api_compat `
-    --remove-output `
-    --output-filename="BrickEdit-Interface.exe" `
-    main.py
-```
+What the extra flags do, and how to keep the build lean:
+- `--lto=yes` / `--lto=no`: link-time optimization. Smaller and faster exe, but much slower to link. Only worth it for release builds.
+- `--python-flag=no_docstrings`: strips docstrings from the compiled code (smaller exe). `no_asserts` is intentionally not used, since some code relies on `assert`.
+- `--nofollow-import-to=...`: skips modules that are never used at runtime (numpy's Fortran wrapper and test helpers, tkinter, unittest). Do not exclude `multiprocessing`: the image importer uses a process pool.
+- `--noinclude-dlls="*qt6pdf*"`: drops Qt's PDF library (~5 MB), which the app does not use.
+- `--company-name`, `--product-name`, `--file-*`, `--product-version`: fills in the exe's Windows file properties. Update the versions to match `var.py`. Proper metadata also tends to reduce (not eliminate) antivirus false positives.
+- `--report=...`: writes an XML listing of every module compiled and its size. Check it after adding a dependency: a single import can pull in hundreds of modules (this is how scipy was found to be adding ~90 MB).
+- Do not add heavy dependencies (scipy, pandas, matplotlib, ...) for small tasks. Prefer numpy/PIL, which are already bundled.
+- If something misbehaves in a build, first remove `--nofollow-import-to` and `--noinclude-dlls` to see whether they are the cause.

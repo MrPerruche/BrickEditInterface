@@ -25,8 +25,7 @@ Pixels with alpha < alpha_threshold are treated as "no block here": they
 never influence palette selection, never count against n_colors, and stay
 fully transparent in the output.
 
-Dependencies: numpy, scipy (only for the denoise pass's neighbor lookups
--- already a dependency of image_layers.py), PIL. coloraide is only
+Dependencies: numpy, PIL. coloraide is only
 imported in the __main__ verification block, not at runtime.
 """
 

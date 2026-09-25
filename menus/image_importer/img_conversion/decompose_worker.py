@@ -95,7 +95,7 @@ def _init_worker(color_grid, transparent_id, max_layers: int) -> None:
     # is seen -- then reused for every subsequent restart this same
     # worker process handles. A color's own connected components never
     # change across restarts (only processing order/allowed regions do),
-    # so this turns "recompute cc_label+find_objects for every color on
+    # so this turns "recompute compute_components for every color on
     # every restart" into "compute it once per color per worker process".
     _worker_state["color_components_cache"] = {}
 
