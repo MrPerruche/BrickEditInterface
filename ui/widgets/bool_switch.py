@@ -93,14 +93,19 @@ class BoolSwitch(Widget):
     def _apply_theme(self, theme: Theme):
         self.setStyleSheet(f"""
             QWidget[boolswitch] {{
-                background-color: {theme.surface.muted};
+                background-color: {theme.surface.color};
 
-                border: 2px solid {theme.border.muted};
+                border: 2px solid {theme.border.color};
                 border-radius: 4px;
 
                 padding: 1px 4px;
 
                 font-size: 13pt;
+            }}
+
+            QWidget[boolswitch]:disabled {{
+                background-color: {theme.surface.muted};
+                border: 2px solid {theme.border.muted};
             }}
 
             QLabel[boolswitch-handle] {{
@@ -113,5 +118,11 @@ class BoolSwitch(Widget):
                 padding: 1px 4px;
 
                 font-size: 13pt;
+            }}
+
+            QLabel[boolswitch-handle]:disabled {{
+                color: {theme.text.muted};
+                background-color: {theme.surface.muted};
+                border: 2px solid {theme.border.muted};
             }}
         """)

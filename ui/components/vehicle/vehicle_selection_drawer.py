@@ -15,6 +15,7 @@ from ui.dialogs import (
     NothingEverHappensDialog,
     VehicleSaveFailedDialog,
     VehicleMetadataSaveFailedDialog,
+    UnsupportedVehicleVersionDialog,
 )
 
 from pathlib import Path
@@ -374,9 +375,33 @@ ERROR: {format_exc()}""").exec()
         self.load_vehicle(self.loaded_vehicle_path)
 
 
+    def _confirm_vehicle_version_supported(self, vehicle_path: str) -> bool:
+        """Returns False if the vehicle's file version is outside the supported range and the
+        user chose not to load it anyway. Shows a warning dialog in that case."""
+        brv_path = os.path.join(vehicle_path, 'Vehicle.brv')
+        if not os.path.exists(brv_path):
+            return True
+
+        with open(brv_path, 'rb') as f:
+            version = int.from_bytes(f.read(1), 'little')
+
+        if version < brickedit.FILE_MIN_SUPPORTED_VERSION:
+            return UnsupportedVehicleVersionDialog.create_too_old(self.mw, version).exec()
+
+        if version > brickedit.FILE_MAX_SUPPORTED_VERSION:
+            update_available = self.mw.update_checker.has_known_update()
+            return UnsupportedVehicleVersionDialog.create_too_new(self.mw, version, update_available).exec()
+
+        return True
+
+
     def load_vehicle(self, vehicle_path: str | None):
         if vehicle_path == '':
             vehicle_path = None
+
+        if vehicle_path is not None and not self._confirm_vehicle_version_supported(vehicle_path):
+            return
+
         vehicle_path_strictstr = vehicle_path if vehicle_path is not None else ''
         _logger.info('Loading vehicle: %s', repr(vehicle_path))
         self.loaded_vehicle_path = vehicle_path

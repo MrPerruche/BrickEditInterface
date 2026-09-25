@@ -7,7 +7,7 @@ from systems.settings import settings_manager
 from menus import base
 from utils import restart
 
-from ui.widgets import Label, StyledLabel, LabelStyle, Button, Separator, Slider, ComboBox
+from ui.widgets import Label, StyledLabel, LabelStyle, Button, Separator, Slider, ComboBox, BoolSwitch
 from ui.dialogs import ConfirmRestartDialog
 from ui.theme import theme_manager
 
@@ -66,6 +66,25 @@ class SettingsMenu(base.BaseMenu):
         self.ui_scale_lay.addWidget(self.ui_scale_slider)
 
 
+        # UPDATES
+        self.updates_label = StyledLabel("Updates", LabelStyle.HEADER_3)
+        self.master_layout.addWidget(self.updates_label)
+
+        self.ignore_update_lay = QHBoxLayout()
+        self.ignore_update_lay.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.ignore_update_lay)
+
+        self.ignore_update_label = Label("Ignore currently available update")
+        self.ignore_update_lay.addWidget(self.ignore_update_label)
+
+        self.ignore_update_switch = BoolSwitch(False)
+        self.ignore_update_switch.on_toggled.connect(self.now_dirty)
+        self.ignore_update_lay.addWidget(self.ignore_update_switch)
+
+        self.check_updates_btn = Button("Check for Updates")
+        self.check_updates_btn.clicked.connect(self.mw.check_for_updates)
+        self.master_layout.addWidget(self.check_updates_btn)
+
         # APPLY BUTTONS
         self.master_layout.addWidget(Separator())
 
@@ -83,9 +102,28 @@ class SettingsMenu(base.BaseMenu):
 
         # END OF INIT
         self.ui_scale_slider_changed()
+        self.refresh_ignore_update_switch()
         self.set_dirty(False)
 
         self.master_layout.addStretch(1)
+
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # The switch reflects "remind_updates_after", which can also change from the
+        # update-found popup (Ignore this version) while this menu isn't visible.
+        self.refresh_ignore_update_switch()
+
+
+    def refresh_ignore_update_switch(self):
+        if self.dirty:
+            return
+        known_update = self.mw.update_checker.latest_version
+        self.ignore_update_switch.set_value(
+            known_update is not None and settings_manager.get("remind_updates_after", "0.0.0") == known_update,
+            emit_signal=False
+        )
+        self.ignore_update_switch.setEnabled(known_update is not None)
 
 
     def _is_restart_required(self):
@@ -107,6 +145,12 @@ class SettingsMenu(base.BaseMenu):
             settings_manager.set("ui_scale", new_scale)
             os.environ["QT_SCALE_FACTOR"] = str(new_scale)
 
+        # Ignore current update
+        known_update = self.mw.update_checker.latest_version
+        target = known_update if (self.ignore_update_switch.get_value() and known_update) else "0.0.0"
+        if settings_manager.get("remind_updates_after", "0.0.0") != target:
+            settings_manager.set("remind_updates_after", target)
+
 
     def _apply_changes_full(self, must_restart: bool):
         self._apply_changes_internally()
@@ -122,6 +166,7 @@ class SettingsMenu(base.BaseMenu):
         self.now_dirty()
 
     # ------
+
 
     def now_dirty(self):
         self.set_dirty(True)

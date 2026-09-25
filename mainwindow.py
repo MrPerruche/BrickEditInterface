@@ -9,11 +9,11 @@ from systems.update import UpdateChecker
 
 from ui.theme import Theme, register_has_theme_and_apply
 from ui.components import VehicleSelectionDrawer
-from ui.dialogs import UpdateFoundDialog
+from ui.dialogs import UpdateFoundDialog, UpToDateDialog, UpdateCheckFailedDialog
 
 from sidebar import Sidebar
 from menus import *
-from var import VERSION_NUMBER, IS_DEV_VERSION
+from var import VERSION_NUMBER, IS_PRIVATE_VERSION
 
 class BrickEditInterface(QMainWindow):
     """Main application window for the BrickEdit interface."""
@@ -69,7 +69,7 @@ class BrickEditInterface(QMainWindow):
         self.in_dev_menus = [
             DeveloperTestMenu(self),
         ]
-        if IS_DEV_VERSION:
+        if IS_PRIVATE_VERSION:
             self.menus.extend(self.in_dev_menus)
         
         # Build menu configurations for sidebar
@@ -133,10 +133,30 @@ class BrickEditInterface(QMainWindow):
     def maybe_report_new_update(self, new_version: str):
 
         remind_updates_after = Version(self.settings.get("remind_updates_after", "0.0.0"))
-        # print(f"{remind_updates_after=}, {Version(new_version)=}, {self.settings.get_all_settings()=}")
         if Version(new_version) <= remind_updates_after:
             return
 
         dlg = UpdateFoundDialog.create(self, VERSION_NUMBER, new_version)
-        dlg.outcome_2_selected.connect()
+        dlg.outcome_3_selected.connect(self.update_checker.open_download_page)
         dlg.exec()
+
+    def check_for_updates(self):
+        """Manually check for updates, always showing a result popup (found/up to date/failed)."""
+        if getattr(self, "_manual_update_checker", None) is not None and self._manual_update_checker.isRunning():
+            return
+
+        checker = UpdateChecker("MrPerruche", "BrickEditInterface", VERSION_NUMBER)
+        self._manual_update_checker = checker
+
+        def on_finished():
+            if checker.error_reason is not None:
+                UpdateCheckFailedDialog.create(self, checker.error_reason).exec()
+            elif checker.has_known_update():
+                dlg = UpdateFoundDialog.create(self, VERSION_NUMBER, checker.latest_version)
+                dlg.outcome_3_selected.connect(checker.open_download_page)
+                dlg.exec()
+            else:
+                UpToDateDialog.create(self).exec()
+
+        checker.finished.connect(on_finished)
+        checker.start()

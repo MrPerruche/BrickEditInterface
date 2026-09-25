@@ -9,7 +9,7 @@ from ui.components import VehicleCard, VehicleCardData
 from ui.widgets import Widget, Surface, LineEdit, ToolButton, ContentSizedScrollArea
 from ui.theme import Theme, register_has_theme_and_apply
 
-from utils import tint_icon, get_vehicles_path, get_vehicle_version
+from utils import tint_icon, get_vehicles_path
 
 import brickedit
 
@@ -92,13 +92,6 @@ class VehicleSelector(Widget):
 
         if dialog.exec():
             folder_path = dialog.selectedFiles()[0]
-            brmv, brvv = get_vehicle_version(folder_path)
-
-            if brmv < brickedit.FILE_MIN_SUPPORTED_VERSION or brvv < brickedit.FILE_MIN_SUPPORTED_VERSION:
-                # Show fail message box
-                # InvalidVehicleFileDialog.create(None, "Selected vehicle is too old to be loaded.").exec()
-                return
-
             self.vehicle_selected.emit(folder_path)
 
 

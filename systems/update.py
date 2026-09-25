@@ -16,6 +16,13 @@ class UpdateChecker(QThread):
         self.owner = owner
         self.repo = repo
         self.current_version = current_version
+        self.latest_version: str | None = None
+        self.error_reason: str | None = None
+
+    def has_known_update(self) -> bool:
+        """Whether a newer release than the current version has been found so far.
+        Only reliable after the check has finished (see update_available/error signals)."""
+        return self.latest_version is not None
 
     def run(self):
         try:
@@ -29,11 +36,12 @@ class UpdateChecker(QThread):
 
             if Version(latest) > Version(self.current_version):
                 _logger.info(f"Update found and available: {latest}")
+                self.latest_version = latest
                 self.update_available.emit(latest)
 
         except Exception as e:
-            # Silently fail or log — users don’t need to see this
-            self.error.emit(str(e))
+            self.error_reason = str(e)
+            self.error.emit(self.error_reason)
 
     def get_download_page(self):
         return f"https://github.com/{self.owner}/{self.repo}/releases/latest"
