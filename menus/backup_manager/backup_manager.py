@@ -10,6 +10,7 @@ from pathlib import Path
 from menus import base
 
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Surface, SurfaceStyle, Slider, LineEdit, ToolButton
+from ui.components import Tutorial
 from ui.models import TooltipContents
 
 from utils import repr_file_size, dir_size, get_vehicles_path, wipe_layout
@@ -192,7 +193,10 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         return "Backup Manager"
 
     def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(":/assets/icons/BackupIcon.png"), True)
+        return base.MenuInfo(QIcon(":/assets/icons/BackupIcon.png"), True,
+            tutorial=Tutorial(self.get_menu_name(), self.mw)
+                .add_text("This menu allows you to manage backups made by BrickEdit-Interface.")
+        )
 
 
     def update_backup_recovery_entries(self):

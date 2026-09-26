@@ -39,7 +39,7 @@ DELETE_BTN_ICON = QIcon.fromTheme("window-close")
 
 class BackupEntry(Surface):
     def __init__(self, mw: "BrickEditInterface", call_on_backup_deleted: Callable[[bool, str], None], vehicle_path, backup_path, parent=None):
-        super().__init__(parent)
+        super().__init__(parent=parent)  # Not positional: Surface's first parameter is surface_style
 
         self.master_layout = self.layout()
 

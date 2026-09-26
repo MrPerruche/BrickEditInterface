@@ -3,7 +3,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QToolButton, QSizePolicy, QVBoxLayout
 
 from ui.widgets.widget import Widget
-from ui.theme import Theme, register_has_theme_and_apply, reapply_theme
+from ui.theme import Theme, theme_manager, register_has_theme_and_apply, reapply_theme
 
 from utils import tint_icon
 
@@ -52,7 +52,7 @@ class ToolButton(Widget):
             icon = QIcon.fromTheme(name)
             if not icon.isNull():
                 self.og_icon = icon
-                self.qt_widget.setIcon(icon)
+                self.qt_widget.setIcon(tint_icon(icon, theme_manager.current().text.color_hex_argb) if self.tint_icon else icon)
                 return True
         return False
 

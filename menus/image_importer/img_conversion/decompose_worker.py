@@ -178,7 +178,8 @@ class DecomposeWorker(QObject):
         # Seed with the deterministic greedy pass first, synchronously.
         # Everything after this point may only replace `best` with
         # something at least as good -- never worse.
-        greedy = decompose_layered(color_grid, transparent_id, self._max_layers, order="area_desc")
+        greedy = decompose_layered(color_grid, transparent_id, self._max_layers, order="area_desc",
+                                  cancel_check=self._cancel.is_set)
         best_layers = greedy.layers
         best_score = (greedy.overflow_pixels, sum(len(l) for l in best_layers))
         best_ordering = greedy.color_order

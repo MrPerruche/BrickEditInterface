@@ -9,7 +9,8 @@ from time import perf_counter
 
 
 FONT_WEIGHT = 850
-POST_WIDTH = 62
+CONTENT_MIN_WIDTH = 400
+POST_WIDTH = 120  # fits the longest post text (eg. "(12,345 / SEC)") without wrapping
 
 
 class ImportProgressLine(Widget):
@@ -38,13 +39,22 @@ class ImportProgressLine(Widget):
         self.update_contents(title, value, post)
 
 
+    @staticmethod
+    def _set_text_no_wrap(label: Label, text: str):
+        """Sets the text and makes sure the label is never narrower than it (only ever grows, so a changing
+        value doesn't make the row jitter). Word wrap stays on: TextOverflow.NONE would let the label collapse."""
+        label.set_text(text)
+        needed = label.qt_widget.fontMetrics().horizontalAdvance(text) + 6
+        if needed > label.minimumWidth():
+            label.setMinimumWidth(needed)
+
     def update_contents(self, title: str | None, value: str | None, post: str | None):
         if title is not None:
-            self.title_widget.set_text(title)
+            self._set_text_no_wrap(self.title_widget, title)
         if value is not None:
-            self.value_widget.set_text(value)
+            self._set_text_no_wrap(self.value_widget, value)
         if post is not None:
-            self.post_widget.set_text(post)
+            self._set_text_no_wrap(self.post_widget, post)
 
 
 
@@ -61,7 +71,8 @@ class ImportProgressDialog(Dialog):
 
         self._resolved = False
 
-        self.qt_dialog.setMinimumWidth(275)
+        # On the content, not qt_dialog: the base layout's SetMinimumSize constraint overrides the dialog's own minimum
+        self._content.setMinimumWidth(CONTENT_MIN_WIDTH)
         self.qt_dialog.finished.connect(self._on_qt_dialog_closed)
 
         # Brick count

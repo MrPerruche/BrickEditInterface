@@ -1,22 +1,21 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtGui import QIcon
 
-from PIL import ImageFilter
-
 from menus import base
 
-from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface, Separator, BoolSwitch
+from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface, Separator, BoolSwitch, Switcher
 from ui.components.image.image_selector import ImageSelector
 from ui.components import Tutorial
 from ui.models import TooltipContents
-from ui.dialogs import OverwriteOrCancelDialog, CannotSaveOverLimit
+from ui.dialogs import OverwriteOrCancelDialog, CannotSaveOverLimit, UnexpectedErrorDialog
 
 from menus.image_importer.dialogs.import_progress import ImportProgressDialog
+from menus.image_importer.dialogs.import_working import ImportWorkingDialog
+from menus.image_importer.img_conversion.prepare_worker import ImportPrepareWorker
 from menus.image_importer.img_conversion.decompose_worker import DecomposeWorker, DecomposeResult, launch_with_threading
-from menus.image_importer.img_conversion.image_layers import decompose_image
-from menus.image_importer.img_conversion.quantize import quantize_image
 from menus.image_importer.img_conversion.image_misc_utils import srgb_to_linear
 from menus.image_importer.widgets.img_resolution_setting import ImgResolutionSetting
+from menus.image_importer.widgets.img_size_setting import ImgSizeSetting
 from utils import max_float32_for_tolerance
 
 from enum import Enum
@@ -71,6 +70,19 @@ COLOR_LEVELS = (
     [i for i in range(65, 255+1, 5)]
 )
 
+GROUPING_METHODS = [
+    "No",
+    "By color",
+    "By layer",
+    "Yes"
+]
+GROUPING_FUNCS = [
+    lambda b: None,
+    lambda b: f"col_{b.get_property(brickedit.p.BRICK_COLOR)}",
+    lambda b: f"posz_{b.get_property(brickedit.p.BRICK_SIZE).z}",
+    lambda b: "img"
+]
+
 MATERIALS = [  # list[tuple[name, display_name, is_transparent]]
     (brickedit.p.BrickMaterial.ALUMINIUM, "Aluminium", False),
     (brickedit.p.BrickMaterial.BRUSHED_ALUMINIUM, "Brushed Aluminium", False),
@@ -121,6 +133,13 @@ WHY_BLUR = TooltipContents(
     "We recommend 0.1 - 0.3 px blur for slightly noisy images, and 0.3 - 1.5 px blur for complex images. "
 )
 
+
+PROCESS_COUNT_INFO = TooltipContents(
+    "Processes used",
+    "How many CPU processes search for a better arrangement at the same time. More is faster, "
+    "but creating a process can take up to several seconds and it leaves less CPU for everything "
+    " else (MAX uses every logical core of your CPU)."
+)
 
 FPE_INFO_TEXT = "The image will Z-fight if you go further than {:.1f} km from world center."
 
@@ -196,6 +215,18 @@ class ImageImporter(base.BaseMenu):
         # Layer thickness updated at the end
 
 
+        # Process count (slow 3D only)
+        self.cpu_count = os.cpu_count() or 1
+        self.process_count_label = Label("Processes used")
+        self.process_count_label.set_tooltip(PROCESS_COUNT_INFO)
+        self.oms3d_layout.addWidget(self.process_count_label)
+
+        self.process_count_slider = Slider(list(range(1, self.cpu_count + 1)), self.cpu_count - 1)
+        self.process_count_slider.value_changed.connect(self.update_process_count_label)
+        self.oms3d_layout.addWidget(self.process_count_slider)
+        self.update_process_count_label()
+
+
         # Z-fighting notice
         self.fpe_info = Label("fpe_info")
         self.fpe_info.set_tooltip(WHAT_IS_ZFIGHTING)
@@ -252,6 +283,10 @@ class ImageImporter(base.BaseMenu):
 
 
         # IMPORT SETTINGS
+        LABEL_STRETCH = 4
+        SHORT_STRETCH = 6
+        LONG_STRETCH  = 11
+
         self.import_settings_title = StyledLabel("Import settings", LabelStyle.HEADER_3)
         self.master_layout.addWidget(self.import_settings_title)
 
@@ -259,20 +294,45 @@ class ImageImporter(base.BaseMenu):
         self.image_selector.on_new_image_selected.connect(self.resolution_settings.on_image_loaded)
         self.master_layout.addWidget(self.resolution_settings)
 
+        self.size_settings = ImgSizeSetting()
+        self.resolution_settings.resolution_changed.connect(self.update_size_settings_resolution)
+        self.master_layout.addWidget(self.size_settings)
+
         self.material_layout = QHBoxLayout()
         self.material_layout.setContentsMargins(0, 0, 0, 0)
         self.master_layout.addLayout(self.material_layout)
 
         self.material_label = Label("Material")
-        self.material_layout.addWidget(self.material_label)
+        self.material_layout.addWidget(self.material_label, stretch=LABEL_STRETCH)
 
         self.material_cb = ComboBox()
         for i, material in enumerate(OPAQUE_MATERIALS_LIST):
             self.material_cb.add_item(material[1])
             if material[0] == brickedit.p.BrickMaterial.COPPER:
                 self.material_cb.set_current_idx(i)
-        self.material_layout.addWidget(self.material_cb)
+        self.material_layout.addWidget(self.material_cb, stretch=LONG_STRETCH)
 
+
+        # Editor then weld
+        self.editor_layout = QHBoxLayout()
+        self.editor_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.editor_layout)
+
+        self.editor_label = Label("Grouped bricks")
+        self.editor_layout.addWidget(self.editor_label, stretch=LABEL_STRETCH)
+
+        self.editor_sw = Switcher(GROUPING_METHODS, len(GROUPING_METHODS)-1)
+        self.editor_layout.addWidget(self.editor_sw, stretch=SHORT_STRETCH)
+
+        self.weld_layout = QHBoxLayout()
+        self.weld_layout.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.weld_layout)
+
+        self.weld_label = Label("Welded bricks")
+        self.weld_layout.addWidget(self.weld_label, stretch=LABEL_STRETCH)
+
+        self.weld_sw = Switcher(GROUPING_METHODS, len(GROUPING_METHODS)-1)
+        self.weld_layout.addWidget(self.weld_sw, stretch=SHORT_STRETCH)
 
 
         # Separator
@@ -281,11 +341,16 @@ class ImageImporter(base.BaseMenu):
         # FINAL BUTTON
         self.import_image_btn = Button("Import image")
         self.import_image_btn.clicked.connect(self.on_import_image_btn_clicked)
+        self.import_image_btn.set_enabled(False)  # Nothing to import until an image is loaded (and it can't be unloaded)
+        self.image_selector.on_new_image_selected.connect(lambda _selector: self.import_image_btn.set_enabled(True))
         self.master_layout.addWidget(self.import_image_btn)
 
         # CHANGE SETTINGS
         self.update_blur_label()
         self.update_layer_thickness()
+        self.max_layers_slider.value_changed.connect(self.update_thickness_minimum)
+        self.layer_thickness_slider.value_changed.connect(self.update_thickness_minimum)
+        self.optimization_method.item_changed.connect(self.update_thickness_minimum)
         self.optimization_method.set_current_idx(1)
         self.quantization_algorithm.set_current_idx(2)
 
@@ -297,6 +362,9 @@ class ImageImporter(base.BaseMenu):
     def on_optimization_method_changed(self):
         idx = self.optimization_method.get_current_idx()
         self.oms3d_widget.setHidden(idx in (0, 1))
+        is_slow = idx == 3
+        self.process_count_label.setVisible(is_slow)
+        self.process_count_slider.setVisible(is_slow)
 
 
     def on_quantization_algorithm_changed(self):
@@ -315,66 +383,88 @@ class ImageImporter(base.BaseMenu):
         # Get data
         grp_format = ["none", "2d", "3d_greedy", "3d_slow"][self.optimization_method.get_current_idx()]
         quantization = self.quantization_algorithm.get_current_idx()
-        color_count = self.colors_slider.get_value()
         resolution = self.resolution_settings.get_new_resolution()
 
-        img = self.image_selector.get_pil_copy(resolution)
-
-        # Blur image
-        blur = self.blur_slider.get_value()
-        if blur > 0:
-            img = img.filter(ImageFilter.GaussianBlur(radius=blur))
-
-        # Quantize image
-        if quantization:
-            quantization_str = ["_", "median_cut", "kmeans_oklab"][quantization]
-            img = quantize_image(img, color_count, quantization_str)
-
-        # If slow 3D: Prepare dialog widget and worker
-        if grp_format == "3d_slow":
-
-            self.decompose_worker = DecomposeWorker(
-                image=img,
-                mode=grp_format,
-                max_layers=self.max_layers,
-                max_restarts=None
-            )
-            import_progress_dialog = ImportProgressDialog(self.mw, self.max_layers, self.decompose_worker)
-
-            def on_progress(best_total_rects, best_layer_count, restarts_done):
-                import_progress_dialog.set_progress(best_total_rects, best_layer_count, restarts_done)
-
-            def on_finished(result: DecomposeResult):
-                self.handle_decompose_result(result)
-                import_progress_dialog.close()
-
-            def on_cancelled():
-                self.decompose_worker.finished.disconnect(on_finished)  # don't build anything
-                self.decompose_worker.cancel()
-                import_progress_dialog.close()
-
-            def on_end_now():
-                self.decompose_worker.cancel()
-                import_progress_dialog.close()
-
-            self.decompose_worker.progress.connect(on_progress)
-            self.decompose_worker.finished.connect(on_finished)
-            import_progress_dialog.finished.connect(on_end_now)
-            import_progress_dialog.cancelled.connect(on_cancelled)
-
-            launch_with_threading(self.decompose_worker)
-
-            import_progress_dialog.exec(blocking=True)
-            return
-
-        # else:
-        result = decompose_image(
-            image=img,
+        # Resize, blur, quantize and (except in slow mode) merge on a background thread: this can take minutes
+        # on large images and would otherwise freeze the whole app
+        self.prepare_worker = ImportPrepareWorker(
+            image=self.image_selector.pil_img,
+            resolution=resolution,
+            blur=self.blur_slider.get_value(),
+            quantization=["_", "median_cut", "kmeans_oklab"][quantization] if quantization else None,
+            color_count=self.colors_slider.get_value(),
             mode=grp_format,
             max_layers=self.max_layers,
-            max_restarts=None
         )
-        self.handle_decompose_result(result)
+        self.prepare_outcome = None  # what the worker delivered: DecomposeResult, PIL image (slow mode) or exception
+
+        # Bound methods of QObjects only: Qt then queues the calls onto the GUI thread (a lambda would run
+        # in the worker's thread)
+        self.working_dialog = ImportWorkingDialog(self.mw)
+        self.prepare_worker.stage.connect(self.working_dialog.set_stage)
+        self.prepare_worker.progress.connect(self.working_dialog.set_color_progress)
+        self.prepare_worker.finished.connect(self._on_prepare_done)
+        self.prepare_worker.failed.connect(self._on_prepare_done)
+        self.working_dialog.cancelled.connect(self.prepare_worker.cancel)
+
+        self.prepare_worker.start()
+        self.working_dialog.exec(blocking=True)
+
+        outcome = self.prepare_outcome
+        self.prepare_outcome = None
+        if outcome is None:  # cancelled
+            return
+        if isinstance(outcome, BaseException):
+            UnexpectedErrorDialog.create(self.mw, "The image could not be imported.", outcome).exec()
+            return
+        if grp_format == "3d_slow":
+            self._decompose_slow(outcome)
+            return
+        self.handle_decompose_result(outcome)
+
+
+    def _on_prepare_done(self, outcome):
+        if self.prepare_worker.is_cancelled():
+            return
+        self.prepare_outcome = outcome
+        self.working_dialog.finish()
+
+
+    def _decompose_slow(self, img):
+        """3D stacking (slow): multi-process search with its own progress dialog."""
+        self.decompose_worker = DecomposeWorker(
+            image=img,
+            mode="3d_slow",
+            max_layers=self.max_layers,
+            max_restarts=None,
+            max_workers=self.get_process_count()
+        )
+        import_progress_dialog = ImportProgressDialog(self.mw, self.max_layers, self.decompose_worker)
+
+        def on_progress(best_total_rects, best_layer_count, restarts_done):
+            import_progress_dialog.set_progress(best_total_rects, best_layer_count, restarts_done)
+
+        def on_finished(result: DecomposeResult):
+            self.handle_decompose_result(result)
+            import_progress_dialog.close()
+
+        def on_cancelled():
+            self.decompose_worker.finished.disconnect(on_finished)  # don't build anything
+            self.decompose_worker.cancel()
+            import_progress_dialog.close()
+
+        def on_end_now():
+            self.decompose_worker.cancel()
+            import_progress_dialog.close()
+
+        self.decompose_worker.progress.connect(on_progress)
+        self.decompose_worker.finished.connect(on_finished)
+        import_progress_dialog.finished.connect(on_end_now)
+        import_progress_dialog.cancelled.connect(on_cancelled)
+
+        launch_with_threading(self.decompose_worker)
+
+        import_progress_dialog.exec(blocking=True)
 
 
 
@@ -383,6 +473,15 @@ class ImageImporter(base.BaseMenu):
         # Get data
         layer_width = self.layer_thickness_slider.get_value()
         material = OPAQUE_MATERIALS_LIST[self.material_cb.get_current_idx()][0]
+        pixel_size = self.size_settings.get_pixel_size()
+        total_thickness = self.size_settings.get_thickness()
+        editor_func = GROUPING_FUNCS[self.editor_sw.get_idx() or 0]
+        weld_func = GROUPING_FUNCS[self.weld_sw.get_idx() or 0]
+
+        # Every brick starts at Z = 0, only its top differs: the highest layer is total_thickness thick and
+        # each layer below is layer_width thinner (so plates of upper layers extend down to the lowest one, and
+        # no two layers share a coplanar top). Single layer (none / 2D): just total_thickness.
+        layer_count = len(result.layers)
 
         # Build vehicle
         brvfile = brickedit.BRVFile(brickedit.FILE_MAIN_VERSION)
@@ -392,18 +491,18 @@ class ImageImporter(base.BaseMenu):
 
         for layer_index, layer in enumerate(result.layers):
             for (r0, c0, r1, c1, color_id) in layer:
-                # TODO: Adjust positions for scaling
-                x, y = c0, r0
-                width, height = c1 - c0 + 1, r1 - r0 + 1
+                x, y = c0 * pixel_size, r0 * pixel_size
+                width, height = (c1 - c0 + 1) * pixel_size, (r1 - r0 + 1) * pixel_size
                 color = color_id_to_br[color_id]
-                z = (layer_index + .5) * layer_width
 
-                size_vec = brickedit.Vec3(float(width), float(height), float(layer_width))
-                pos_vec = brickedit.Vec3(float(x), float(y), float(z)) + size_vec * 0.5
+                thickness = total_thickness - (layer_count - 1 - layer_index) * layer_width
+
+                size_vec = brickedit.Vec3(float(width), float(height), float(thickness))
+                pos_vec = brickedit.Vec3(float(x), float(y), 0.0) + size_vec * 0.5
 
                 # TODO: Add controls over properties such as materials, welding etc. & Control if we use Scalable bricks or floats.
-                brvfile.add(brickedit.Brick(
-                    ref=brickedit.ID(str(i), editor='img', weld='img'),
+                brick = brickedit.Brick(
+                    ref=brickedit.ID(str(i)),
                     meta=brickedit.bt.SCALABLE_BRICK,
                     pos=pos_vec,
                     ppatch={
@@ -411,7 +510,10 @@ class ImageImporter(base.BaseMenu):
                         brickedit.p.BRICK_COLOR: color,
                         brickedit.p.BRICK_MATERIAL: material
                     }
-                ))
+                )
+                brick.ref.editor = editor_func(brick)
+                brick.ref.weld = weld_func(brick)
+                brvfile.add(brick)
                 #▲ print(brvfile.bricks[-1])
                 i += 1
 
@@ -426,6 +528,29 @@ class ImageImporter(base.BaseMenu):
             description=f"Imported {img_path} in {len(brvfile.bricks)} brick(s) using the {self.get_menu_name()}."
         )
 
+
+    def update_size_settings_resolution(self):
+        self.size_settings.set_resolution(
+            self.resolution_settings.get_new_resolution(),
+            self.resolution_settings.image_loaded
+        )
+
+    def update_thickness_minimum(self):
+        """In 3D modes there can be up to max_layers layers of layer_width each: total thickness must fit them."""
+        if self.optimization_method.get_current_idx() in (2, 3):
+            minimum = self.max_layers * self.layer_thickness_slider.get_value()
+        else:
+            minimum = 0.0  # Clamped to the widget's absolute minimum
+        self.size_settings.set_thickness_minimum(minimum)
+
+    def get_process_count(self) -> int | None:
+        """Processes for slow 3D. None (= all CPUs, the worker's default) when the slider is at MAX."""
+        count = self.process_count_slider.get_value()
+        return None if count >= self.cpu_count else count
+
+    def update_process_count_label(self):
+        count = self.process_count_slider.get_value()
+        self.process_count_slider.set_text("MAX" if count >= self.cpu_count else f"{count}/{self.cpu_count}", 60)
 
     def update_blur_label(self):
         blur = self.blur_slider.get_value()

@@ -131,16 +131,22 @@ def load_color_grid(
 #@numba.njit(cache=True)
 def _largest_rectangle_impl(mask: np.ndarray) -> tuple[int, int, int, int]:
     rows, cols = mask.shape
-    heights = np.zeros(cols, dtype=np.int32)
+    heights = np.zeros(cols, dtype=np.int64)
     best_area = 0
     best_r0, best_c0, best_r1, best_c1 = 0, 0, 0, 0
 
     stack_cols = np.zeros(cols + 1, dtype=np.int32)
     stack_heights = np.zeros(cols + 1, dtype=np.int32)
 
+    prune = cols > 16  # below this, computing the row's max height costs more than the loop it could skip
     for r in range(rows):
-        for c in range(cols):
-            heights[c] = heights[c] + 1 if mask[r, c] else 0
+        row = mask[r]
+        if not row.any():
+            heights[:] = 0
+            continue
+        heights = (heights + 1) * row  # same as: heights[c] + 1 if mask[r, c] else 0
+        if prune and int(heights.max()) * cols <= best_area:
+            continue  # no rectangle ending on this row can strictly beat the best one so far
 
         stack_ptr = 0
         for c in range(cols + 1):
@@ -168,6 +174,9 @@ def largest_rectangle(mask: np.ndarray) -> tuple[int, int, int, int]:
     monotonic-stack method). Assumes mask.any() is True.
     Returns (r0, c0, r1, c1), inclusive bounds.
     """
+    rows, cols = mask.shape
+    if mask.all():  # fast path, extremely common: windows/components that already are one solid rectangle
+        return 0, 0, rows - 1, cols - 1
     return _largest_rectangle_impl(mask)
 
 
@@ -338,11 +347,18 @@ def greedy_cover_with_wildcards(
     if not components:
         return rects
 
+    # Coverage is tracked GLOBALLY across components: growth is not confined to a component's crop, so a
+    # rectangle grown from one component may swallow other components entirely. Those must not be re-covered.
+    global_remaining = np.asarray(must_cover, dtype=bool).copy()
+    full_h, full_w = allowed.shape
+
     for row_slice, col_slice, local_must_cover in components:
         r_off, c_off = row_slice.start, col_slice.start
-        local_allowed = allowed[row_slice, col_slice]
 
-        remaining = local_must_cover.copy()
+        # Cells of THIS component that no earlier rectangle has covered yet
+        remaining = local_must_cover & global_remaining[row_slice, col_slice]
+        if not remaining.any():
+            continue
         work_r0, work_c0 = 0, 0
         work_r1, work_c1 = remaining.shape[0] - 1, remaining.shape[1] - 1
 
@@ -351,34 +367,43 @@ def greedy_cover_with_wildcards(
             if not window.any():
                 break
 
+            # Seed is searched inside the component's crop (cheap, keeps it to this component's cells)...
             wr0, wc0, wr1, wc1 = largest_rectangle(window)
-            r0, c0, r1, c1 = wr0 + work_r0, wc0 + work_c0, wr1 + work_r0, wc1 + work_c0
+            r0, c0 = wr0 + work_r0 + r_off, wc0 + work_c0 + c_off
+            r1, c1 = wr1 + work_r0 + r_off, wc1 + work_c0 + c_off
 
+            # ...but growth is over the whole `allowed` canvas, so it can reach and absorb other components
             can_grow_up = can_grow_down = can_grow_left = can_grow_right = True
             while can_grow_up or can_grow_down or can_grow_left or can_grow_right:
                 if can_grow_up:
-                    if r0 > 0 and local_allowed[r0 - 1, c0:c1 + 1].all():
+                    if r0 > 0 and allowed[r0 - 1, c0:c1 + 1].all():
                         r0 -= 1
                     else:
                         can_grow_up = False
                 if can_grow_down:
-                    if r1 < local_allowed.shape[0] - 1 and local_allowed[r1 + 1, c0:c1 + 1].all():
+                    if r1 < full_h - 1 and allowed[r1 + 1, c0:c1 + 1].all():
                         r1 += 1
                     else:
                         can_grow_down = False
                 if can_grow_left:
-                    if c0 > 0 and local_allowed[r0:r1 + 1, c0 - 1].all():
+                    if c0 > 0 and allowed[r0:r1 + 1, c0 - 1].all():
                         c0 -= 1
                     else:
                         can_grow_left = False
                 if can_grow_right:
-                    if c1 < local_allowed.shape[1] - 1 and local_allowed[r0:r1 + 1, c1 + 1].all():
+                    if c1 < full_w - 1 and allowed[r0:r1 + 1, c1 + 1].all():
                         c1 += 1
                     else:
                         can_grow_right = False
 
-            rects.append((r0 + r_off, c0 + c_off, r1 + r_off, c1 + c_off))
-            remaining[r0:r1 + 1, c0:c1 + 1] = False
+            rects.append((r0, c0, r1, c1))
+            global_remaining[r0:r1 + 1, c0:c1 + 1] = False
+
+            # Same rectangle, clipped to this component's crop, to update the local state
+            lr0, lr1 = max(r0 - r_off, 0), min(r1 - r_off, remaining.shape[0] - 1)
+            lc0, lc1 = max(c0 - c_off, 0), min(c1 - c_off, remaining.shape[1] - 1)
+            if lr0 <= lr1 and lc0 <= lc1:
+                remaining[lr0:lr1 + 1, lc0:lc1 + 1] = False
 
             window_after = remaining[work_r0:work_r1 + 1, work_c0:work_c1 + 1]
             rows_any = window_after.any(axis=1)
@@ -437,14 +462,18 @@ def decompose_2d(
     color_grid: np.ndarray,
     transparent_id: Optional[int],
     color_components_cache: Optional[dict[int, list]] = None,
+    cancel_check: Optional[Callable[[], bool]] = None,
+    color_progress: Optional[Callable[[int, int], None]] = None,  # (colors_done, colors_total)
 ) -> list[Rect]:
     """Single-layer, no-wildcard decomposition: every color is confined to
     its own true cells, nobody borrows space from anybody else."""
     rects: list[Rect] = []
-    for color_id in np.unique(color_grid):
-        color_id = int(color_id)
-        if color_id == transparent_id:
-            continue
+    color_ids = [int(c) for c in np.unique(color_grid) if c != transparent_id]
+    for done, color_id in enumerate(color_ids):
+        if cancel_check and cancel_check():
+            break
+        if color_progress:
+            color_progress(done, len(color_ids))
         mask = color_grid == color_id
         components = None
         if color_components_cache is not None:
@@ -475,6 +504,8 @@ def decompose_layered(
     order: str | list[int] = "area_desc",
     rng: Optional[random.Random] = None,
     color_components_cache: Optional[dict[int, list]] = None,
+    cancel_check: Optional[Callable[[], bool]] = None,
+    color_progress: Optional[Callable[[int, int], None]] = None,  # (colors_done, colors_total)
 ) -> LayeredResult:
     """
     Single-pass onion-peeling. Process colors largest to smallest (default).
@@ -513,11 +544,14 @@ def decompose_layered(
     pass the SAME dict across every restart to skip re-running
     `compute_components` for colors it's already seen.
     Pass None (the default) to always compute fresh, exactly as before.
+
+    `cancel_check` is polled once per color; when it returns True the (incomplete) result so far is returned.
+    `color_progress(done, total)` is called before each color, for progress reporting.
     """
     if max_layers <= 1:
         color_order = [int(c) for c in np.unique(color_grid) if c != transparent_id]
         return LayeredResult(
-            layers=[decompose_2d(color_grid, transparent_id, color_components_cache)],
+            layers=[decompose_2d(color_grid, transparent_id, color_components_cache, cancel_check, color_progress)],
             overflow_pixels=0,
             color_order=color_order,
         )
@@ -560,7 +594,11 @@ def decompose_layered(
     layers_out: list[list[Rect]] = [[] for _ in range(max_layers)]
     overflow_pixels = 0
 
-    for color_id, _count in ordered:
+    for done, (color_id, _count) in enumerate(ordered):
+        if cancel_check and cancel_check():
+            break  # partial result: the caller that cancelled is expected to discard it
+        if color_progress:
+            color_progress(done, len(ordered))
         color_mask = color_grid == color_id
 
         touched = owner_layer[color_mask]
@@ -579,6 +617,11 @@ def decompose_layered(
         # color_mask is OR'd in explicitly for the overflow case, where some
         # of this color's own cells may already be >= target_layer
         allowed = color_mask | (~true_claimed & (owner_layer < target_layer))
+        if target_layer == max_layers - 1:
+            # Top layer: no layer above will ever patch over a bulge, so it must stay strictly on its own cells
+            # (plain 2D covering). Bulging here would clip with whatever color owns those cells (z-fighting),
+            # and this is what guarantees every later color still finds a layer above the ones touching its cells.
+            allowed = color_mask
 
         components = None
         if color_components_cache is not None:
@@ -660,8 +703,10 @@ class DecomposeResult:
         )
 
 
-def _run_layered(color_grid, transparent_id, max_layers, order, rng=None) -> DecomposeResult:
-    result = decompose_layered(color_grid, transparent_id, max_layers, order=order, rng=rng)
+def _run_layered(color_grid, transparent_id, max_layers, order, rng=None,
+                 cancel_check=None, color_progress=None) -> DecomposeResult:
+    result = decompose_layered(color_grid, transparent_id, max_layers, order=order, rng=rng,
+                               cancel_check=cancel_check, color_progress=color_progress)
     total = sum(len(layer) for layer in result.layers)
     return DecomposeResult(layers=result.layers, palette=[], total_rects=total, overflow_pixels=result.overflow_pixels)
 
@@ -674,7 +719,8 @@ def decompose_image(
     alpha_threshold: int = 1,
     cancel_check: Optional[Callable[[], bool]] = None,
     progress_callback: Optional[Callable[[int, int], None]] = None,  # (rect_count, restart_index)
-) -> DecomposeResult:
+    color_progress: Optional[Callable[[int, int], None]] = None,  # (colors_done, colors_total), single-pass modes
+) -> DecomposeResult:  # cancel_check: polled per color (and per restart in 3d_slow); result is incomplete if it fires
     """Run the full pipeline. See module docstring for the pipeline stages."""
     color_grid, palette, transparent_id = load_color_grid(image, alpha_threshold)
 
@@ -685,12 +731,14 @@ def decompose_image(
         return DecomposeResult(layers=[rects], palette=palette, total_rects=len(rects), overflow_pixels=0)
 
     if mode == "2d":
-        result = _run_layered(color_grid, transparent_id, max_layers=1, order="area_desc")
+        result = _run_layered(color_grid, transparent_id, max_layers=1, order="area_desc",
+                              cancel_check=cancel_check, color_progress=color_progress)
         result.palette = palette
         return result
 
     if mode == "3d_greedy":
-        result = _run_layered(color_grid, transparent_id, max_layers, order="area_desc")
+        result = _run_layered(color_grid, transparent_id, max_layers, order="area_desc",
+                              cancel_check=cancel_check, color_progress=color_progress)
         result.palette = palette
         return result
 

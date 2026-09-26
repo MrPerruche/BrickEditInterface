@@ -5,6 +5,7 @@ from PySide6.QtGui import QIcon, QDesktopServices, QPixmap
 from menus import base
 
 from var import DISPLAY_VERSION
+from utils import scale_pixmap
 from ui.widgets import Widget, Label, StyledLabel, LabelStyle, Button, Separator
 from ui.components import Tutorial
 from ui.theme import theme_manager
@@ -93,11 +94,7 @@ class HomeMenu(base.BaseMenu):
         self.brickeditinterface_label = QLabel()
         self.brickeditinterface_label.setFixedSize(LOGO_SIZE, LOGO_SIZE)
         self.brickeditinterface_label.setPixmap(
-            self._logo_pixmap.scaled(
-                LOGO_SIZE, LOGO_SIZE,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
+            scale_pixmap(self._logo_pixmap, LOGO_SIZE, LOGO_SIZE)
         )
         self.brickeditinterface_label.setAlignment(Qt.AlignLeft)
         # self.brickeditinterface_label.setScaledContents(False)

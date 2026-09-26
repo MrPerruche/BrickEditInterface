@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 
 from ui.widgets import Widget, Surface, Label, StyledLabel, LabelStyle, Switcher, SwitcherEntry, NumberChannelEdit, ChannelMode, Separator, ToolButton
 
@@ -45,6 +45,8 @@ class ImgResolutionSetting(Widget):
     ADVANCED_IDX = 3
 
     STRETCHING_TOL = 0.00_01  # 0.01%
+
+    resolution_changed = Signal()  # Emitted whenever the resolution get_new_resolution() would return may have changed
 
     UNLOCKED_ICON = None
     LOCKED_ICON = None
@@ -204,6 +206,7 @@ class ImgResolutionSetting(Widget):
 
     def update_info_layout(self):
 
+        self.resolution_changed.emit()
         self.info_widget.setVisible(self.image_loaded)
         if not self.image_loaded:
             return

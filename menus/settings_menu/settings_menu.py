@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QHBoxLayout
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QPainterPath, QPen
+from PySide6.QtCore import Qt, QRectF
 
 import os
 
@@ -9,7 +10,7 @@ from utils import restart
 
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Separator, Slider, ComboBox, BoolSwitch
 from ui.dialogs import ConfirmRestartDialog
-from ui.theme import theme_manager
+from ui.theme import theme_manager, Theme
 
 
 
@@ -19,6 +20,40 @@ UI_SCALE_SLIDER_VALUES = sorted(
     list(range(200, 400+1, 5)) +
     [125, 175]
 )
+
+def _make_theme_preview_icon(theme: Theme, size: int = 32) -> QIcon:
+    """Small swatch showing a theme's palette: background with a sidebar strip, plus text and accent chips."""
+    pix = QPixmap(size, size)
+    pix.fill(Qt.GlobalColor.transparent)
+
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+    rect = QRectF(1, 1, size - 2, size - 2)
+    radius = size * 0.18
+    clip = QPainterPath()
+    clip.addRoundedRect(rect, radius, radius)
+
+    p.setClipPath(clip)
+    p.fillRect(rect, theme.background.color_qcolor)
+    p.fillRect(QRectF(1, 1, size * 0.3, size - 2), theme.sidebar.color_qcolor)
+
+    chip = size * 0.28
+    x = size * 0.42
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(theme.accent.color_qcolor)
+    p.drawRoundedRect(QRectF(x, size * 0.18, chip * 1.8, chip), 2, 2)
+    p.setBrush(theme.text.color_qcolor)
+    p.drawRoundedRect(QRectF(x, size * 0.58, chip * 1.8, chip * 0.6), 2, 2)
+
+    p.setClipping(False)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.setPen(QPen(theme.border.color_qcolor, 1.5))
+    p.drawRoundedRect(rect, radius, radius)
+    p.end()
+
+    return QIcon(pix)
+
 
 class SettingsMenu(base.BaseMenu):
 
@@ -41,7 +76,7 @@ class SettingsMenu(base.BaseMenu):
 
         self.theme_cb = ComboBox(False)
         for theme in theme_manager.themes:
-            self.theme_cb.add_item(theme.display_name)
+            self.theme_cb.add_item(theme.display_name, _make_theme_preview_icon(theme))
         self.theme_cb.set_current_idx(theme_manager.current_idx())
         self.theme_cb.item_changed.connect(self.now_dirty)
         self.theme_lay.addWidget(self.theme_cb)

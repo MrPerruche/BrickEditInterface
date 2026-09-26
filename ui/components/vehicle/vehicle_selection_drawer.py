@@ -19,7 +19,7 @@ from ui.dialogs import (
 )
 
 from pathlib import Path
-from utils import tint_icon, str_time_since, get_vehicles_path
+from utils import tint_icon, str_time_since, get_vehicles_path, scale_pixmap
 import logging
 
 import brickedit
@@ -544,9 +544,9 @@ ERROR: {format_exc()}""").exec()
         self.set_expanded(not self.is_expanded)
 
     def set_icon(self, pixmap_small: QPixmap, pixmap_large: QPixmap):
-        c_new_pixmap = pixmap_small.scaled(*self.small_thumbnail_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        c_new_pixmap = scale_pixmap(pixmap_small, *self.small_thumbnail_size)
         self.c_thumbnail.qt_widget.setPixmap(c_new_pixmap)
-        e_new_pixmap = pixmap_large.scaled(*self.large_thumbnail_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        e_new_pixmap = scale_pixmap(pixmap_large, *self.large_thumbnail_size)
         self.e_thumbnail.qt_widget.setPixmap(e_new_pixmap)
 
     def set_expanded(self, expanded: bool):

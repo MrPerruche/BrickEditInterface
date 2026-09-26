@@ -12,7 +12,8 @@ from typing import NoReturn
 from systems.settings import settings_manager
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter
+from PySide6.QtCore import QSize, QRect
+from PySide6.QtGui import QColor, QIcon, QPixmap, QPainter, QGuiApplication
 
 
 class Sentinel:
@@ -299,7 +300,26 @@ def oklch_to_oklab(L, C, h):
 
 
 
-_tint_cache: dict[tuple[int, str, int, int], QIcon] = {}
+def device_pixel_ratio() -> float:
+    """Device pixel ratio of the primary screen. Includes QT_SCALE_FACTOR (the UI scale setting)."""
+    screen = QGuiApplication.primaryScreen()
+    return screen.devicePixelRatio() if screen is not None else 1.0
+
+
+def scale_pixmap(pixmap: QPixmap, width: int, height: int,
+                 aspect: Qt.AspectRatioMode = Qt.AspectRatioMode.KeepAspectRatio,
+                 dpr: float | None = None) -> QPixmap:
+    """Scales a pixmap to fit width x height LOGICAL pixels, rendered with as many physical pixels as the screen
+    has (logical size * device pixel ratio) and tagged with that ratio. Plain QPixmap.scaled(width, height)
+    produces width x height physical pixels at ratio 1, which get upscaled (blurry) when the UI scale is above 100%."""
+    if dpr is None:
+        dpr = device_pixel_ratio()
+    out = pixmap.scaled(round(width * dpr), round(height * dpr), aspect, Qt.TransformationMode.SmoothTransformation)
+    out.setDevicePixelRatio(dpr)
+    return out
+
+
+_tint_cache: dict[tuple[int, str, int, int, float], QIcon] = {}
 
 def tint_icon(icon: QIcon, color: str, size: tuple[int, int] | None = None) -> QIcon:
     if size is None:
@@ -311,18 +331,21 @@ def tint_icon(icon: QIcon, color: str, size: tuple[int, int] | None = None) -> Q
     else:
         size_x, size_y = size, size
 
-    key = (icon.cacheKey(), color, size_x, size_y)
+    dpr = device_pixel_ratio()
+    key = (icon.cacheKey(), color, size_x, size_y, dpr)
     cached = _tint_cache.get(key)
     if cached is not None:
         return cached
 
-    pixmap = icon.pixmap(size_x, size_y)
-    out = QPixmap(size_x, size_y)
+    # size_x x size_y are logical: render with dpr times as many physical pixels so it stays sharp when scaled up
+    pixmap = icon.pixmap(QSize(size_x, size_y), dpr)
+    out = QPixmap(round(size_x * dpr), round(size_y * dpr))
+    out.setDevicePixelRatio(dpr)
     out.fill(Qt.transparent)
     painter = QPainter(out)
     painter.drawPixmap(0, 0, pixmap)
     painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-    painter.fillRect(out.rect(), QColor(color))
+    painter.fillRect(QRect(0, 0, size_x, size_y), QColor(color))
     painter.end()
 
     result = QIcon(out)

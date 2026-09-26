@@ -7,7 +7,7 @@ from ui.theme import Theme, register_has_theme_and_apply, style_rules, set_style
 from ui.models import TooltipContents
 
 from typing import ClassVar
-from utils import tint_icon
+from utils import tint_icon, scale_pixmap
 
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -195,15 +195,9 @@ class _QLabel(QLabel):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        painter.drawPixmap(
-            pos,
-            self._icon_pixmap.scaled(
-                self._icon_size,
-                self._icon_size,
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation,
-            ),
-        )
+        # Scaled at the screen's device pixel ratio: a plain .scaled(size, size) would drop the ratio and leave
+        # a low resolution icon that gets stretched when the UI scale is above 100%
+        painter.drawPixmap(pos, scale_pixmap(self._icon_pixmap, self._icon_size, self._icon_size))
 
 
 @style_rules

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from ui.widgets import Widget, Label, Surface, SurfaceStyle, SurfaceRole
 from ui.theme import Theme, register_has_theme_and_apply
 
-from utils import str_time_since
+from utils import str_time_since, scale_pixmap
 
 import brickedit
 
@@ -314,7 +314,7 @@ class VehicleCard(Widget):
 
 
     def set_icon(self, pixmap: QPixmap):
-        new_pixmap = pixmap.scaled(*self.thumbnail_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        new_pixmap = scale_pixmap(pixmap, *self.thumbnail_size)
         self.thumbnail_label.qt_widget.setPixmap(new_pixmap)
 
 

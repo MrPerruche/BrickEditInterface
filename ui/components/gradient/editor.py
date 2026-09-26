@@ -83,11 +83,11 @@ class GradientEditor(_BaseWidget):
         self.position_edit = NumberChannelEdit(mode=ChannelMode.FLOAT64, decimals=2, minimum=0.0, maximum=100.0, allow_nan=False, allow_inf=False)
         detail_row.addWidget(self.position_edit, 1)
 
-        self.add_button = ToolButton()
+        self.add_button = ToolButton(tint_icon=True)
         self.add_button.set_icon_from_theme("list-add")
         detail_row.addWidget(self.add_button)
 
-        self.remove_button = ToolButton()
+        self.remove_button = ToolButton(tint_icon=True)
         self.remove_button.set_icon_from_theme("edit-delete")
         detail_row.addWidget(self.remove_button)
 
