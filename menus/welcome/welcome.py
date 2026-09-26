@@ -9,14 +9,14 @@ from utils import scale_pixmap
 from ui.widgets import Widget, Label, StyledLabel, LabelStyle, Button, Separator
 from ui.components import Tutorial
 from ui.theme import theme_manager
+from ui.rich_text import pmd
 
 
 def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
     return (Tutorial(name, mw, title_is_raw=True, show_header=False, standalone=standalone, use_scroll_area=standalone)
         .add_header("MUST KNOW BEFORE USING BEI !")
-        .add_text("<html>BrickEdit-Interface (BEI) edits the version of the vehicle <b>stored on "
-            "disk</b> (just like HexEdit !). Changes made in Brick Rigs (BR) do NOT automatically "
-            "happen in BEI !</html>")
+        .add_text(pmd("BrickEdit-Interface (BEI) edits the vehicle **stored on disk** (just like "
+            "HexEdit !). Changes made in Brick Rigs (BR) do NOT automatically happen in BEI !"))
         .add_text("If you do not save (in BR) before (re-)loading a vehicle in BEI, the program "
             "will load an older version of the vehicle. (Tip: use CTRL+S in BR to save quickly.)")
         .add_text("Additionally, once you save changes in BEI, you must re-open the vehicle in "
@@ -25,11 +25,53 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
             "will glow red. BEI does not automatically reload the vehicle because keeping "
             "an old version loaded can sometimes be useful.")
 
+        .add_header("Tutorials")
+        .add_text("Most tools have a tutorial, which you can find in the top right corner of the "
+            "window, next to the menu's title.")
+        .add_text("Tutorials contain information about how a tool can be used, shows tips and "
+            "answers to frequently asked question, and can help you if you're having trouble.")
+
         .add_sep()
-        .add_text("Below are all features of BEI in alphabetical order. Tutorials may redirect "
-            "you to different sections available below: ")
+        .add_tips(
+            pmd("You can write mathematical expressions such as `33/5` in number inputs, and BEI "
+                "will automatically calculate it."),
+            pmd("Number inputs also accept a few constants, namely `pi`, `e`, and sometimes "
+                "`nan`, `inf` and their aliases."),
+            "You can select bricks easily by assigning them a named group and filtering by "
+                "editor or weld group."
+        )
+        .add_raw_faq(
+            
+        )
+
+        .add_sep()
+        .add_text(pmd("**Below are tutorials explaining many BEI features in-depth. You don't "
+            "have to read them. Other tutorials will redirect you to different parts of the "
+            "content available below when necessary: **"))
+
+        .add_header("Expressions")
+        .refer_target("getting_started_expressions", "Learn more about expressions")
+        .add_low_header("Inputs")
+        .add_text("You are allowed to write math expressions in all number inputs. They will be "
+            "calculated and transform into your desired value.")
+        .add_text(pmd("Some number inputs are special. They won't compute your math expression "
+            "when you input them. Instead, you can write full math formulas which uses variables. "
+            "In some math formula inputs, you can even have multiple variables available "
+            "simultaneously, such as the inputs for color properties in the brick editor when you "
+            "edit multiple at a time, where you can use `r`, `g`, `b`, `h`, `s`, `v`, `a` in each "
+            "input."))
+        .add_low_header("Supported operators, functions and syntax")
+        .add_text(pmd("All common operators are supported. Exponentiation is not written using "
+            "`^`. Instead, you use `**` for exponentiation and `//` for integer division."))
+        .add_text(pmd("You can use basic if-else syntax (ternary operators), such as `x if x > 0 "
+            "else -x`, (which is equivalent to `abs(x)`)."))
+        .add_text(pmd("BEI uses Python's syntax and functions to evaluate expressions. This means "
+            "you have access to all functions available by default in Python, and can involve "
+            "other Python objects in your expressions like booleans, strings, complex numbers, "
+            "etc. eg. `\"helloworld\".count('l')` which evaluates to 3"))
 
         .add_header("Filters")
+        .refer_target("getting_started_filters", "Learn more about filters")
         .add_text("Filters (aka. brick selectors) can be used to select only parts of a vehicle. "
             "A filter is made of a list of conditions which can be added and removed. If a brick "
             "respects all conditions of a filter, it is \"allowed\" (selected). By default, you "
@@ -39,16 +81,17 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
             "allows no bricks when they're empty have a special \"condition\", which overrides "
             "all other filters (if any) and allows all bricks no matter what.")
         .add_low_header("Condition modes")
-        .add_text("<html>Conditions have 4 different modes which changes their behavior.<br>"
-            "- <b>Should</b> → brick is allowed if it meets this condition.<br>"
-            "- <b>Must</b> → brick must meet this condition to be allowed. If it does not, it is vetoed and no other filter can allow it.<br>"
-            "<b>Should not</b> and <b>must not</b> also exist. In these two mods, the condition is inverted.</html>")
+        .add_text(pmd("Conditions have 4 different modes which changes their behavior.\n"
+            "- **Should** → brick is allowed if it meets this condition.\n"
+            "- **Must** → brick must meet this condition to be allowed. If it does not, it is vetoed and no other filter can allow it.\n"
+            "**Should not** and **must not** also exist. In these two mods, the condition is inverted."))
         .add_text("The order of conditions in a filter does not matter.")
 
         .add_header("Named groups")
-        .add_text("<html>In BEI, you can name a group (works for both editor groups and weld "
-            "groups) by adding a text brick named: <br><code>bei#&lt;My group name&gt;<br></code> "
-            "(angle brackets not required). </html>")
+        .refer_target("getting_started_named_groups", "Learn more about named groups")
+        .add_text(pmd("In BEI, you can name a group (works for both editor groups and weld "
+            "groups) by adding a text brick named:  `bei#<My group name>` "
+            "(angle brackets not required)."))
         .add_text("You can use named groups to easily select or group a complex set of bricks.")
 
     )

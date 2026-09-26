@@ -5,6 +5,7 @@ from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap, QTextLayout, QTextOpt
 from ui.widgets.widget import Widget
 from ui.theme import Theme, register_has_theme_and_apply, style_rules, set_style_property
 from ui.models import TooltipContents
+from ui.rich_text import style_rich_text
 
 from typing import ClassVar
 from utils import tint_icon, scale_pixmap
@@ -48,6 +49,7 @@ class _QLabel(QLabel):
         # QLabel.setText (our own override below isn't hooked up yet at
         # that point), so read it back through the base class directly.
         self._full_text: str = QLabel.text(self)
+        self._refresh_display_text()  # Native init text skipped the <code> styling
 
     # -- icon (unchanged public API) -- #
 
@@ -106,8 +108,9 @@ class _QLabel(QLabel):
             if elided != QLabel.text(self):          # <-- stop the loop: no-op if unchanged
                 QLabel.setText(self, elided)
         else:
-            if self._full_text != QLabel.text(self):  # <-- same guard for NONE mode
-                QLabel.setText(self, self._full_text)
+            shown = style_rich_text(self._full_text)  # <code> look: see ui/rich_text.py
+            if shown != QLabel.text(self):  # <-- same guard for NONE mode
+                QLabel.setText(self, shown)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

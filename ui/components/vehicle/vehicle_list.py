@@ -87,6 +87,8 @@ class VehicleListModel(QAbstractListModel):
             return entry.path == self._active_path
         if role == Qt.ItemDataRole.DisplayRole:
             return entry.texts()[0]
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return entry.path
         return None
 
     # -- Content

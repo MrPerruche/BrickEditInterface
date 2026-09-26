@@ -2,6 +2,7 @@
     <qresource prefix="/">
         <file>assets/fonts/SofiaSansCondensed-Italic-VariableFont_wght.ttf</file>
         <file>assets/fonts/SofiaSansCondensed-VariableFont_wght.ttf</file>
+        <file>assets/fonts/Inconsolata-VariableFont_wdth,wght.ttf</file>
         <file>assets/icons/placeholder.png</file>
         <file>assets/icons/not_found.png</file>
         <file>assets/icons/unknown.png</file>

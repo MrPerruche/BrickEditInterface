@@ -1,8 +1,49 @@
-from PySide6.QtWidgets import QLayout, QVBoxLayout, QScrollArea, QDialog, QSizePolicy
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLayout, QVBoxLayout, QScrollArea, QDialog, QSizePolicy, QWidget
+from PySide6.QtCore import Qt, QPoint, QTimer
+from PySide6.QtGui import QIcon
 
-from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry
+from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry, Button
 from ui.theme import Theme, style_rules
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+_LINK_ICON_NAMES = ("go-jump", "go-next")
+
+
+def _link_icon() -> QIcon | None:
+    for name in _LINK_ICON_NAMES:
+        icon = QIcon.fromTheme(name)
+        if not icon.isNull():
+            return icon
+    return None
+
+
+# id -> (owning tutorial, anchor widget, label shown on buttons pointing to it)
+_link_targets: dict[str, tuple['Tutorial', QWidget, str]] = {}
+# id -> (button, whether the button has its own label) for every refer_to() whose target is not registered (yet)
+_pending_links: dict[str, list[tuple[Button, bool]]] = {}
+
+
+def open_tutorial_target(target_id: str):
+    """Opens the tutorial owning target_id and scrolls to it"""
+    entry = _link_targets.get(target_id)
+    if entry is None:
+        logger.warning(f"Tutorial link target '{target_id}' does not exist")
+        return
+    tutorial, anchor, _ = entry
+    tutorial.summon()
+    tutorial.raise_()
+    tutorial.activateWindow()
+    tutorial.scroll_to(anchor)
+
+
+def check_tutorial_links():
+    """Logs every link pointing to a target which does not exist. Call once every tutorial is built."""
+    for target_id, buttons in _pending_links.items():
+        if buttons:
+            logger.warning(f"Tutorial link '{target_id}' is used {len(buttons)} time(s) but has no target")
 
 
 @style_rules
@@ -40,6 +81,8 @@ class Tutorial(QDialog):
         )
 
         self.finalized = False
+        self._owns_link_targets = standalone
+        self._last_widget: QWidget | None = None  # Anchor of refer_target()
 
         # SETUP
         self.content = QDialog()  # plain container widget
@@ -89,7 +132,50 @@ class Tutorial(QDialog):
 
     def add_widget(self, widget: Widget):
         self.master_layout.addWidget(widget)
+        self._last_widget = widget
         return self
+
+    def refer_target(self, target_id: str, label: str):
+        """Makes the widget added right before a destination of refer_to(target_id) in any tutorial.
+        label is what those buttons show."""
+        if not self._owns_link_targets:
+            return self  # Embedded copy of a tutorial: the standalone one owns the ids
+        if target_id in _link_targets:
+            logger.warning(f"Tutorial link target '{target_id}' is declared more than once, keeping the first")
+            return self
+
+        anchor = self._last_widget if self._last_widget is not None else self.content
+        _link_targets[target_id] = (self, anchor, label)
+
+        # Resolve the buttons which were created before this target
+        for button, has_own_label in _pending_links.pop(target_id, []):
+            if not has_own_label:
+                button.set_text(label)
+            button.set_enabled(True)
+        return self
+
+    def refer_to(self, target_id: str, label: str | None = None):
+        """Adds a button opening the tutorial declaring refer_target(target_id, ...) at that spot.
+        Its text is the target's label unless label is given."""
+        entry = _link_targets.get(target_id)
+        text = label if label is not None else (entry[2] if entry is not None else target_id)
+
+        icon = _link_icon()
+        button = Button(text, icon, True) if icon is not None else Button(text)
+        button.clicked.connect(lambda: open_tutorial_target(target_id))
+        if entry is None:
+            button.set_enabled(False)  # Until the target exists
+            _pending_links.setdefault(target_id, []).append((button, label is not None))
+        return self.add_widget(button)
+
+    def scroll_to(self, widget: QWidget):
+        """Scrolls so widget is at the top. Deferred: the layout of a tutorial which was just shown is not final yet."""
+        def _scroll():
+            self.content.layout().activate()
+            y = widget.mapTo(self.content, QPoint(0, 0)).y()
+            bar = self.scroll_area.verticalScrollBar()
+            bar.setValue(max(0, y - self.master_layout.contentsMargins().top()))
+        QTimer.singleShot(0, _scroll)
 
     def add_layout(self, layout: QLayout):
         self.master_layout.addLayout(layout)
