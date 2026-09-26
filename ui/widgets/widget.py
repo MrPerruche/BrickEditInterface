@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt
-from ui.theme import register_has_theme_and_apply, Theme
+from ui.theme import Theme
 from ui.models import TooltipContents
 
 class Widget(QWidget):

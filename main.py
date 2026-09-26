@@ -1,4 +1,7 @@
 """BrickEdit Interface - Main entry point."""
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon, QFontDatabase, QFont
+import resources_rc  # your compiled Qt resources
 
 import os
 from sys import argv, exit as sys_exit
@@ -25,9 +28,6 @@ def main():
     os.environ['QT_SCALE_FACTOR'] = str(max(UI_SCALE_SAFEGUARDS[0], min(UI_SCALE_SAFEGUARDS[1], ui_scale)))
 
 
-    from PySide6.QtWidgets import QApplication
-    from PySide6.QtGui import QIcon, QFontDatabase, QFont
-    import resources_rc  # your compiled Qt resources
 
     from systems.log import setup_logging
     setup_logging()

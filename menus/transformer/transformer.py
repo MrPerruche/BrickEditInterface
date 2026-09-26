@@ -2,8 +2,8 @@ from PySide6.QtGui import QIcon
 
 from menus import base
 
-from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface, NumberChannelEdit, ChannelMode, Switcher
-from ui.dialogs import VehicleLoadingIssueDialog, NothingEverHappensDialog
+from ui.widgets import Button, Label, StyledLabel, LabelStyle, Surface, NumberChannelEdit, ChannelMode, Switcher
+from ui.dialogs import VehicleLoadingIssueDialog
 from ui.components import BrickSelector
 from ui.components.brick.property_widgets import Vec3PropertyWidget
 from ui.models import TooltipContents
@@ -45,7 +45,8 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.pos_label = Label("Offset by")
         self.pos_layout.addWidget(self.pos_label)
 
-        self.pos_vec_widget = Vec3PropertyWidget('', (Vec3(0.0, 0.0, 0.0),), False, Vec3(0.0, 0.0, 0.0), show_text=False)
+        self.pos_vec_widget = Vec3PropertyWidget('',
+        (Vec3(0.0, 0.0, 0.0),), False, Vec3(0.0, 0.0, 0.0), show_text=False)
         self.pos_layout.addWidget(self.pos_vec_widget)
 
         self.scale_widget = Surface()
@@ -84,9 +85,6 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.rounding_title = StyledLabel("Rounding", LabelStyle.LARGE_5)
         self.rounding_layout.addWidget(self.rounding_title)
 
-        self.rounding_wip = Label("WORK IN PROGRESS - DO NOT USE")
-        self.rounding_layout.addWidget(self.rounding_wip)
-
         self.rounding_mode_label = Label("Mode")
         self.rounding_layout.addWidget(self.rounding_mode_label)
 
@@ -95,14 +93,18 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.rounding_mode_switcher.index_changed.connect(self.rounding_updated)
 
         self.rounding_label = Label("Decimals")
-        self.rounding_label.set_tooltip(TooltipContents("Decimals", "Sets the decimals to round the bricks' positions to. Only affects the bricks' shifting from scaling"))
+        self.rounding_label.set_tooltip(TooltipContents(
+            "Decimals",
+            "Sets the decimals to round the bricks' sizes to"
+            ))
         self.rounding_layout.addWidget(self.rounding_label)
 
-        self.rounding_decimals_nce = NumberChannelEdit(ChannelMode.INT, allow_inf=False, allow_nan=False, minimum=0, maximum=3)
+        self.rounding_decimals_nce = NumberChannelEdit(
+            ChannelMode.INT, allow_inf=False, allow_nan=False,
+            minimum=0, maximum=3
+        )
         self.rounding_layout.addWidget(self.rounding_decimals_nce)
         self.rounding_decimals_nce.setDisabled(True)
-
-        # TODO: add rounding to brick positions
 
         self.transform_vehicle_button = Button("Set vehicle transform")
         self.master_layout.addWidget(self.transform_vehicle_button)
@@ -111,55 +113,13 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.vehicle_reloaded()
         self.master_layout.addStretch()
     
-    @staticmethod
-    def ceil(x: float | Vec2 | Vec3, n: int) -> Vec3 | Vec2:
-        if isinstance(x, Vec3):
-            return Vec3(
-            ceil(x.x * 10 ** n) / 10 ** n,
-            ceil(x.y * 10 ** n) / 10 ** n,
-            ceil(x.z * 10 ** n) / 10 ** n,
-            )
-        elif isinstance(x, (float, int)):
-            return ceil(x * 10 ** n) / 10 ** n
-        else:
-            return Vec2(
-            ceil(x.x * 10 ** n) / 10 ** n,
-            ceil(x.y * 10 ** n) / 10 ** n,
-            )
+        self.ceil = lambda x, n: ((ceil(x * 10 ** n) / 10 ** n) if isinstance(x, float) else
+        Vec2(ceil(x.x * 10 ** n) / 10 ** n, ceil(x.y * 10 ** n) / 10 ** n) if isinstance(x, Vec2) else
+        Vec3(ceil(x.x * 10 ** n) / 10 ** n, ceil(x.y * 10 ** n) / 10 ** n, ceil(x.z * 10 ** n) / 10 ** n))
 
-    @staticmethod
-    def floor(x: float | Vec2 | Vec3, n: int) -> Vec3 | Vec2:
-        if isinstance(x, Vec3):
-            return Vec3(
-            floor(x.x * 10 ** n) / 10 ** n,
-            floor(x.y * 10 ** n) / 10 ** n,
-            floor(x.z * 10 ** n) / 10 ** n,
-            )
-        elif isinstance(x, (float, int)):
-            return floor(x * 10 ** n) / 10 ** n
-        else:
-            return Vec2(
-            floor(x.x * 10 ** n) / 10 ** n,
-            floor(x.y * 10 ** n) / 10 ** n,
-            )
-
-    @staticmethod
-    def round(x: float | Vec2 | Vec3, n: int) -> float | Vec2 | Vec3:
-        if isinstance(x, Vec3):
-            return Vec3(
-                round(x.x, n),
-                round(x.y, n),
-                round(x.z, n),
-            )
-        elif isinstance(x, Vec2):
-            return Vec2(
-                round(x.x, n),
-                round(x.y, n),
-            )
-        elif isinstance(x, (float, int)):
-            return round(x, n)
-        else:
-            raise TypeError(f"Unsupported type: {type(x)}")
+        self.floor = lambda x, n: ((floor(x * 10 ** n) / 10 ** n) if isinstance(x, float) else
+        Vec2(floor(x.x * 10 ** n) / 10 ** n, floor(x.y * 10 ** n) / 10 ** n) if isinstance(x, Vec2) else
+        Vec3(floor(x.x * 10 ** n) / 10 ** n, floor(x.y * 10 ** n) / 10 ** n, floor(x.z * 10 ** n) / 10 ** n))
 
     def scale_input_updated(self, from_mul: bool):
         if from_mul:
@@ -225,7 +185,7 @@ class VehicleUpscalerMenu(base.BaseMenu):
                     continue
                 nothing_happened = False
                 # Position
-                brick.pos = brick.pos * scale
+                brick.pos *= scale
                 # Modify properties
                 for prop, val in brick.get_all_properties().items():
                     # Float & vec properties
@@ -238,11 +198,11 @@ class VehicleUpscalerMenu(base.BaseMenu):
                     }:
                         mode = self.get_rounding_mode()
                         decimals = self.get_decimals()
-                        brick.set_property(prop, 
+                        brick.set_property(prop,
                             val * scale if not mode else
-                            self.round(val * scale, decimals) if mode == 1 else
-                            self.ceil(val * scale, decimals) if mode == 2 else
-                            self.floor(val * scale, decimals)
+                            round((val * scale) / 100.0, decimals) * 100.0 if mode == 1 else
+                            self.ceil((val * scale) / 100.0, decimals) * 100.0 if mode == 2 else
+                            self.floor((val * scale) / 100.0, decimals) * 100.0
                         )
 
         logger.info(f"Transforming vehicle with scale {scale}" if must_scale else "Transforming vehicle")
