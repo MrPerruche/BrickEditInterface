@@ -656,4 +656,4 @@ class FormulaChannelEdit(LineEdit):
                 self._formula = text
                 self.formula_changed.emit(self._formula)
         self._dirty = False
- 
+

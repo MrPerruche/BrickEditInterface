@@ -505,7 +505,7 @@ class UnsignedInteger8PropertyWidget(BasePropertyWidget):
 
     def set_value(self, value: int):
         if self.formula_mode:
-            self.value_input.setFormula('x')
+            self.value_input.setFormula('n')
         else:
             self.value_input.setValue(value)
 

@@ -30,10 +30,8 @@ class VehicleUpscalerMenu(base.BaseMenu):
 
         mw.vehicle_selector_banner.vehicle_loaded.connect(self.vehicle_reloaded)
 
-
         self.brick_selector = BrickSelector(self.mw, [], allow_all_if_empty=True, updates_requires_reloading=False)
         self.master_layout.addWidget(self.brick_selector)
-
 
         self.pos_widget = Surface()
         self.pos_layout = self.pos_widget.layout()
