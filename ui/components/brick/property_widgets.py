@@ -213,17 +213,17 @@ class BooleanPropertyWidget(BasePropertyWidget):
 
     def set_enabled(self, enabled: bool):
         self.enabled = enabled
-        self.setting_widget.set_enabled(enabled) if self.formula_mode else self.setting_widget.setEnabled(enabled)
+        self.setting_widget.set_enabled(enabled)
 
-    def get_text(self):
+    def get_text(self) -> str:
         value = self.setting_widget.get_idx() if self.formula_mode else self.setting_widget.get_value()
         return (self.FORMULA_MODE_ACTIONS[value][0] if self.formula_mode else ("Off", "On")[value],)
 
-    def set_value(self, value: int):
+    def set_value(self, value: int | bool):
         if self.formula_mode:
-            self.setting_widget.set_index(value)
+            self.setting_widget.set_index(int(value))
         else:
-            self.setting_widget.set_value(True)
+            self.setting_widget.set_value(bool(value))
 
     def get_value(self, default_value: bool) -> bool:
         idx = self.setting_widget.get_idx()

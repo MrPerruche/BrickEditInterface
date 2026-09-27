@@ -78,6 +78,12 @@ class BoolSwitch(Widget):
         self._max_size = max_size
         self.update_handle()
 
+    def set_enabled(self, enabled: bool):
+        self.setEnabled(enabled)
+
+    def set_disabled(self, disabled: bool):
+        self.setDisabled(disabled)
+
     def toggle_state(self):
         self.set_value(not self._value)
 
