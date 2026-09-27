@@ -45,6 +45,8 @@ class BaseGroupFilter(BaseFilter):
 
     def on_vehicle_reload(self):
         # print("on_vehicle_reload called")
+        previous_selection = self.combo_box.get_current_text()
+
         self.combo_box.clear_items()
 
         vehicle_data = self.mw.vehicle_selector_banner.get_brvfile_ref_data()
@@ -52,9 +54,14 @@ class BaseGroupFilter(BaseFilter):
             # print("no vehicle_data found")
             return
 
-        editor_group_names = vehicle_data.editor_groups.keys()
-        for group_name in editor_group_names:
+        groups = vehicle_data.editor_groups if self.group_name() == "editor" else vehicle_data.weld_groups
+        for group_name in groups.keys():
             self.combo_box.add_item(group_name)
+
+        if previous_selection:
+            idx = self.combo_box.qt_widget.findText(previous_selection)
+            if idx != -1:
+                self.combo_box.set_current_idx(idx)
 
 
     def is_allowed(self, brick: Brick) -> FilterResult:
