@@ -103,12 +103,14 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.control_layout.addWidget(self.open_settings_file_button)
 
         # Short term
-        self.st_label = Label(f"Short term backups limit, per vehicle")
-        self.st_label.set_tooltip(TooltipContents(
+        self.st_backups_tooltip = TooltipContents(
             "Short term backups are created when you modify a vehicle with BrickEdit-Interface.\n" +
             f"They are considered old after {self.main_window.backups.SHORT_TERM_BACKUP_MAX_DAYS} days, and will be deleted if the vehicle is modified again.\n" +
-            f"Old short term backups can also be deleted manually by clearing excess backups."
-        ))
+            "Old short term backups can also be deleted manually by clearing excess backups."
+        )
+
+        self.st_label = Label("Short term backups limit, per vehicle")
+        self.st_label.set_tooltip(self.st_backups_tooltip)
         self.master_layout.addWidget(self.st_label)
 
         # Short term count
@@ -144,11 +146,13 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
         # Long term
-        self.lt_label = Label("Long term backups limit, per vehicle")
-        self.lt_label.set_tooltip(TooltipContents(
+        self.lt_backups_tooltip = TooltipContents(
             "Long term backups are created when a vehicle is modified for the first time in the current BrickEdit-Interface session.\n" +
             "They cannot be deleted automatically."
-        ))
+        )
+
+        self.lt_label = Label("Long term backups limit, per vehicle")
+        self.lt_label.set_tooltip(self.lt_backups_tooltip)
         self.master_layout.addWidget(self.lt_label)
 
         # Long term count

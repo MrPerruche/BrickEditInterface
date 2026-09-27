@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Signal, QSize
+from PySide6.QtCore import Signal, QSize, Qt
 
-from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button
+from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button, BoolSwitch
 from ui.validators import ASCII_TEXT_ONLY, BINARY_HEX_VALIDATOR_65535_MAX
 from ui.components.brick.property_utils import get_or_make_property_display_name
 
@@ -188,30 +188,38 @@ class BooleanPropertyWidget(BasePropertyWidget):
     def __init__(self, property_name: str, test_values: tuple[bool, ...], formula_mode: bool, initial_value: bool | None, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
-        self.setting_widget = Switcher([name for name, _ in self.FORMULA_MODE_ACTIONS] if formula_mode else ["Off", "On"])
+        self.formula_mode = formula_mode
+
+        self.setting_widget = Switcher([name for name, _ in self.FORMULA_MODE_ACTIONS]) if formula_mode else BoolSwitch(initial_value)
         self.set_value(0 if formula_mode or initial_value is None else int(initial_value)) # If in formula mode, set value to 0 for "Same"
-        self.setting_widget.index_changed.connect(self.on_value_changed)
+        self.setting_widget.index_changed.connect(self.on_value_changed) if formula_mode else self.setting_widget.on_toggled.connect(self.on_value_changed)
 
         self.master_layout.addWidget(self.setting_widget)
+        if not formula_mode:
+            self.master_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.set_enabled(enabled)
-        self.setting_widget.left_arrow.set_enabled(False)
+        if formula_mode:
+            self.setting_widget.left_arrow.set_enabled(False)
 
 
     def set_enabled(self, enabled: bool):
         self.enabled = enabled
-        self.setting_widget.set_enabled(enabled)
+        self.setting_widget.set_enabled(enabled) if self.formula_mode else self.setting_widget.setEnabled(enabled)
 
     def get_text(self):
-        value = self.setting_widget.get_idx()
-        return (self.FORMULA_MODE_ACTIONS[value][0] if self.formula_mode else ["Off", "On"][value],)
+        value = self.setting_widget.get_idx() if self.formula_mode else self.setting_widget.get_value()
+        return (self.FORMULA_MODE_ACTIONS[value][0] if self.formula_mode else ("Off", "On")[value],)
 
     def set_value(self, value: int):
-        self.setting_widget.set_index(value)
+        if self.formula_mode:
+            self.setting_widget.set_index(value)
+        else:
+            self.setting_widget.set_value(True)
 
     def get_value(self, default_value: bool) -> bool:
         idx = self.setting_widget.get_idx()
-        return self.FORMULA_MODE_ACTIONS[idx](default_value) if self.formula_mode else bool(idx)
+        return self.FORMULA_MODE_ACTIONS[idx](default_value) if self.formula_mode else self.setting_widget.get_value()
 
     @classmethod
     def get_example_value(cls) -> bool:
