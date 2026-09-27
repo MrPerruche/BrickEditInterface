@@ -2,7 +2,11 @@ from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Signal, QSize, Qt
 
+<<<<<<< HEAD
 from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button, BoolSwitch
+=======
+from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, MultilineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button
+>>>>>>> fef27f0a271463a98bda5889ffc71f42bea19b3d
 from ui.validators import ASCII_TEXT_ONLY, BINARY_HEX_VALIDATOR_65535_MAX
 from ui.components.brick.property_utils import get_or_make_property_display_name
 
@@ -108,11 +112,13 @@ class TextPropertyWidget(BasePropertyWidget):
 
     EDIT_ICON = None
     KEEP_DEFAULT_DISPLAY = "Do not edit"
+    INPUT_WIDGET_CLS: type[LineEdit | MultilineEdit] = MultilineEdit
+    INPUT_WIDGET_ARGS: dict = {'lines': 2, 'resizable': True}
 
     def __init__(self, property_name: str, test_values: tuple[str, ...], formula_mode: bool, initial_value: str, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
-        self.input_le: LineEdit = LineEdit()
+        self.input_le: LineEdit | MultilineEdit = self.INPUT_WIDGET_CLS(**self.INPUT_WIDGET_ARGS)
         self.set_value('' if formula_mode else initial_value)
         self.master_layout.addWidget(self.input_le)
         self.formula_mode_value = ""
@@ -170,6 +176,12 @@ class TextPropertyWidget(BasePropertyWidget):
 
 
 class AsciiPropertyWidget(TextPropertyWidget):
+    """Keeps using LineEdit (rather than the multiline base): ASCII properties are single-line
+    values (eg. enum tags), and QPlainTextEdit has no QValidator support to enforce that anyway."""
+
+    INPUT_WIDGET_CLS = LineEdit
+    INPUT_WIDGET_ARGS = {}
+
     def __init__(self, property_name: str, test_values: tuple[str, ...], formula_mode: bool, initial_value: str, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
         self.input_le.set_validator(ASCII_TEXT_ONLY)

@@ -5,7 +5,10 @@ from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap, QTextLayout, QTextOpt
 from ui.widgets.widget import Widget
 from ui.theme import Theme, register_has_theme_and_apply, style_rules, set_style_property
 from ui.models import TooltipContents
+from ui.rich_text import style_rich_text, highlight_rich_text, count_matches
 
+import html
+import re
 from typing import ClassVar
 from utils import tint_icon, scale_pixmap
 
@@ -29,6 +32,9 @@ _ELIDE_MODES = {
 }
 
 
+_RICH_TEXT_RE = re.compile(r"<[a-zA-Z/!]")  # Rough stand-in for Qt::mightBeRichText (not exposed by PySide6)
+
+
 class _QLabel(QLabel):
     """QLabel that paints a small icon flush against the end of the visible
     text -- after the last wrapped line (TextOverflow.WRAP), or after the
@@ -44,10 +50,12 @@ class _QLabel(QLabel):
         self._icon_size: int = 11
         self._icon_visible: bool = False
         self._overflow: TextOverflow | None = None
+        self._highlight: tuple[str, int | None] | None = None
         # super().__init__() may have already set text via the *native*
         # QLabel.setText (our own override below isn't hooked up yet at
         # that point), so read it back through the base class directly.
         self._full_text: str = QLabel.text(self)
+        self._refresh_display_text()  # Native init text skipped the <code> styling
 
     # -- icon (unchanged public API) -- #
 
@@ -106,8 +114,30 @@ class _QLabel(QLabel):
             if elided != QLabel.text(self):          # <-- stop the loop: no-op if unchanged
                 QLabel.setText(self, elided)
         else:
-            if self._full_text != QLabel.text(self):  # <-- same guard for NONE mode
-                QLabel.setText(self, self._full_text)
+            shown = style_rich_text(self._full_text)  # <code> look: see ui/rich_text.py
+            if self._highlight is not None:
+                shown = highlight_rich_text(self._highlightable(), *self._highlight)[0]
+            if shown != QLabel.text(self):  # <-- same guard for NONE mode
+                QLabel.setText(self, shown)
+
+    # -- search highlight (tutorial search) -- #
+
+    def _highlightable(self) -> str:
+        """Text as rich text, so highlight spans can be inserted in it (plain text would lose its line breaks)"""
+        shown = style_rich_text(self._full_text)
+        if not _RICH_TEXT_RE.search(shown):
+            shown = html.escape(shown, quote=False).replace("\n", "<br>")
+        return shown
+
+    def count_matches(self, query: str) -> int:
+        if self._overflow in _ELIDE_MODES:
+            return 0  # Elided text can't show highlights
+        return count_matches(self._highlightable(), query)
+
+    def set_highlight(self, query: str | None, current: int | None = None):
+        """Highlights every occurrence of query, occurrence number `current` (0 based) in a stronger color"""
+        self._highlight = (query, current) if query else None
+        self._refresh_display_text()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -266,6 +296,12 @@ class Label(Widget):
     def set_text(self, text: str):
         self.qt_widget.setText(text)
         self.qt_widget.update()
+
+    def count_matches(self, query: str) -> int:
+        return self.qt_widget.count_matches(query)
+
+    def set_highlight(self, query: str | None, current: int | None = None):
+        self.qt_widget.set_highlight(query, current)
 
     def set_overflow(self, mode: TextOverflow):
         """WRAP / NONE / ELIDE_LEFT / ELIDE_RIGHT / ELIDE_MIDDLE."""

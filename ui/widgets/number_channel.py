@@ -367,7 +367,10 @@ class ChannelModel:
             special = format_special(value)
             if special is not None:
                 return special
-            return repr(float(value))
+            value = float(value)
+            if value.is_integer() and abs(value) < 1e16:
+                return str(int(value))
+            return repr(value)
         # FLOAT32
         return focused_format32(value) if focused else blurred_format32(
             value, self.decimals, self.ulp_tolerance)

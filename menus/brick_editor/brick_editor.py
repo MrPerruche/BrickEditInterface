@@ -80,7 +80,7 @@ class EditBrickMenu(base.BaseMenu):
                     "Conditions have multiple modes to edit their behavior: whether it's "
                     "mandatory or just preferred, some can override other conditions, etc. In "
                     "this menu, no bricks are selected when there are no conditions.")
-                .add_text("Learn more about filters in the Welcome menu.")
+                .refer_to("getting_started_filters")
 
                 .add_header("Bulk editing (splitting selection)")
                 .add_text(
@@ -95,6 +95,7 @@ class EditBrickMenu(base.BaseMenu):
                     "If multiple bricks in a page have a different value for a single property, "
                     "you may use mathematical formulas to edit this property. (Note you can still "
                     "input constants if you want to set all concerned bricks to a single value).")
+                .refer_to("getting_started_expressions")
                 .add_text(
                     "WARNING: BEI will only apply changes from the currently displayed page. "
                     "Changes made in other pages (or even with different splitting methods "

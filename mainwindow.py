@@ -10,11 +10,12 @@ from systems.update import UpdateChecker
 
 from ui.theme import Theme, register_has_theme_and_apply, theme_manager, style_rules
 from ui.components import VehicleSelectionDrawer
+from ui.components.tutorial import check_tutorial_links
 from ui.dialogs import UpdateFoundDialog, UpToDateDialog, UpdateCheckFailedDialog
 
 from sidebar import Sidebar
 from menus import *
-from var import VERSION_NUMBER, IS_PRIVATE_VERSION
+from var import VERSION_NUMBER, IS_PRIVATE_VERSION, IS_DEV_VERSION
 
 @style_rules
 def _tooltip_rules(theme: Theme) -> str:
@@ -123,6 +124,10 @@ class BrickEditInterface(QMainWindow):
 
         # Connect sidebar menu changes to stack
         self.sidebar.menu_changed.connect(self.menu_stack.setCurrentIndex)
+
+        # Every tutorial is built by now
+        if IS_DEV_VERSION:
+            check_tutorial_links()
 
         register_has_theme_and_apply(self)
 
