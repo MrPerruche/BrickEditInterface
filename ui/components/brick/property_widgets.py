@@ -483,7 +483,7 @@ class UnsignedInteger8PropertyWidget(BasePropertyWidget):
     def __init__(self, property_name: str, test_values: tuple[int, ...], formula_mode: bool, initial_value: int, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
 
-        self.value_input = FormulaChannelEdit(**self.args) if formula_mode else NumberChannelEdit(**self.args)
+        self.value_input = FormulaChannelEdit(**self.args, variable_name='n') if formula_mode else NumberChannelEdit(**self.args)
         self.set_value(initial_value)
         if formula_mode:
             self.value_input.formula_changed.connect(self.on_value_changed)
