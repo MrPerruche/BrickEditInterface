@@ -34,6 +34,66 @@ def style_rich_text(text: str) -> str:
     return _CODE_RE.sub(lambda m: f'<span style="{_code_style_attr()}">{m.group(1)}</span>', text)
 
 
+# Colors of the tutorial search highlights, taken from the current theme. Edit here to change the look:
+#   other matches: the theme's accent border color mixed into the background (OTHER_MATCH_MIX = how much accent)
+#   current match: the theme's accent color, with white text
+OTHER_MATCH_MIX = 0.45
+
+
+def _mix(a, b, t: float) -> str:
+    """Opaque hex color t of the way from QColor a to QColor b (rich text backgrounds don't support alpha)"""
+    return "#{:02x}{:02x}{:02x}".format(
+        round(a.red() + (b.red() - a.red()) * t),
+        round(a.green() + (b.green() - a.green()) * t),
+        round(a.blue() + (b.blue() - a.blue()) * t),
+    )
+
+
+def _highlight_styles() -> tuple[str, str]:
+    """(style of the matches, style of the current match) for the current theme"""
+    from ui.theme import theme_manager  # Late: this module is imported by widgets the theme module doesn't need
+    theme = theme_manager.current()
+    other = _mix(theme.background.color_qcolor, theme.accent_border.color_qcolor, OTHER_MATCH_MIX)
+    current = theme.accent.color_hex_rgba[:7]
+    return (
+        f"background-color: {other}; color: {theme.text.color_hex_rgba[:7]}",
+        f"background-color: {current}; color: {theme.base.color_hex_rgba[:7]}",
+    )
+
+_TAG_SPLIT_RE = re.compile(r"(<[^>]*>)")
+
+
+def count_matches(text: str, query: str) -> int:
+    """How many times query (case insensitive) appears in the visible text (outside of tags) of rich text"""
+    if not query:
+        return 0
+    return highlight_rich_text(text, query, None)[1]
+
+
+def highlight_rich_text(text: str, query: str, current: int | None) -> tuple[str, int]:
+    """Wraps every case insensitive occurrence of query found outside of tags in a highlighted span. The
+    occurrence number `current` (0 based, None for none) gets the stronger current match style (see _highlight_styles). Returns (new text, occurrence
+    count). Occurrences split by a tag (eg. across bold text) are not found."""
+    if not query:
+        return text, 0
+    pattern = re.compile(re.escape(query), re.IGNORECASE)
+    count = 0
+    styles: list[str] = []  # Looked up on the first match only: counting does not need them
+
+    def wrap(m: re.Match) -> str:
+        nonlocal count
+        if not styles:
+            styles.extend(_highlight_styles())
+        style = styles[1] if count == current else styles[0]
+        count += 1
+        return f'<span style="{style}">{m.group(0)}</span>'
+
+    parts = _TAG_SPLIT_RE.split(text)
+    for i in range(0, len(parts), 2):  # Even indices are text, odd ones are tags
+        parts[i] = pattern.sub(wrap, parts[i])
+    return "".join(parts), count
+
+
 # ----------------------------------------------------------------------
 # Pseudo markdown
 # ----------------------------------------------------------------------

@@ -1,9 +1,9 @@
-from PySide6.QtWidgets import QLayout, QVBoxLayout, QScrollArea, QDialog, QSizePolicy, QWidget
+from PySide6.QtWidgets import QLayout, QVBoxLayout, QHBoxLayout, QScrollArea, QDialog, QSizePolicy, QWidget, QApplication
 from PySide6.QtCore import Qt, QPoint, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 
-from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry, Button
-from ui.theme import Theme, style_rules
+from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry, Button, ToolButton, LineEdit
+from ui.theme import Theme, style_rules, register_has_theme_and_apply
 
 import logging
 logger = logging.getLogger(__name__)
@@ -99,6 +99,14 @@ class Tutorial(QDialog):
         outer_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(outer_layout)
 
+        # SEARCH (only on standalone windows: embedded copies live inside another page)
+        self._search_matches: list[tuple[Label, int]] = []  # (label, occurrence number in that label)
+        self._search_index = 0
+        self._highlighted_labels: list[Label] = []
+        self.search_bar: Widget | None = None
+        if standalone and use_scroll_area:
+            self._build_search_bar(outer_layout)
+
         if use_scroll_area:
             outer_layout.addWidget(self.scroll_area)
             self.scroll_area.setWidget(self.content)
@@ -121,14 +129,150 @@ class Tutorial(QDialog):
         # TITLE
         title_text = title if title_is_raw else f"Tutorial: {title}"
         if title is not None:
-            self.add_text(title_text, LabelStyle.LARGE_2)
+            if self.search_bar is not None:  # Title row: title, search button
+                title_label = StyledLabel(title_text, LabelStyle.LARGE_2)
+                self.search_toggle_button = ToolButton(QIcon(":/assets/icons/SearchIcon.png"), tint_icon=True)
+                self.search_toggle_button.qt_widget.setToolTip("Search (Ctrl+F)")
+                self.search_toggle_button.clicked.connect(self._toggle_search)
+                title_row = QHBoxLayout()
+                title_row.setContentsMargins(0, 0, 0, 0)
+                title_row.addWidget(title_label, stretch=1)
+                title_row.addWidget(self.search_toggle_button, alignment=Qt.AlignmentFlag.AlignVCenter)
+                self.master_layout.addLayout(title_row)
+                self._last_widget = title_label
+            else:
+                self.add_text(title_text, LabelStyle.LARGE_2)
 
         if standalone:
             self.setWindowTitle(title_text)
             self.setMinimumSize(300, 200)
             self.resize(325, 650)
 
+        register_has_theme_and_apply(self)  # Search highlights follow the theme
 
+
+
+    # -- Search --
+
+    def _build_search_bar(self, outer_layout: QVBoxLayout):
+        bar = self.search_bar = Widget()
+        bar.setVisible(False)  # Shown by Ctrl+F or the search button
+        bar_layout = QHBoxLayout(bar)
+        bar_layout.setContentsMargins(10, 8, 10, 0)
+        bar_layout.setSpacing(6)
+
+        self.search_edit = LineEdit(placeholder="Search...", force_validation=False)
+        self.search_edit.text_changed.connect(self._on_search_changed)
+        self.search_edit.qt_widget.returnPressed.connect(self._on_search_enter)
+        self.search_count_label = Label("", muted=True)
+        # Fixed width, so the text box doesn't resize as the count changes
+        metrics = self.search_count_label.qt_widget.fontMetrics()
+        self.search_count_label.setFixedWidth(max(metrics.horizontalAdvance(t) for t in ("999/999", "No results")) + 2)
+        self.search_count_label.qt_widget.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.search_prev_button = self._make_search_arrow(":/assets/icons/ArrowLeftSmallIcon.png", "Previous result", -1)
+        self.search_next_button = self._make_search_arrow(":/assets/icons/ArrowRightSmallIcon.png", "Next result (Enter)", 1)
+        self.search_prev_button.set_enabled(False)
+        self.search_next_button.set_enabled(False)
+
+        bar_layout.addWidget(self.search_edit, stretch=1)
+        bar_layout.addWidget(self.search_count_label)
+        bar_layout.addWidget(self.search_prev_button)
+        bar_layout.addWidget(self.search_next_button)
+        outer_layout.addWidget(bar)
+
+        QShortcut(QKeySequence.StandardKey.Find, self, activated=self._toggle_search)
+        # Escape closes the bar rather than the tutorial while it has focus
+        QShortcut(QKeySequence(Qt.Key.Key_Escape), bar, activated=self._close_search,
+                  context=Qt.ShortcutContext.WidgetWithChildrenShortcut)
+
+    def _on_search_enter(self):
+        shift = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier
+        self._move_search(-1 if shift else 1)
+
+    def _make_search_arrow(self, icon_path: str, tooltip: str, delta: int) -> ToolButton:
+        button = ToolButton(QIcon(icon_path), tint_icon=True)
+        button.qt_widget.setToolTip(tooltip)
+        button.clicked.connect(lambda: self._move_search(delta))
+        return button
+
+    def _open_search(self):
+        if self.search_bar is None:
+            return
+        self.search_bar.setVisible(True)
+        self.search_edit.qt_widget.setFocus()
+        self.search_edit.select_all()
+
+    def _close_search(self):
+        if self.search_bar is None:
+            return
+        self.search_edit.set_text("")  # Also removes the highlights
+        self.search_bar.setVisible(False)
+
+    def _toggle_search(self):
+        if self.search_bar is not None and self.search_bar.isVisible():
+            self._close_search()
+        else:
+            self._open_search()
+
+    def _apply_theme(self, theme: Theme):
+        if self._search_matches:  # Highlight colors come from the theme
+            self._show_search_match(scroll=False)
+
+    def _searchable_labels(self) -> list[Label]:
+        # Text added with add_text and co. Labels of switchers (entry names) and the header warning are skipped.
+        return [
+            label for label in self.content.findChildren(Label)
+            if label is not self.warning_label and not isinstance(label.parentWidget(), Switcher)
+        ]
+
+    def _on_search_changed(self, query: str):
+        for label in self._highlighted_labels:
+            label.set_highlight(None)
+        self._highlighted_labels = []
+        self._search_matches = []
+        self._search_index = 0
+
+        query = query.strip()
+        if query:
+            for label in self._searchable_labels():
+                self._search_matches.extend((label, i) for i in range(label.count_matches(query)))
+        self._show_search_match()
+
+    def _move_search(self, delta: int):
+        if self._search_matches:
+            self._search_index = (self._search_index + delta) % len(self._search_matches)
+            self._show_search_match()
+
+    def _show_search_match(self, scroll: bool = True):
+        query = self.search_edit.get_true_text().strip()
+        has_matches = bool(self._search_matches)
+        self.search_prev_button.set_enabled(has_matches)
+        self.search_next_button.set_enabled(has_matches)
+
+        if not has_matches:
+            self.search_count_label.set_text("No results" if query else "")
+            return
+        self.search_count_label.set_text(f"{self._search_index + 1}/{len(self._search_matches)}")
+
+        current_label, current_occurrence = self._search_matches[self._search_index]
+        labels = list(dict.fromkeys(label for label, _ in self._search_matches))
+        for label in labels:
+            label.set_highlight(query, current_occurrence if label is current_label else None)
+        self._highlighted_labels = labels
+
+        if scroll:
+            self._reveal(current_label)
+            self.scroll_to(current_label)
+
+    def _reveal(self, widget: QWidget):
+        """Switches every switcher (FAQ, tips, ...) containing widget to the page holding it"""
+        for switcher in self.content.findChildren(Switcher):
+            for i, item in enumerate(switcher.items):
+                page = item.get_widget()
+                if page is not None and page.isAncestorOf(widget):
+                    if switcher.idx != i:
+                        switcher.set_index(i)
+                    break
 
     def add_widget(self, widget: Widget):
         self.master_layout.addWidget(widget)
