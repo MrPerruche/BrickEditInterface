@@ -59,8 +59,8 @@ python -m nuitka `
     --company-name="MrPerruche" `
     --product-name="BrickEdit-Interface" `
     --file-description="BrickEdit-Interface" `
-    --file-version=VERSION HERE `
-    --product-version=VERSION HERE `
+    --file-version= *** VERSION HERE *** `
+    --product-version= *** VERSION HERE *** `
     --remove-output `
     --output-filename="BrickEdit-Interface.exe" `
     --report=compiled_build/compilation-report.xml `

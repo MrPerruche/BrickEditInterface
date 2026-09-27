@@ -2,10 +2,7 @@ from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Signal, QSize, Qt
 
-from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button, BoolSwitch
-
-from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, MultilineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button
-
+from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, MultilineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button, BoolSwitch
 from ui.validators import ASCII_TEXT_ONLY, BINARY_HEX_VALIDATOR_65535_MAX
 from ui.components.brick.property_utils import get_or_make_property_display_name
 
