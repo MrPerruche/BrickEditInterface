@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel
 from PySide6.QtGui import QIcon, QRegularExpressionValidator
 
-from ui.widgets import Label, Button, Slider, ComboBox, LineEdit, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle, Switcher, SwitcherEntry, BoolSwitch
+from ui.widgets import Label, Button, Slider, ComboBox, LineEdit, MultilineEdit, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle, Switcher, SwitcherEntry, BoolSwitch
 from ui.dialogs import CorruptStateDialog
 import ui.theme as theme
 from ui.models import TooltipContents
@@ -93,6 +93,8 @@ class DeveloperTestMenu(base.BaseMenu):
         lineedit21.set_validator(validator)
         layout2.addWidget(lineedit21)
 
+        multilineedit21 = MultilineEdit("", lines=3, resizable=True)
+        layout2.addWidget(multilineedit21)
 
         layout2.addStretch()
 
