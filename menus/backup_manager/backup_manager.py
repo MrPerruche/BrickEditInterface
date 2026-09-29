@@ -12,6 +12,7 @@ from menus import base
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Surface, SurfaceStyle, Slider, LineEdit, ToolButton
 from ui.components import Tutorial
 from ui.models import TooltipContents
+from ui.rich_text import pmd
 
 from utils import repr_file_size, dir_size, get_vehicles_path, wipe_layout
 from menus.backup_manager.widgets.backup_entry import BackupEntry
@@ -199,7 +200,81 @@ class SettingsAndBackupsMenu(base.BaseMenu):
     def _make_menu_info(self) -> base.MenuInfo:
         return base.MenuInfo(QIcon(":/assets/icons/BackupIcon.png"), True,
             tutorial=Tutorial(self.get_menu_name(), self.mw)
-                .add_text("This menu allows you to manage backups made by BrickEdit-Interface.")
+                .add_text("This menu allows you to manage backups from Brick Rigs and "
+                    "BrickEdit-Interface. BEI backups were made to help you experiment and "
+                    "recover from your mistakes safely.")
+                .add_text("Note: BEI backups are deleted by Brick Rigs if the vehicle is deleted.")
+
+                .add_header("Automatically generated backups")
+                .add_text("Whenever you edit a vehicle via BrickEdit-Interface, a backup is "
+                    "automatically generated. Depending on the context, it can either be a "
+                    "short-term or long-term backup.")
+                .refer_to("backup_manager_backup_types")
+
+                .add_header("Getting started")
+                .add_text("Steps in order to restore a backup:")
+                .add_steps(
+                    "First, load your vehicle in BrickEdit-Interface.",
+                    pmd("To view BEI and BR backups, expand the backup list first "
+                        "(\"Expand backups buttons\"). If you see a small box to \"Create a "
+                        "backup manually\", it is expanded."),
+                    "A list of backups will appear as cards showing its date, description, and "
+                    "a few buttons. If you don't see any, this means no backups have been made "
+                    "yet.",
+                    "Once you've found which backup you wish to restore, press the backwards "
+                    "arrow button to restore it."
+                )
+                .add_text("Steps in order to create and delete a backup:")
+                .add_steps(
+                    "First, make sure a vehicle is loaded and the backup list is expanded (see "
+                    "above).",
+                    pmd("(Optional) in the description field, add a short description of your backup "
+                    "eg. `my backup 1`."),
+                    "Press the save button to create a backup. This backup will never be deleted "
+                    "automatically.",
+                    "To delete a backup, you can either press the bin button to send backup to "
+                    "the recycle bin (recoverable) or press the red X button to delete it permanently."
+                )
+
+                .refer_target("backup_manager_backup_types", "Learn more about backup types")
+                .add_header("Backup types")
+                .add_text("There are 4 types of backups you may come across when using BEI's "
+                    "backup manager. Those are:")
+                .add_text(pmd("- **Short Term** backups, which are created when you modify a "
+                    "vehicle using BEI. They are considered old after "
+                    f"{self.main_window.backups.SHORT_TERM_BACKUP_MAX_DAYS} days, and will be "
+                    "deleted if the vehicle is modified again or you clear excess backups."))
+                .add_text(pmd("- **Long Term** backups, which are created when a vehicle is "
+                    "modified for the first time in the current BEI session. They have to be "
+                    "deleted manually."))
+                .add_text(pmd("- **User Generated** backups, which are created and deleted by "
+                    "the user."))
+                .add_text(pmd("- **Brick Rigs** backups (`Backup.brv` and `AutoSave.brv`), which are "
+                    "fully managed by Brick Rigs, but can be recovered or deleted from BrickEdit-"
+                    "Interface."))
+
+                .add_sep()
+                .add_faq(
+                    pmd("**Why are backups missing a date or description?**\n"
+                        "If a backup is missing its date, or you know is supposed to have a "
+                        "description but it is missing, it's because this vehicle was transferred "
+                        "using the Steam Cloud. The Steam Cloud only saves .brv files, not BEI's "
+                        "metadata files.\n"
+                        "If it wasn't transferred using the Steam Cloud, it is likely this backup "
+                        "was simply created without a description."),
+                    pmd("**What are Brick Rigs backups?**\n"
+                        "Brick Rigs can keep two backups of your vehicle at a time: `Backup.brv`, "
+                        "which is meant to avoid loosing the vehicle from the main file getting "
+                        "corrupt (by things like power loss etc.) and `AutoSave.brv`, a backup "
+                        "often made when you exit without saving. "),
+                    pmd("**Where are BEI backups stored?**\n"
+                        "BEI backups are stored in `\\brickeditinterface\\backups` inside of your "
+                        "vehicle's folder. You can easily access a backup's file by clicking on "
+                        "its folder icon."),
+                    pmd("**I deleted a vehicle. I'd like to recover a backup but cannot select it**\n"
+                        "Unfortunately, deleting a vehicle deletes the whole folder, which "
+                        "includes BEI backups. Deleted vehicles cannot be recovered by BEI!")
+                )
         )
 
 
