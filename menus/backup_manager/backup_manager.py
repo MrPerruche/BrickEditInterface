@@ -203,7 +203,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                 .add_text("This menu allows you to manage backups from Brick Rigs and "
                     "BrickEdit-Interface. BEI backups were made to help you experiment and "
                     "recover from your mistakes safely.")
-                .add_text("Note: BEI backups are deleted by Brick Rigs if the vehicle is deleted.")
+                .add_note("BEI backups are deleted by Brick Rigs if the vehicle is deleted.")
 
                 .add_header("Automatically generated backups")
                 .add_text("Whenever you edit a vehicle via BrickEdit-Interface, a backup is "

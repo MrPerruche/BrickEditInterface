@@ -2,7 +2,8 @@ from PySide6.QtWidgets import QLayout, QVBoxLayout
 from PySide6.QtCore import Qt, Signal
 
 from ui.widgets import Widget
-from ui.theme import Theme, style_rules, set_style_property
+from ui.theme import Theme, style_rules, set_style_property, theme_manager
+from ui.animations.pulse import PulseAnimation, blend_colors
 
 from enum import Enum
 
@@ -71,6 +72,61 @@ class Surface(Widget):
         self.setLayout(self.qt_layout)
 
         self.setAttribute(Qt.WA_StyledBackground, True)
+
+        self.danger = PulseAnimation(
+            callback=self._danger_changed,
+            duration=900,
+            parent=self,
+        )
+        self._danger_enabled = False  # The pulse itself only runs while the surface is shown
+
+
+    # danger stuff
+
+    def set_danger(self, enabled: bool):
+        """Pulses toward the theme's danger colors, like Button.set_danger()"""
+        self._danger_enabled = enabled
+        # Scopes the own sheet set every frame to this surface: a plain QWidget[surface="true"] selector would
+        #  also beat the global rules of the surfaces nested in this one
+        self.setProperty("surfaceDanger", enabled)
+        if not enabled:
+            self.danger.stop()
+            self.setStyleSheet("")  # Back to the global rules
+        elif self.isVisible():
+            self.danger.start()
+
+    def get_danger(self) -> bool:
+        return self._danger_enabled
+
+    def showEvent(self, e):
+        if self._danger_enabled:
+            self.danger.start()
+        super().showEvent(e)
+
+    def hideEvent(self, e):
+        self.danger.stop()  # Don't restyle every frame while nobody can see it
+        super().hideEvent(e)
+
+    def _danger_changed(self, value: float):
+        if not self._danger_enabled:
+            return
+        theme = theme_manager.current()
+        accent = self.surface_style == SurfaceStyle.ACCENT
+        fill = theme.accent_surface if accent else theme.surface
+        border = theme.accent_border if accent else theme.border
+
+        def bg(color: str) -> str:
+            return blend_colors(color if self.highlight else "#00000000", theme.danger_surface.color_hex_argb, value)
+
+        sel = 'QWidget[surfaceDanger="true"]'
+        self.setStyleSheet(f"""
+            {sel} {{
+                background-color: {bg(fill.color_hex_argb)};
+                border: 2px solid {blend_colors(border.color_hex_argb, theme.danger.color_hex_argb, value)};
+                border-radius: 4px;
+            }}
+            {sel}[surfaceState="hover"] {{ background-color: {bg(fill.color_advanced(2, True))}; }}
+            {sel}[surfaceState="pressed"] {{ background-color: {bg(fill.muted_hex_argb)}; }}""")
 
 
     # Button stuff

@@ -96,8 +96,8 @@ class EditBrickMenu(base.BaseMenu):
                     "you may use mathematical formulas to edit this property. (Note you can still "
                     "input constants if you want to set all concerned bricks to a single value).")
                 .refer_to("getting_started_expressions")
-                .add_text(
-                    "WARNING: BEI will only apply changes from the currently displayed page. "
+                .add_warning(
+                    "BEI will only apply changes from the currently displayed page. "
                     "Changes made in other pages (or even with different splitting methods "
                     "selected) are not discarded but aren't applied either.")
 

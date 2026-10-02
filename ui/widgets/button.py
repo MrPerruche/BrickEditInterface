@@ -1,10 +1,10 @@
 from PySide6.QtWidgets import QPushButton, QVBoxLayout
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QIcon, QColor
+from PySide6.QtGui import QIcon
 
 from ui.widgets.widget import Widget
 from ui.theme import Theme, register_has_theme_and_apply, theme_manager, style_rules
-from ui.animations.pulse import PulseAnimation
+from ui.animations.pulse import PulseAnimation, blend_colors
 from ui.models import TooltipContents
 
 from utils import tint_icon
@@ -109,15 +109,7 @@ class Button(Widget):
 
     @staticmethod
     def _blend(a: str, b: str, t: float) -> str:
-        ca = QColor(a)
-        cb = QColor(b)
-
-        r = round(ca.red()   + (cb.red()   - ca.red())   * t)
-        g = round(ca.green() + (cb.green() - ca.green()) * t)
-        b = round(ca.blue()  + (cb.blue()  - ca.blue())  * t)
-        a = round(ca.alpha() + (cb.alpha() - ca.alpha()) * t)
-
-        return QColor(r, g, b, a).name(QColor.HexArgb)
+        return blend_colors(a, b, t)
 
     # basic stuff
 

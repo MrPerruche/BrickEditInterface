@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QLayout, QVBoxLayout, QHBoxLayout, QScrollArea, QD
 from PySide6.QtCore import Qt, QPoint, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 
-from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry, Button, ToolButton, LineEdit
+from ui.widgets import Widget, Separator, Label, StyledLabel, LabelStyle, Switcher, SurfaceSwitcher, SwitcherEntry, Button, ToolButton, LineEdit, Surface, SurfaceStyle
 from ui.theme import Theme, style_rules, register_has_theme_and_apply
 
 import logging
@@ -90,6 +90,10 @@ class Tutorial(QDialog):
         self.master_layout = QVBoxLayout()
         self.master_layout.setContentsMargins(10, 10, 10, 10)
         self.content.setLayout(self.master_layout)
+
+        # add_* calls add into the last layout of the stack. (layout, what was focused to get it), see focus()
+        self._focus_stack: list[tuple[QLayout, QWidget | QLayout | None]] = [(self.master_layout, None)]
+        self._last_added: QWidget | QLayout | None = None  # What focus() enters by default
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setProperty("tutorialScroll", True)
@@ -274,14 +278,44 @@ class Tutorial(QDialog):
                         switcher.set_index(i)
                     break
 
-    def add_widget(self, widget: Widget):
-        self.master_layout.addWidget(widget)
+    # -- Focus --
+
+    def focus(self, target: QWidget | QLayout | None = None):
+        """Makes the next add_* calls add into target (default: the last widget or layout added, eg. by add_surface())
+        until unfocus(). Focuses nest, unfocus() goes back to the previously focused container."""
+        if target is None:
+            target = self._last_added
+        layout = target if isinstance(target, QLayout) else target.layout() if target is not None else None
+        if layout is None:
+            raise ValueError(f"Tutorial.focus(): {target!r} has no layout to add widgets into")
+        self._focus_stack.append((layout, target))
+        return self
+
+    def unfocus(self, levels: int = 1):
+        """Undoes the last focus() (or the last levels ones). The container which was left counts as the last widget
+        added: refer_target() points to it and focus() enters it again."""
+        if levels >= len(self._focus_stack):
+            raise ValueError(f"Tutorial.unfocus({levels}): only {len(self._focus_stack) - 1} focus() to undo")
+        for _ in range(levels):
+            _, target = self._focus_stack.pop()
+        self._last_added = target
+        if isinstance(target, QWidget):
+            self._last_widget = target
+        return self
+
+    def unfocus_all(self):
+        """Goes back to the tutorial's own layout"""
+        return self.unfocus(len(self._focus_stack) - 1) if len(self._focus_stack) > 1 else self
+
+    def add_widget(self, widget: QWidget):
+        self._focus_stack[-1][0].addWidget(widget)
         self._last_widget = widget
+        self._last_added = widget
         return self
 
     def refer_target(self, target_id: str, label: str):
-        """Makes the widget added right before a destination of refer_to(target_id) in any tutorial.
-        label is what those buttons show."""
+        """Makes the widget added right before (or the container just unfocused) a destination of refer_to(target_id)
+        in any tutorial. label is what those buttons show."""
         if not self._owns_link_targets:
             return self  # Embedded copy of a tutorial: the standalone one owns the ids
         if target_id in _link_targets:
@@ -322,8 +356,27 @@ class Tutorial(QDialog):
         QTimer.singleShot(0, _scroll)
 
     def add_layout(self, layout: QLayout):
-        self.master_layout.addLayout(layout)
+        self._focus_stack[-1][0].addLayout(layout)
+        self._last_added = layout
         return self
+
+
+    # -- Containers (fill them with focus() ... unfocus()) --
+
+    def add_surface(self, style: SurfaceStyle = SurfaceStyle.REGULAR, danger: bool = False):
+        """danger: pulses toward the theme's danger colors"""
+        surface = Surface(style)
+        surface.set_widget_content_margins(8, 6, 8, 6)
+        surface.set_danger(danger)
+        return self.add_widget(surface)
+
+    def add_row(self, spacing: int = 6):
+        """Container placing its widgets side by side"""
+        row = Widget()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(spacing)
+        return self.add_widget(row)
 
 
     def add_sep(self, top=9, bottom=9):
@@ -347,6 +400,32 @@ class Tutorial(QDialog):
 
     def add_subtext(self, text: str):
         return self.add_text(text, style=LabelStyle.SUBTEXT_1)
+
+
+    # -- Callouts (text boxed in a surface) --
+
+    def open_callout(self, title: str | None = None, style: SurfaceStyle = SurfaceStyle.REGULAR, danger: bool = False):
+        """Adds a surface holding title (if any) and focuses it: add any content, then unfocus()"""
+        self.add_surface(style, danger).focus()
+        if title is not None:
+            self.add_low_header(title, nomargin=True)
+        return self
+
+    def add_callout(self, *texts: str, title: str | None = None, style: SurfaceStyle = SurfaceStyle.REGULAR, danger: bool = False):
+        """Adds a surface holding title (if any) and one label per text"""
+        self.open_callout(title, style, danger)
+        for text in texts:
+            self.add_text(text)
+        return self.unfocus()
+
+    def add_note(self, *texts: str, title: str | None = "Note"):
+        return self.add_callout(*texts, title=title)
+
+    def add_warning(self, *texts: str, title: str | None = "Warning"):
+        return self.add_callout(*texts, title=title, style=SurfaceStyle.ACCENT)
+
+    def add_critical(self, *texts: str, title: str | None = "Important"):
+        return self.add_callout(*texts, title=title, danger=True)
 
 
     def _get_collection_entries(self, *args: str | tuple[str, str] | SwitcherEntry) -> list[SwitcherEntry]:
@@ -407,6 +486,8 @@ class Tutorial(QDialog):
         Never summon a non finalized widget"""
         if not self.finalized:
             self.finalized = True
+            if len(self._focus_stack) > 1:
+                logger.warning(f"Tutorial '{self.windowTitle()}' has {len(self._focus_stack) - 1} focus() without unfocus()")
             self.master_layout.addStretch(1)
 
         self.show()

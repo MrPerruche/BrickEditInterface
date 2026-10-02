@@ -1,5 +1,19 @@
 from collections.abc import Callable
 from PySide6.QtCore import QObject, Property, QPropertyAnimation, QEasingCurve
+from PySide6.QtGui import QColor
+
+
+def blend_colors(a: str, b: str, t: float) -> str:
+    """Linear blend from color a (t = 0) to color b (t = 1), as #AARRGGBB"""
+    ca = QColor(a)
+    cb = QColor(b)
+
+    r = round(ca.red()   + (cb.red()   - ca.red())   * t)
+    g = round(ca.green() + (cb.green() - ca.green()) * t)
+    b = round(ca.blue()  + (cb.blue()  - ca.blue())  * t)
+    a = round(ca.alpha() + (cb.alpha() - ca.alpha()) * t)
+
+    return QColor(r, g, b, a).name(QColor.HexArgb)
 
 
 class PulseAnimation(QObject):

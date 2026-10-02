@@ -206,8 +206,12 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# BEI
 compiled_build/
 release_build/
 backup/
 logs/
 nuitka-crash-report.xml
+
+# BEI - Test files
+ignore/
