@@ -3,6 +3,8 @@ from PySide6.QtGui import QIcon, QColor
 from ui.components.gradient.editor import GradientEditor
 from ui.widgets import Button, ComboBox, Label, Surface, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle
 from ui.models import TooltipContents
+from ui.components import Tutorial
+from ui.rich_text import pmd
 from ui.dialogs import OverwriteOrCancelDialog
 from menus import base
 
@@ -72,7 +74,59 @@ class GradientMaker(base.BaseMenu):
         return "Gradient Maker"
 
     def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(":/assets/icons/GradientIconNew.png"), True)
+        return base.MenuInfo(QIcon(":/assets/icons/GradientIconNew.png"), True,
+            tutorial=Tutorial(self.get_menu_name(), self.mw)
+                .add_text("The gradient maker is designed to quickly create higher quality "
+                    "gradients in Brick Rigs.")
+
+                .add_header("Getting started")
+                .add_text("Steps in order to create a simple 2-color gradients:")
+                .add_steps(
+                    "(Optional) customize the colors of the gradient.",
+                    "(Optional) customize the number of bricks and what bricks the gradient is "
+                    "made of.",
+                    "Press \"Create vehicle\"."
+                )
+
+                .add_header("Making gradients")
+
+                .add_low_header("Interpolation")
+                .add_text("A gradient is made of colored points, placed at different positions. "
+                    "The color between these points is determined by interpolating (mixing two "
+                    "colors). You can set in which color space interpolation occurs, ie. how "
+                    "colors are blended. OKLAB and OKLCH are recommended for most uses. ")
+                .refer_to("getting_started_colors")
+
+                .add_low_header("Selecting & changing colors")
+                .add_text("You can select a point by clicking on it (it has a diamond shape). Once "
+                    "selected, you can set the color by clicking the colored square at the bottom.")
+
+                .add_low_header("Adding, removing, and moving points")
+                .add_text("You can add a point by clicking on the + button at the bottom right. "
+                    "This point will be placed at the middle of the gradient, and can stack on "
+                    "top of an existing point. To remove a point, select the point and press the "
+                    "bin button to delete it.")
+                .add_text("You can move a point precisely by setting its position in the number "
+                    "field at the bottom. Position is set between 0 and 100 (for 0% and 100%). "
+                    "A point can be on top of another.")
+
+                .add_low_header("Shortcuts")
+                .add_text(pmd(
+                    "- Hold and drag a point to move it ;\n"
+                    "- `Double LMB` to add a point here ;\n"
+                    "- `Double LMB` on a point to edit its color ;\n"
+                    "- `RMB` on a point to remove it."
+                    
+                ))
+
+                .add_header("Settings")
+                .add_text("When importing in Brick Rigs, your gradient will be split into the "
+                    "defined amount of bricks, where the first one is at 0% and last one at 100%.")
+                .add_text("Some bricks have special interactions: text bricks display additionnal "
+                    "information and spinners automatically placed in a circle.")
+
+                .refer_to("getting_started_colors")
+        )
 
     def on_brick_count_updated(self):
         self.brick_count = int(self.brick_count_nce.get_text())

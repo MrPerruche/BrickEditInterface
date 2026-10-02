@@ -3,6 +3,7 @@ from PySide6.QtGui import QIcon, QRegularExpressionValidator
 
 from ui.widgets import Label, Button, Slider, ComboBox, LineEdit, MultilineEdit, NumberChannelEdit, ChannelMode, StyledLabel, LabelStyle, Switcher, SwitcherEntry, BoolSwitch
 from ui.dialogs import CorruptStateDialog
+from ui.components import Tutorial
 import ui.theme as theme
 from ui.models import TooltipContents
 
@@ -123,4 +124,4 @@ class DeveloperTestMenu(base.BaseMenu):
         return "Developer tests"
 
     def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(":/assets/icons/unknown.png"), True)
+        return base.MenuInfo(QIcon(":/assets/icons/unknown.png"), True, bottom_menu=True)

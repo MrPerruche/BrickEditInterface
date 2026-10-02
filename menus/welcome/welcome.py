@@ -18,12 +18,21 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
         .add_text(pmd("BrickEdit-Interface (BEI) edits the vehicle **stored on disk** (just like "
             "HexEdit !). Changes made in Brick Rigs (BR) do NOT automatically happen in BEI !"))
         .add_text("If you do not save (in BR) before (re-)loading a vehicle in BEI, the program "
-            "will load an older version of the vehicle. (Tip: use CTRL+S in BR to save quickly.)")
+            "will load an older version of the vehicle.")
         .add_text("Additionally, once you save changes in BEI, you must re-open the vehicle in "
             "Brick Rigs to see the changes. If you don't, you may overwrite them!")
         .add_text("If the vehicle loaded in BEI is older than the one on disk, the reload button "
             "will glow red. BEI does not automatically reload the vehicle because keeping "
             "an old version loaded can sometimes be useful.")
+
+        .add_header("How to select (load) vehicles")
+        .add_text("Vehicles can be selected in the dropdown located at the top of every menu. "
+            "If the dropdown is collapsed, you must expand it in order to select vehicles. "
+            "To load a vehicle, press the \"Load\" button and either click one in the list or "
+            "load any vehicle anywhere via the folder button. A vehicle can be unloaded or "
+            "reloaded at any time via the two other buttons.")
+        .add_text("The text input can be used to set the name of any vehicle that you create. "
+            "If a vehicle is loaded, it may instead be used to rename the vehicle.")
 
         .add_header("Tutorials")
         .add_text("Most tools have a tutorial, which you can find in the top right corner of the "
@@ -44,10 +53,31 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
             
         )
 
-        .add_sep()
+        .add_sep(bottom=0)
+        .add_sep(top=2)
         .add_text(pmd("**Below are tutorials explaining many BEI features in-depth. You don't "
             "have to read them. Other tutorials will redirect you to different parts of the "
             "content available below when necessary: **"))
+
+        .refer_target("getting_started_colors", "Learn more about color spaces")
+        .add_header("Color spaces")
+        .add_text("You may find in many menus different color spaces mentionned. These color "
+            "spaces have different properties and purposes.")
+        .add_text("OKLAB is a perceptual color space. Basically, it means it represents human "
+            "vision more accurately when doing things like blending colors or gradients.\n"
+            "OKLCH is similar to OKLAB, but relies on Hue (and Chroma) instead of color channels "
+            "(you can think of it as RGB's HSV for OKLAB). OKLCH supports longer hue.")
+        .add_text("RGB is the default color space. It is sometimes split between Linear and sRGB."
+            "The difference between Linear RGB and sRGB depends on the context, but generally, "
+            "the linear RGB option is only added when it is relevant.")
+        .add_text("HSV typically is the default color space used for user inputs. It is easy to "
+            "understand, but can produce terrible results when doing things like blending colors "
+            "or gradients. HSV supports longer hue.")
+        .add_low_header("Longer hue")
+        .add_text("When you make gradients using color space that use a hue channel (OKLCH, HSV), "
+            "you can use the \"longer hue\" setting to make the gradient take the longest path "
+            "possible around the color wheel.\n"
+            "Making a gradient between two identical colors in longer hue will produce a rainbow.")
 
         .add_header("Expressions")
         .refer_target("getting_started_expressions", "Learn more about expressions")

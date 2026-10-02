@@ -253,6 +253,15 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                     "fully managed by Brick Rigs, but can be recovered or deleted from BrickEdit-"
                     "Interface."))
 
+                .add_header("Backup Settings")
+                .add_text("You can configure the maximum amount and size of both short and long "
+                    "term backups a vehicle has. Keep in mind these limits are per vehicle, not "
+                    "global! When the maximum is exceeded, BEI deletes the oldest backups of the "
+                    "respective category until the amount or size falls under this limit.")
+                .add_text("By default, BEI's amount limits are set low to not flood your disk "
+                    "with useless copies and the size limits are set high, as a safeguard just in "
+                    "case vehicle files are exceptionally large.")
+
                 .add_sep()
                 .add_faq(
                     pmd("**Why are backups missing a date or description?**\n"
