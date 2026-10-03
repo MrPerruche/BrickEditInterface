@@ -97,6 +97,10 @@ class BasePropertyWidget(Widget):
         """default_value parameter is used if the widget was never edited or if formulas are used."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement get_value()")
 
+    def format_value(self, value: T) -> str:
+        """Human-readable form of a property value, eg. in error messages."""
+        return str(value)
+
     @classmethod
     def get_example_value(cls) -> T:
         """gives a value that is valid for this widget."""
@@ -510,7 +514,7 @@ class UnsignedInteger8PropertyWidget(BasePropertyWidget):
             self.value_input.setValue(value)
 
     def get_value(self, default_value: int) -> int:
-        return self.value_input.evaluate_at(x=default_value) if self.formula_mode else self.value_input.value()
+        return self.value_input.evaluate_at(n=default_value) if self.formula_mode else self.value_input.value()
 
     @classmethod
     def get_example_value(cls) -> int:
@@ -717,6 +721,13 @@ class ColorPropertyWidget(BasePropertyWidget):
 
         for widget, channel_value in zip(self.hsv_widgets, (h, s, v, a)):
             widget.setValue(channel_value)
+
+    def format_value(self, value: int) -> str:
+        r, g, b, a = value >> 24 & 0xFF, value >> 16 & 0xFF, value >> 8 & 0xFF, value & 0xFF
+        if self.color_space == 'rgba':
+            return f"r={r}, g={g}, b={b}, a={a}"
+        h, s, v, a = self._rgba_to_hsva(r, g, b, a)
+        return f"h={h:g}, s={s:g}, v={v:g}, a={a}"
 
     def get_value(self, default_value: int) -> int:
         default_r = default_value >> 24 & 0xFF

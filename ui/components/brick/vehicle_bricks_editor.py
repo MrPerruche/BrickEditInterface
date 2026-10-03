@@ -1,11 +1,11 @@
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtCore import Signal
 
-from ui.dialogs import CannotSaveUneditedDialog
+from ui.dialogs import CannotSaveUneditedDialog, InvalidExpressionDialog, UnexpectedErrorDialog
 from ui.widgets import Widget, Switcher, SwitcherEntry, Label
 from ui.components.brick.grouping_methods import *
 from ui.components.brick.property_utils import get_or_make_property_display_name
-from ui.components.brick.property_set import PropertySet
+from ui.components.brick.property_set import PropertySet, FormulaApplyError
 
 from utils import wipe_layout, clamp
 
@@ -280,8 +280,17 @@ class VehicleBricksEditor(Widget):
         bricks: list[brickedit.Brick] = self.gms_to_brick_lists[gm_idx][page][1]
         relevant_brick_ids: set[str] = {b.ref.id for b in bricks}
 
-        # Update brick properties on the brvfile copy
-        self.live_property_set.update_bricks([brick for brick in brvfile.bricks if brick.ref.id in relevant_brick_ids])
+        # Update brick properties on the brvfile copy (discarded if anything fails, nothing is saved)
+        try:
+            self.live_property_set.update_bricks([brick for brick in brvfile.bricks if brick.ref.id in relevant_brick_ids])
+        except FormulaApplyError as e:
+            logger.info(f"Formula could not be applied: {e}")
+            InvalidExpressionDialog.create(self.mw, str(e)).exec()
+            return None
+        except Exception as e:
+            logger.exception("Unexpected error while applying brick edits")
+            UnexpectedErrorDialog.create(self.mw, "Changes could not be applied. Nothing was saved.", e).exec()
+            return None
 
         # Save
         if save:

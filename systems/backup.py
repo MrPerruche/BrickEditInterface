@@ -1,9 +1,15 @@
-from os import path, makedirs, listdir
+from os import path, makedirs, listdir, remove
+import re
 import shutil
 import tomllib, tomli_w
+from dataclasses import dataclass
+from enum import Enum, auto
 from datetime import datetime as _datetime, timezone as _tz, timedelta as _timedelta
+from logging import getLogger
 
-from brickedit.src.brickedit.vhelper import net_ticks_now, to_net_ticks
+from send2trash import send2trash
+
+from brickedit.src.brickedit.vhelper import net_ticks_now, to_net_ticks, from_net_ticks
 
 from utils import dir_size
 
@@ -11,9 +17,36 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mainwindow import BrickEditInterface
 
+_logger = getLogger(__name__)
+
+
+class MetadataState(Enum):
+    FOUND = auto()           # bei_metadata.toml was read
+    MISSING = auto()         # No metadata file (Steam Cloud transfer, or backup made by an old BEI version)
+    UNREADABLE = auto()      # Metadata file exists but is corrupt, too large or not a valid TOML
+    NOT_APPLICABLE = auto()  # Brick Rigs backups, which never have BEI metadata
+
+
+@dataclass(frozen=True)
+class BackupInfo:
+    path: str                # Backup folder, or .brv file (Brick Rigs backups and backups from older BEI versions)
+    brv_path: str            # .brv file copied over Vehicle.brv when recovering this backup
+    kind: str                # "st", "lt", "ug", "br_backup", "br_autosave" or "unknown"
+    time: _datetime | None   # UTC, None if no trustworthy date was found
+    description: str | None  # None if there is no description (see metadata for why)
+    metadata: MetadataState
+
+    @property
+    def is_brick_rigs(self) -> bool:
+        return self.kind in BackupSystem.BRICK_RIGS_BACKUP_FILES.values()
+
+    @property
+    def is_file(self) -> bool:
+        return not path.isdir(self.path)
+
 
 class BackupSystem:
-    
+
     TOML_VERSION_TAG = "version"
     TOML_DESCRIPTION_TAG = "description"
     TOML_TIME_TAG = "time"
@@ -21,6 +54,22 @@ class BackupSystem:
     BACKUP_SYSTEM_VERSION: int = 2
     SHORT_TERM_BACKUP_MAX_DAYS: int = 14
     BACKUPS_SUBDIR = ("brickedit-interface", "backups")
+    METADATA_FILE = "bei_metadata.toml"
+
+    # Backup names and metadata can be edited by the user: only trust dates within this range of years.
+    MIN_BACKUP_YEAR = 2016
+    MAX_BACKUP_YEAR = 2046
+    # Larger metadata files are not read (a real one is ~100 bytes); longer descriptions are truncated.
+    MAX_METADATA_SIZE = 64 * 1024
+    MAX_DESCRIPTION_LENGTH = 1000
+
+    # "<type>-<.NET ticks>", optionally followed by ".brv" (backups from older versions were plain files).
+    # ASCII only: int() would also accept other unicode digits, underscores and whitespace.
+    _BACKUP_NAME_RE = re.compile(r"([a-z]{2})-([0-9]{1,19})(\.brv)?", re.ASCII)
+    BACKUP_TYPES = ("st", "lt", "ug")
+
+    # Lowercase file name -> kind. Brick Rigs writes "Backup.brv" and "Autosave.brv" next to Vehicle.brv.
+    BRICK_RIGS_BACKUP_FILES = {"backup.brv": "br_backup", "autosave.brv": "br_autosave"}
 
     def __init__(self, mw: "BrickEditInterface"):
         self.main_window = mw
@@ -36,9 +85,15 @@ class BackupSystem:
         if not (path.exists(vehicle_path) and path.isdir(vehicle_path)):
             return
         self.create_backup(vehicle_path, description)
-        excess = self.find_excess(vehicle_path)
-        for excess_dir_path in excess:
-            shutil.rmtree(excess_dir_path)
+        self.delete_excess(vehicle_path)
+
+
+    def delete_excess(self, vehicle_path):
+        for excess_dir_path in self.find_excess(vehicle_path):
+            try:
+                shutil.rmtree(excess_dir_path)
+            except OSError:
+                _logger.exception("Failed to delete excess backup %s", excess_dir_path)
 
 
     def create_backup(self, vehicle_path, description="No description provided.", user_generated = False):
@@ -67,7 +122,7 @@ class BackupSystem:
         shutil.copy2(og_brv, new_brv_path)
 
         # Add a file containing BEI metadata.
-        toml_file = path.join(backup_path, "bei_metadata.toml")
+        toml_file = path.join(backup_path, self.METADATA_FILE)
         with open(toml_file, "w") as f:
             toml_w = tomli_w.dumps({
                 self.TOML_VERSION_TAG: self.BACKUP_SYSTEM_VERSION,
@@ -77,19 +132,179 @@ class BackupSystem:
             f.write(toml_w)
 
 
+    def recover_backup(self, vehicle_path, backup: BackupInfo):
+        """Overwrites Vehicle.brv with the backup's .brv. The current Vehicle.brv is backed up first, like any
+        other modification made by BEI. Raises OSError (FileNotFoundError if the backup has no .brv)."""
+        if not path.isfile(backup.brv_path):
+            raise FileNotFoundError(backup.brv_path)
+        self.create_backup(vehicle_path, "Automatic backup made before recovering a backup.")
+        shutil.copy2(backup.brv_path, path.join(vehicle_path, "Vehicle.brv"))
+        # Only now: the recovered backup may itself have been excess
+        self.delete_excess(vehicle_path)
+
+
+    @staticmethod
+    def delete_backup(backup_path: str, recycle_bin: bool):
+        """Deletes a backup folder or file. Raises OSError on failure."""
+        if recycle_bin:
+            send2trash(backup_path)
+        elif path.isdir(backup_path) and not BackupSystem._is_link(backup_path):
+            shutil.rmtree(backup_path)
+        else:
+            remove(backup_path)
+
+
+    # ---------------
+    # Finding backups
+    # ---------------
+
+    @staticmethod
+    def _is_link(p: str) -> bool:
+        # Links could point anywhere: never treat them as backups (deleting their target would be bad)
+        is_junction = getattr(path, "isjunction", None)  # Python 3.12+
+        return path.islink(p) or (is_junction is not None and is_junction(p))
+
+
     def find_backup_names(self, vehicle_path):
         backups_root = path.join(vehicle_path, *self.BACKUPS_SUBDIR)
         if not path.isdir(backups_root):
             return []
-        return listdir(backups_root)
+        try:
+            return listdir(backups_root)
+        except OSError:
+            return []
 
     def find_backups(self, vehicle_path):
-        return [path.join(vehicle_path, *self.BACKUPS_SUBDIR, backup) for backup in self.find_backup_names(vehicle_path)]
+        """Paths of every BEI backup of a vehicle (folders, or .brv files for backups from older versions)"""
+        backups_root = path.join(vehicle_path, *self.BACKUPS_SUBDIR)
+        result = []
+        for name in self.find_backup_names(vehicle_path):
+            backup_path = path.join(backups_root, name)
+            if self._is_link(backup_path):
+                continue
+            if path.isdir(backup_path) or (path.isfile(backup_path) and name.lower().endswith(".brv")):
+                result.append(backup_path)
+        return result
 
+    def find_brick_rigs_backups(self, vehicle_path) -> list[BackupInfo]:
+        """Backup.brv and Autosave.brv, managed by Brick Rigs"""
+        try:
+            names = listdir(vehicle_path)
+        except OSError:
+            return []
+
+        result = []
+        for name in names:
+            kind = self.BRICK_RIGS_BACKUP_FILES.get(name.lower())
+            file_path = path.join(vehicle_path, name)
+            if kind is None or self._is_link(file_path) or not path.isfile(file_path):
+                continue
+            try:
+                time = _datetime.fromtimestamp(path.getmtime(file_path), tz=_tz.utc)
+            except (OSError, OverflowError, ValueError):
+                time = None
+            result.append(BackupInfo(file_path, file_path, kind, time, None, MetadataState.NOT_APPLICABLE))
+        return result
+
+
+    # ---------------------
+    # Reading backup info
+    # ---------------------
+
+    @classmethod
+    def parse_backup_name(cls, name: str) -> tuple[str, int | None] | None:
+        """(type, .NET ticks) from a backup's name, or None if it is not a valid backup name.
+        Ticks are None if they don't represent a plausible date (see MIN/MAX_BACKUP_YEAR)."""
+        match = cls._BACKUP_NAME_RE.fullmatch(name)
+        if match is None or match.group(1) not in cls.BACKUP_TYPES:
+            return None
+        return match.group(1), cls.validate_ticks(int(match.group(2)))
+
+    @classmethod
+    def validate_ticks(cls, ticks) -> int | None:
+        """ticks if it is an int representing a date between MIN_BACKUP_YEAR and MAX_BACKUP_YEAR, else None"""
+        if type(ticks) is not int:  # Not isinstance: bool is an int
+            return None
+        try:
+            year = from_net_ticks(ticks).year
+        except (OverflowError, ValueError):
+            return None
+        return ticks if cls.MIN_BACKUP_YEAR <= year <= cls.MAX_BACKUP_YEAR else None
+
+
+    def read_backup_metadata(self, backup_path) -> tuple[dict | None, MetadataState]:
+        """Never raises: the metadata file may have been edited by hand, or be corrupt."""
+        toml_file = path.join(backup_path, self.METADATA_FILE)
+        try:
+            if not path.isfile(toml_file) or self._is_link(toml_file):
+                return None, MetadataState.MISSING
+            if path.getsize(toml_file) > self.MAX_METADATA_SIZE:
+                return None, MetadataState.UNREADABLE
+            with open(toml_file, "rb") as f:
+                return tomllib.load(f), MetadataState.FOUND
+        except (OSError, ValueError, RecursionError):  # ValueError covers TOMLDecodeError and UnicodeDecodeError
+            return None, MetadataState.UNREADABLE
+
+    def fetch_backup_metadata(self, backup_path) -> dict:
+        """Metadata of a backup, empty if it is missing or unreadable"""
+        return self.read_backup_metadata(backup_path)[0] or {}
+
+
+    def _get_backup_ticks(self, name_ticks: int | None, metadata: dict | None) -> int | None:
+        """The backup's name is trusted first, the metadata second."""
+        if name_ticks is not None:
+            return name_ticks
+        if metadata is None:
+            return None
+        return self.validate_ticks(metadata.get(self.TOML_TIME_TAG))
+
+
+    def get_backup_info(self, backup_path) -> BackupInfo:
+        name = path.basename(backup_path)
+        parsed = self.parse_backup_name(name)
+        kind, name_ticks = parsed if parsed is not None else ("unknown", None)
+
+        if path.isdir(backup_path):
+            brv_path = path.join(backup_path, "Vehicle.brv")
+            metadata, metadata_state = self.read_backup_metadata(backup_path)
+        else:  # Backup from an older version: the .brv itself, there never was any metadata
+            brv_path = backup_path
+            metadata, metadata_state = None, MetadataState.MISSING
+
+        ticks = self._get_backup_ticks(name_ticks, metadata)
+        time = from_net_ticks(ticks) if ticks is not None else None
+
+        description = None
+        if metadata is not None:
+            description = metadata.get(self.TOML_DESCRIPTION_TAG)
+            if not isinstance(description, str) or not description.strip():
+                description = None
+            elif len(description) > self.MAX_DESCRIPTION_LENGTH:
+                description = description[:self.MAX_DESCRIPTION_LENGTH] + "…"
+
+        return BackupInfo(backup_path, brv_path, kind, time, description, metadata_state)
+
+
+    def get_all_backup_infos(self, vehicle_path) -> list[BackupInfo]:
+        """Brick Rigs and BEI backups, newest first. Backups with an unknown date are last."""
+        backups = self.find_brick_rigs_backups(vehicle_path) + [self.get_backup_info(p) for p in self.find_backups(vehicle_path)]
+        backups.sort(key=lambda b: path.basename(b.path), reverse=True)  # Stable order among backups of equal date
+        backups.sort(key=lambda b: (b.time is not None, b.time or _datetime.min.replace(tzinfo=_tz.utc)), reverse=True)
+        return backups
+
+
+    # ---------------
+    # Excess backups
+    # ---------------
 
     def find_all_excess(self, vehicles_path):
         excess_backups = []
-        vehicle_pathes = listdir(vehicles_path)
+        if not vehicles_path or not path.isdir(vehicles_path):
+            return excess_backups
+        try:
+            vehicle_pathes = listdir(vehicles_path)
+        except OSError:
+            return excess_backups
         for vehicle in vehicle_pathes:
             vehicle_path = path.join(vehicles_path, vehicle)
             if not path.isdir(vehicle_path):
@@ -114,24 +329,30 @@ class BackupSystem:
             return []
 
         # Path & store upcoming results
-        vehicle_backups = listdir(backups_root)
+        vehicle_backups = self.find_backup_names(vehicle_path)
         # backups: list[tuple[type, time, size, path]]
         found_backups: list[tuple[str, int, int, str]] = []
 
         # Sieve through backups
         for backup in vehicle_backups:
-            # Get full backup path
+            # Get full backup path. Files (backups from older versions) are never deleted automatically.
             backup_path = path.join(backups_root, backup)
-            if (not path.exists(backup_path)) or (not path.isdir(backup_path)):
+            if not path.isdir(backup_path) or self._is_link(backup_path):
+                continue
+
+            # Backups which aren't named properly, or whose date can't be trusted, are never deleted automatically
+            parsed = self.parse_backup_name(backup)
+            if parsed is None:
+                continue
+            backup_type, name_ticks = parsed
+            metadata = None if name_ticks is not None else self.read_backup_metadata(backup_path)[0]
+            backup_time = self._get_backup_ticks(name_ticks, metadata)
+            if backup_time is None:
                 continue
 
             try:
-                backup_split = backup.replace(".brv", "").strip().split('-')  # Replace for previous versions support
-                backup_type, backup_time = backup_split[0].strip(), backup_split[1].strip()
-                backup_time = int(backup_time[ :18])  # It will be a thousand years before we use 19 digits to represent time this way
                 backup_size = dir_size(backup_path)
-            except ValueError:
-                # Not a backup or malformed, skip.
+            except OSError:
                 continue
 
             # If a short term backup is too old, then it must be excess
@@ -169,13 +390,6 @@ class BackupSystem:
         return excess_backups
 
 
-    def fetch_backup_metadata(self, backup_path):
-        toml_file = path.join(backup_path, "bei_metadata.toml")
-        if not path.exists(toml_file):
-            return {}
-        with open(toml_file, "rb") as f:
-            return tomllib.load(f)
-
     def get_backup_name(self, shorthand: str):
         match shorthand:
             case "st":
@@ -184,5 +398,9 @@ class BackupSystem:
                 return "Long term"
             case "ug":
                 return "User generated"
+            case "br_backup":
+                return "Brick Rigs"
+            case "br_autosave":
+                return "Brick Rigs autosave"
             case _:
                 return "Unknown"

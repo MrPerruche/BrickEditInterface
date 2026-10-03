@@ -3,6 +3,7 @@ from PySide6.QtCore import Signal
 
 from ui.widgets import Widget, StyledLabel, LabelStyle
 from ui.components.brick.property_widgets import BasePropertyWidget, get_property_widget, Vec3PropertyWidget
+from ui.components.brick.property_utils import get_or_make_property_display_name
 
 from utils import wipe_layout
 
@@ -13,6 +14,23 @@ if TYPE_CHECKING:
     from ui.components.brick_filter.brick_selector import BrickSelector
 
 import brickedit
+
+
+class FormulaApplyError(Exception):
+    """A property's formula could not produce a valid value for one of the bricks it applies to.
+    This is a user input problem (eg. 1/(x-1) when x is 1, or a result out of range), not a bug:
+    the message is meant to be shown to the user as is."""
+
+    def __init__(self, property_display_name: str, brick: brickedit.Brick, input_value: str, reason: str):
+        self.property_display_name = property_display_name
+        self.input_value = input_value
+        self.reason = reason
+        super().__init__(
+            f"The formula for \"{property_display_name}\" could not be applied to brick "
+            f"{get_or_make_property_display_name(brick.meta().name())} (current value: {input_value}). "
+            "Nothing was saved.\n"
+            f"{reason}"
+        )
 
 
 def _make_pos_or_rot_widget(title: str, value_set: set[brickedit.Vec3]):
@@ -74,10 +92,12 @@ class PropertySet(Widget):
 
             # Brick's position
             self.pos_widget = _make_pos_or_rot_widget("Position", positions)
+            self.pos_widget.value_changed.connect(self.on_property_edited)
             self.properties_layout.addWidget(self.pos_widget)
 
             # Brick's rotation
             self.rot_widget = _make_pos_or_rot_widget("Rotation", rotations)
+            self.rot_widget.value_changed.connect(self.on_property_edited)
             self.properties_layout.addWidget(self.rot_widget)
 
             for (prop, values) in sorted_properties:
@@ -104,14 +124,32 @@ class PropertySet(Widget):
 
 
 
+    @staticmethod
+    def _evaluate(pw: BasePropertyWidget, brick: brickedit.Brick, default_value):
+        try:
+            return pw.get_value(default_value)
+        except ValueError as e:  # Formula channels raise ValueError for anything the user wrote wrong
+            raise FormulaApplyError(get_or_make_property_display_name(pw.get_property()), brick,
+                                    pw.format_value(default_value), str(e)) from e
+
+
     def update_bricks(self, bricks: list[brickedit.Brick]):
-        """Note: Edits are applied through mutability"""
+        """Note: Edits are applied through mutability.
+
+        Raises FormulaApplyError if a formula fails for any brick. Bricks may then be partially
+        edited, so only call this on a copy that is discarded on failure."""
 
         cache: dict[str, dict[Hashable, Hashable | None]] = defaultdict(dict)
 
-        assert self.pos_widget is not None and self.rot_widget is not None, "Widgets are None! PropertySet.update_bricks is called before PropertySet is properly initialized."        
+        assert self.pos_widget is not None and self.rot_widget is not None, "Widgets are None! PropertySet.update_bricks is called before PropertySet is properly initialized."
 
         for brick in bricks:
+
+            # Brick's transform. Once per brick: formulas like x+1 must not stack.
+            if self.rot_widget.is_dirty():
+                brick.rot = self._evaluate(self.rot_widget, brick, brick.rot)
+            if self.pos_widget.is_dirty():
+                brick.pos = self._evaluate(self.pos_widget, brick, brick.pos)
 
             for pw in self.property_widgets:
 
@@ -130,14 +168,10 @@ class PropertySet(Widget):
                 if pw.is_cachable() and default_value in cache[pw_prop]:
                     new_value = cache[pw_prop][default_value]
                 else:
-                    new_value = pw.get_value(default_value)
+                    new_value = self._evaluate(pw, brick, default_value)
                     if pw.is_cachable():
                         cache[pw_prop][default_value] = new_value
 
                 brick.set_property(pw_prop, new_value)
-
-                # Set brick's transform
-                brick.rot = self.rot_widget.get_value(brick.rot)
-                brick.pos = self.pos_widget.get_value(brick.pos)
 
         # print(bricks, len(self.property_widgets))

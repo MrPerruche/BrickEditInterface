@@ -53,7 +53,9 @@ Design notes
 
 from __future__ import annotations
 
+import ast
 import math
+import re
 import warnings
 import weakref
 from decimal import Decimal, ROUND_HALF_EVEN, localcontext
@@ -183,6 +185,82 @@ _SPECIAL_INPUT = {
     "-inf": -math.inf, "-infinity": -math.inf,
 }
 
+# Largest finite float32. Anything past it can't be written to a file
+# (struct.pack('<f', ...) raises OverflowError).
+_FLOAT32_MAX = float(np.finfo(np.float32).max)
+
+# Names asteval's minimal symtable exposes that have side effects outside
+# the expression (file IO, console output, numpy's *global* error state
+# - `seterr(all='raise')` typed in one field would change float behavior
+# app-wide). None of them can produce a useful number anyway.
+_UNSAFE_SYMBOLS = (
+    "open", "print", "info", "seterr", "setbufsize",
+    "loadtxt", "genfromtxt", "fromfile", "fromregex",
+)
+
+# factorial(171) is already past float64's range, and a huge argument
+# (eg. typing factorial(1000000) one digit at a time, since validation
+# runs on every keystroke) would freeze the UI computing a giant int.
+_FACTORIAL_MAX = 170
+
+
+def _safe_factorial(n):
+    if n > _FACTORIAL_MAX:
+        raise OverflowError(f"argument too large (max {_FACTORIAL_MAX})")
+    return math.factorial(n)
+_safe_factorial.__name__ = "factorial"  # asteval puts it in error messages
+
+
+# Human-readable labels for exceptions a user's formula can raise. Shown
+# before the detail message, eg. "Division by zero: float division by zero".
+_ERROR_LABELS = {
+    "ZeroDivisionError": "Division by zero",
+    "OverflowError": "Number too large",
+    "NameError": "Unknown name",
+    "SyntaxError": "Invalid syntax",
+    "TypeError": "Wrong type",
+    "ValueError": "Invalid value",
+    "AttributeError": "Unknown attribute",
+    "IndexError": "Index out of range",
+    "KeyError": "Missing key",
+    "NotImplementedError": "Not supported",
+    "RuntimeError": "Limit exceeded",
+    "MemoryError": "Out of memory",
+}
+
+# asteval wraps exceptions raised inside function calls as
+# "Error running function 'int' with args '[inf]' and kwargs {}: <msg>".
+_FUNC_ERROR_RE = re.compile(r"^Error running function '([^']*)' with args .*? and kwargs .*?: ", re.DOTALL)
+
+
+def _friendly_error(name: str, msg: str) -> str:
+    """Turn an (exception name, message) pair from asteval into one line
+    that's readable by someone who doesn't know Python."""
+    detail = msg.strip().splitlines()[-1] if msg.strip() else ""
+    if detail.startswith(f"{name}: "):
+        detail = detail[len(name) + 2:]
+    detail = _FUNC_ERROR_RE.sub(lambda m: f"{m.group(1)}(): ", detail)
+    label = _ERROR_LABELS.get(name, name)
+    return f"{label}: {detail}" if detail else label
+
+
+def _check_single_expression(text: str) -> None:
+    """Reject anything that isn't exactly one expression (assignments,
+    several statements...). asteval would happily run `pi = 3`, and that
+    assignment would stick around for every later evaluation of the
+    field. Parsing only, nothing is executed."""
+    try:
+        ast.parse(text, mode="eval")
+    except SyntaxError as e:
+        try:
+            ast.parse(text, mode="exec")
+        except SyntaxError:
+            raise ValueError("Invalid syntax" if e.msg == "invalid syntax" else f"Invalid syntax: {e.msg}") from None
+        raise ValueError("Invalid syntax: a formula must be a single expression "
+                         "(no assignments, imports or multiple statements)") from None
+    except (ValueError, MemoryError, RecursionError) as e:  # eg. null bytes, absurd nesting
+        raise ValueError(f"Invalid syntax: {e}") from None
+
 
 # ----------------------------------------------------------------------
 # App-wide interpreter globals. Every ChannelModel gets its own private
@@ -241,7 +319,10 @@ class ChannelModel:
         self.constraint_message = constraint_message
 
         self._aeval = Interpreter(minimal=True, with_ifexp=True)
-        self._aeval.symtable.update(pi=math.pi, e=math.e, inf=math.inf, nan=math.nan)
+        for name in _UNSAFE_SYMBOLS:
+            self._aeval.symtable.pop(name, None)
+        self._aeval.symtable.update(pi=math.pi, e=math.e, inf=math.inf, nan=math.nan,
+                                    factorial=_safe_factorial)
         self._aeval.symtable.update(_global_defines)
         # Names that survive reset() - the built-ins above, plus anything
         # added via define()/define_global(). A *set*, not a frozenset,
@@ -295,6 +376,8 @@ class ChannelModel:
         if low in _SPECIAL_INPUT:
             return _SPECIAL_INPUT[low]
 
+        _check_single_expression(text)
+
         self._aeval.error = []
         with warnings.catch_warnings():
             # asteval/numpy warn on e.g. sqrt(-1); we turn that into
@@ -303,13 +386,20 @@ class ChannelModel:
             result = self._aeval.eval(text, show_errors=False, raise_errors=False)
         if self._aeval.error:
             name, msg = self._aeval.error[0].get_error()
-            raise ValueError(f"{name}: {msg.splitlines()[-1]}")
-        if isinstance(result, bool) or result is None:
+            raise ValueError(_friendly_error(name, msg))
+        if isinstance(result, (bool, np.bool_)) or result is None:
             raise ValueError("expression is not numeric")
+        if np.iscomplexobj(result):
+            # float() would silently drop the imaginary part
+            raise ValueError("result is a complex number")
         try:
-            return float(result)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                return float(result)
+        except OverflowError:
+            raise ValueError("Number too large: result does not fit in a float") from None
         except (TypeError, ValueError):
-            raise ValueError("expression is not numeric")
+            raise ValueError("expression is not numeric") from None
 
     def evaluate_with(self, text: str, **variables) -> float:
         """Evaluate `text` with extra name->value bindings visible only
@@ -335,16 +425,22 @@ class ChannelModel:
             self._aeval.symtable.update(previous)
 
     def _coerce_and_validate(self, value: float) -> float:
-        if math.isnan(value):
+        if self.mode is ChannelMode.INT:
+            # Ints are stored as real ints in files (struct.pack('B', 5.0)
+            # fails), so never hand back a float, nan or inf.
+            if not math.isfinite(value) or not float(value).is_integer():
+                raise ValueError("value must be a whole number")
+            value = int(value)
+        elif math.isnan(value):
             if not self.allow_nan:
                 raise ValueError("NaN is not allowed for this channel")
             return value
-        if math.isinf(value):
+        elif math.isinf(value):
             if not self.allow_inf:
                 raise ValueError("Infinity is not allowed for this channel")
             return value
-        if self.mode is ChannelMode.INT and not float(value).is_integer():
-            raise ValueError("value must be a whole number")
+        elif self.mode is ChannelMode.FLOAT32 and abs(value) > _FLOAT32_MAX:
+            raise ValueError(f"value is too large (must be between -{_FLOAT32_MAX:.4g} and {_FLOAT32_MAX:.4g})")
         if self.minimum is not None and value < self.minimum:
             raise ValueError(f"value must be >= {self.minimum}")
         if self.maximum is not None and value > self.maximum:
@@ -466,13 +562,16 @@ class ChannelValidator(QValidator):
     def __init__(self, model: ChannelModel, parent=None):
         super().__init__(parent)
         self.model = model
+        self.last_error: Optional[str] = None  # why the last validated text was rejected
 
     def validate(self, text: str, pos: int):
+        self.last_error = None
         if not text.strip():
             return QValidator.State.Intermediate, text, pos
         try:
             self.model.evaluate(text)
-        except ValueError:
+        except ValueError as e:
+            self.last_error = str(e)
             return QValidator.State.Intermediate, text, pos
         return QValidator.State.Acceptable, text, pos
 
@@ -490,7 +589,8 @@ class NumberChannelEdit(LineEdit):
         self.model = ChannelModel(mode=mode, decimals=decimals, **model_kwargs)
         self._value: float = 0.0
         self._dirty = False  # True only between a real keystroke and the next commit
-        self.set_validator(ChannelValidator(self.model, self))
+        self._validator = ChannelValidator(self.model, self)
+        self.set_validator(self._validator)
         self.qt_widget.installEventFilter(self)
         self.qt_widget.textEdited.connect(self._on_user_edit)
         self._refresh_display(focused=False)
@@ -537,7 +637,13 @@ class NumberChannelEdit(LineEdit):
  
     def _on_user_edit(self, _text: str) -> None:
         self._dirty = True
- 
+
+    def _on_text_changed(self, text):
+        super()._on_text_changed(text)
+        # set_validator() runs this once before self._validator is assigned
+        validator = getattr(self, "_validator", None)
+        self.qt_widget.setToolTip((validator.last_error if validator is not None else None) or "")
+
     def _commit(self) -> None:
         if self._dirty:
             try:
@@ -564,13 +670,16 @@ class FormulaChannelValidator(QValidator):
     def __init__(self, formula_model: FormulaChannelModel, parent=None):
         super().__init__(parent)
         self.formula_model = formula_model
+        self.last_error: Optional[str] = None  # why the last validated text was rejected
 
     def validate(self, text: str, pos: int):
+        self.last_error = None
         if not text.strip():
             return QValidator.State.Intermediate, text, pos
         try:
             self.formula_model.validate_formula(text)
-        except ValueError:
+        except ValueError as e:
+            self.last_error = str(e)
             return QValidator.State.Intermediate, text, pos
         return QValidator.State.Acceptable, text, pos
 
@@ -594,7 +703,8 @@ class FormulaChannelEdit(LineEdit):
         self.model = FormulaChannelModel(self.numeric_model, variable_name, preview_value, extra_variables)
         self._formula: str = str(preview_value)
         self._dirty = False
-        self.set_validator(FormulaChannelValidator(self.model, self))
+        self._validator = FormulaChannelValidator(self.model, self)
+        self.set_validator(self._validator)
         self.qt_widget.installEventFilter(self)
         self.qt_widget.textEdited.connect(self._on_user_edit)
         self.set_text(self._formula)
@@ -642,7 +752,13 @@ class FormulaChannelEdit(LineEdit):
  
     def _on_user_edit(self, _text: str) -> None:
         self._dirty = True
- 
+
+    def _on_text_changed(self, text):
+        super()._on_text_changed(text)
+        # set_validator() runs this once before self._validator is assigned
+        validator = getattr(self, "_validator", None)
+        self.qt_widget.setToolTip((validator.last_error if validator is not None else None) or "")
+
     def _commit(self) -> None:
         if not self._dirty:
             return

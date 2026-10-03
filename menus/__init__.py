@@ -7,4 +7,5 @@ from .backup_manager import *
 from .gradient_maker import *
 from .image_importer import *
 from .vehicle_downgrader import *
+from .rule_based_editor import *
 from .settings_menu import *

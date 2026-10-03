@@ -3,19 +3,20 @@ from PySide6.QtCore import QUrl, QSize, Qt, QTimer
 from PySide6.QtGui import QDesktopServices, QIcon
 
 import os.path as path
-import shutil
-from send2trash import send2trash
 from pathlib import Path
 
 from menus import base
 
+from systems.backup import BackupInfo
+
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Surface, SurfaceStyle, Slider, LineEdit, ToolButton
 from ui.components import Tutorial
+from ui.dialogs import RecoverBackupDialog, DeleteBackupDialog, DeleteExcessBackupsDialog, BackupOperationFailedDialog
 from ui.models import TooltipContents
 from ui.rich_text import pmd
 
 from utils import repr_file_size, dir_size, get_vehicles_path, wipe_layout
-from menus.backup_manager.widgets.backup_entry import BackupEntry
+from menus.backup_manager.widgets.backup_entry import BackupEntry, describe_backup
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -58,7 +59,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.bin_excess_button.clicked.connect(lambda: self.delete_excess_backups(True))
         self.delete_layout.addWidget(self.bin_excess_button)
 
-        self.del_excess_button = Button("Delete permanantly")
+        self.del_excess_button = Button("Delete permanently")
         self.del_excess_button.setEnabled(False)
         self.del_excess_button.clicked.connect(lambda: self.delete_excess_backups(False))
         self.delete_layout.addWidget(self.del_excess_button)
@@ -249,7 +250,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                     "deleted manually."))
                 .add_text(pmd("- **User Generated** backups, which are created and deleted by "
                     "the user."))
-                .add_text(pmd("- **Brick Rigs** backups (`Backup.brv` and `AutoSave.brv`), which are "
+                .add_text(pmd("- **Brick Rigs** backups (`Backup.brv` and `Autosave.brv`), which are "
                     "fully managed by Brick Rigs, but can be recovered or deleted from BrickEdit-"
                     "Interface."))
 
@@ -274,7 +275,7 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                     pmd("**What are Brick Rigs backups?**\n"
                         "Brick Rigs can keep two backups of your vehicle at a time: `Backup.brv`, "
                         "which is meant to avoid loosing the vehicle from the main file getting "
-                        "corrupt (by things like power loss etc.) and `AutoSave.brv`, a backup "
+                        "corrupt (by things like power loss etc.) and `Autosave.brv`, a backup "
                         "often made when you exit without saving. "),
                     pmd("**Where are BEI backups stored?**\n"
                         "BEI backups are stored in `\\brickeditinterface\\backups` inside of your "
@@ -318,9 +319,8 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         result = []
         brv_file = self.main_window.vehicle_selector_banner.get_brvfile_loc()
         if brv_file is not None:
-            vehicle_file = path.dirname(brv_file)
-            result = self.main_window.backups.find_backups(vehicle_file)
-        result.sort(reverse=True)
+            vehicle_dir = str(Path(path.dirname(brv_file)).resolve())
+            result = self.main_window.backups.get_all_backup_infos(vehicle_dir)
 
         # If no backup is found, leave a label.
         if not result:
@@ -328,11 +328,8 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             self.update_excess_label()
             return
 
-        for backup_path in result:
-            backup_entry = BackupEntry(
-                self.main_window, self.delete_backup,
-                str(Path(vehicle_file).resolve()),
-                str(Path(backup_path).resolve()))
+        for backup in result:
+            backup_entry = BackupEntry(self.main_window, backup, self.recover_backup, self.delete_backup)
             self.backup_entries_layout.addWidget(backup_entry)
 
         self.update_excess_label()
@@ -356,11 +353,28 @@ class SettingsAndBackupsMenu(base.BaseMenu):
         self.update_backup_recovery_entries()
 
 
-    def delete_backup(self, recycle_bin: bool, backup_path: str):
-        if recycle_bin:
-            send2trash(backup_path)
-        else:
-            shutil.rmtree(backup_path)
+    def recover_backup(self, backup: BackupInfo):
+        vehicle_dir = self.main_window.vehicle_selector_banner.get_vehicle_loc()
+        if vehicle_dir is None:
+            return
+        label = describe_backup(self.main_window, backup)
+        if not RecoverBackupDialog.create(self.main_window, label).exec():
+            return
+        try:
+            self.main_window.backups.recover_backup(vehicle_dir, backup)
+        except OSError as e:
+            BackupOperationFailedDialog.create(self.main_window, "recover the backup", [e]).exec()
+        self.update_backup_recovery_entries()  # A backup of the current vehicle was made
+
+
+    def delete_backup(self, backup: BackupInfo, recycle_bin: bool):
+        label = describe_backup(self.main_window, backup)
+        if not DeleteBackupDialog.create(self.main_window, label, recycle_bin).exec():
+            return
+        try:
+            self.main_window.backups.delete_backup(backup.path, recycle_bin)
+        except OSError as e:  # send2trash errors are OSErrors too
+            BackupOperationFailedDialog.create(self.main_window, "delete the backup", [e]).exec()
         self.update_backup_recovery_entries()
 
 
@@ -389,13 +403,26 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
 
     def delete_excess_backups(self, recycle_bin):
+        # Found again rather than reusing the label's scan: backups may have changed since
         excess = self.main_window.backups.find_all_excess(get_vehicles_path())
+        if not excess:
+            self.update_excess_label()
+            return
+        size_text = repr_file_size(sum(dir_size(excess_dir) for excess_dir in excess))
+        if not DeleteExcessBackupsDialog.create(self.main_window, len(excess), size_text, recycle_bin).exec():
+            return
+
+        errors = []
         for excess_dir in excess:
-            if recycle_bin:
-                send2trash(excess_dir)
-            else:
-                shutil.rmtree(excess_dir)
+            try:
+                self.main_window.backups.delete_backup(excess_dir, recycle_bin)
+            except OSError as e:
+                errors.append(e)
+        if errors:
+            BackupOperationFailedDialog.create(self.main_window, f"delete {len(errors)} excess backup(s)", errors).exec()
+
         self.update_excess_label()
+        self.update_backup_recovery_entries()  # The loaded vehicle's backups may have been deleted
 
 
     def open_settings_file(self):

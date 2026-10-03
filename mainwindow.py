@@ -87,6 +87,7 @@ class BrickEditInterface(QMainWindow):
             SettingsMenu(self),
         ]
         self.in_dev_menus = [
+            RuleBasedEditor(self),
             DeveloperTestMenu(self),
         ]
         if IS_PRIVATE_VERSION:
