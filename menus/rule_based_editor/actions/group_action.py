@@ -25,15 +25,12 @@ class GroupAction(BaseAction):
 
         self.operation_sw = Switcher(list(OPERATIONS))
         self.add_setting_row("Move to", self.operation_sw, TooltipContents(
-            "Move to",
-            "Named group: an existing group named with a text brick.\n"
-            "New group: a new (unnamed) group holding every selected brick.\n"
-            "No group: remove the selected bricks from their group."))
+            "Move to", "Named group: one named with a text brick. New group: one for all selected bricks."))
 
         self.wanted_group: str | None = None  # Last group picked. Kept listed if a reloaded vehicle doesn't have it
         self.group_cb = BaseFilter.make_combo_box()
         self.group_row = self.add_setting_row("Group", self.group_cb, GROUP_NAMING_TOOLTIP)
-        self.no_named_group_label = Label("This vehicle has no named group of this type.", muted=True)
+        self.no_named_group_label = Label("No named group of this type.", muted=True)
         self.master_layout.addWidget(self.no_named_group_label)
 
         self.kind_sw.index_changed.connect(self._on_kind_changed)
@@ -101,7 +98,7 @@ class GroupAction(BaseAction):
         kind = KINDS[self.kind_sw.get_idx() or 0].lower()
         if operation == NONE:
             return f"Ungroup {plural(count)}"
-        return f"Move {plural(count)} to {'a new' if operation == NEW else 'a'} {kind}"
+        return f"Move {plural(count)} to {'a new' if operation == NEW else 'an' if kind[0] in 'aeiou' else 'a'} {kind}"
 
     CONFIG_TYPE = "group"
 

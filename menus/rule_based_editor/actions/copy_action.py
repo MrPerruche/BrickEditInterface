@@ -5,7 +5,7 @@ from ui.components.vehicle.brick_ops import IdAllocator, copy_brick, remap_refer
 from systems.bei_files import ConfigReader
 
 from menus.rule_based_editor.actions.base_action import (
-    BaseAction, ActionContext, ActionResult, ActionError, plural, MAX_BRICKS
+    BaseAction, ActionContext, ActionResult, ActionError, plural, MAX_BRICKS, COPY_GROUPS_TOOLTIP
 )
 
 import brickedit
@@ -23,13 +23,10 @@ class CopyAction(BaseAction):
 
         self.offset_widget = Vec3PropertyWidget('', (brickedit.Vec3(0.0, 0.0, 0.0),), False,
                                                 brickedit.Vec3(0.0, 0.0, 30.0), show_text=False)
-        self.add_setting_row("Offset", self.offset_widget, TooltipContents(
-            "Offset", "How far each copy is moved from the previous one (cm)."))
+        self.add_setting_row("Offset (cm)", self.offset_widget, TooltipContents("From one copy to the next."))
 
         self.groups_switch = BoolSwitch(False)
-        self.add_setting_row("Copy groups", self.groups_switch, TooltipContents(
-            "Copy groups", "Put copies in the editor and weld groups of the original bricks. Otherwise, they "
-                           "aren't in any group."))
+        self.add_setting_row("Copy groups", self.groups_switch, COPY_GROUPS_TOOLTIP)
 
         for signal in (self.count_nce.value_changed, self.offset_widget.value_changed, self.groups_switch.on_toggled):
             signal.connect(self.emit_options_changed)
@@ -41,15 +38,14 @@ class CopyAction(BaseAction):
 
     @classmethod
     def get_tooltip(cls) -> TooltipContents | None:
-        return TooltipContents("Copy the selected bricks one or more times",
-                               "Wires between copied bricks are copied too.")
+        return TooltipContents("Copy the selected bricks one or more times")
 
     def describe(self, count: int) -> str:
         copies = self.count_nce.value()
         return f"Copy {plural(count)}" + (f" {copies:,} times" if copies > 1 else "")
 
     def next_selection_hint(self) -> str | None:
-        return "The next actions apply to the copies only."
+        return "Next actions apply to the copies."
 
 
     CONFIG_TYPE = "copy"

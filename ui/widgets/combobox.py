@@ -1,8 +1,9 @@
-from PySide6.QtWidgets import QComboBox, QStyledItemDelegate, QStyle, QStyleOptionComboBox, QHBoxLayout
+from PySide6.QtWidgets import QApplication, QComboBox, QStyledItemDelegate, QStyle, QStyleOptionComboBox, QHBoxLayout
 from PySide6.QtGui import QIcon, QColor, QBrush, QPainter, QPixmap
 from PySide6.QtCore import Qt, QRect, QSize
 
 from ui.widgets import Widget
+from ui.widgets.popup_list import setup_popup_list, SCROLL_BAR_WIDTH
 from ui.theme import Theme, register_has_theme_and_apply, theme_manager
 
 from utils import stack_qcolors, tint_icon
@@ -10,6 +11,8 @@ from utils import stack_qcolors, tint_icon
 
 
 SEPARATOR_HEIGHT = 9
+TEXT_MARGIN = 6  # Left and right of an item
+ICON_SPACING = 8  # Between an item's icon and its text
 
 
 class ComboBoxItemDelegate(QStyledItemDelegate):
@@ -27,10 +30,19 @@ class ComboBoxItemDelegate(QStyledItemDelegate):
     def _is_separator(index) -> bool:
         return index.data(Qt.AccessibleDescriptionRole) == "separator"  # See QComboBox.insertSeparator
 
+    @staticmethod
+    def _icon_width(option, index) -> int:
+        icon = index.data(Qt.DecorationRole)
+        return option.decorationSize.width() if isinstance(icon, QIcon) and not icon.isNull() else 0
+
     def sizeHint(self, option, index):
         if self._is_separator(index):
             return QSize(option.rect.width(), SEPARATOR_HEIGHT)
-        return super().sizeHint(option, index)
+        # Width as laid out by paint: what the popup is widened to (see _ArrowComboBox.showPopup)
+        icon_width = self._icon_width(option, index)
+        width = (2 * TEXT_MARGIN + (icon_width + ICON_SPACING if icon_width else 0)
+                 + option.fontMetrics.horizontalAdvance(index.data(Qt.DisplayRole) or "") + 1)
+        return QSize(width, super().sizeHint(option, index).height())
 
     def paint(self, painter, option, index):
         painter.save()
@@ -56,22 +68,16 @@ class ComboBoxItemDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, surface)
 
         # --- Icon ---
-        icon = index.data(Qt.DecorationRole)
-
-        x = option.rect.left() + 6
-        icon_size = option.decorationSize
-
-        if isinstance(icon, QIcon):
+        icon_width = self._icon_width(option, index)
+        if icon_width:
             icon_rect = QRect(
-                x,
-                option.rect.center().y() - icon_size.height() // 2,
-                icon_size.width(),
-                icon_size.height(),
+                option.rect.left() + TEXT_MARGIN,
+                option.rect.center().y() - option.decorationSize.height() // 2,
+                option.decorationSize.width(),
+                option.decorationSize.height(),
             )
-
-            # IMPORTANT:
-            # Explicitly request the normal icon.
-            icon.paint(
+            # Explicitly request the normal icon
+            index.data(Qt.DecorationRole).paint(
                 painter,
                 icon_rect,
                 Qt.AlignCenter,
@@ -80,41 +86,15 @@ class ComboBoxItemDelegate(QStyledItemDelegate):
             )
 
         # --- Text ---
-        text = index.data(Qt.DisplayRole)
-
-        icon = index.data(Qt.DecorationRole)
-
-        icon_width = 0
-        if isinstance(icon, QIcon) and not icon.isNull():
-            icon_width = option.decorationSize.width()
-            icon_rect = QRect(
-                option.rect.left() + 6,
-                option.rect.center().y() - option.decorationSize.height() // 2,
-                option.decorationSize.width(),
-                option.decorationSize.height(),
-            )
-            icon.paint(
-                painter,
-                icon_rect,
-                Qt.AlignCenter,
-                QIcon.Normal,
-                QIcon.Off,
-            )
-        text_x = option.rect.left() + 6 + icon_width
-
+        text_x = option.rect.left() + TEXT_MARGIN + icon_width
         if icon_width:
-            text_x += 8
+            text_x += ICON_SPACING
+        text_rect = QRect(text_x, option.rect.top(), option.rect.right() - TEXT_MARGIN - text_x + 1, option.rect.height())
 
         painter.setPen(QColor(self.theme.text.color_hex_argb))
-
-        painter.drawText(
-            text_x,
-            option.rect.top(),
-            option.rect.width() - text_x,
-            option.rect.height(),
-            Qt.AlignVCenter | Qt.AlignLeft,
-            text,
-        )
+        # Elided when the popup can't be widened enough (see _ArrowComboBox.showPopup)
+        text = painter.fontMetrics().elidedText(index.data(Qt.DisplayRole) or "", Qt.ElideRight, text_rect.width())
+        painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignLeft, text)
 
         painter.restore()
 
@@ -135,6 +115,29 @@ class _ArrowComboBox(QComboBox):
     def set_arrow_pixmaps(self, normal: QPixmap, disabled: QPixmap):
         self._arrow, self._arrow_disabled = normal, disabled
         self.update()
+
+    def showPopup(self):
+        # Qt makes the list as wide as the combo box, which can be narrower than its items (eg. RBE's presets): widen
+        #  it to fit them, as far as the screen allows (beyond, they are elided)
+        view = self.view()
+        view.ensurePolished()  # Measured with the stylesheet's font, even before it's first shown
+        container = view.window()
+        available = self.screen().availableGeometry()
+        width = view.sizeHintForColumn(0) + 2 * view.frameWidth()
+        if self.count() > self.maxVisibleItems():
+            width += SCROLL_BAR_WIDTH
+        container.setMinimumWidth(min(width, available.width()))
+        # Qt's roll-in animation shows the list in a window of its own, with the system's frame and shadow
+        animate = QApplication.isEffectEnabled(Qt.UIEffect.UI_AnimateCombo)
+        QApplication.setEffectEnabled(Qt.UIEffect.UI_AnimateCombo, False)
+        try:
+            super().showPopup()
+        finally:
+            QApplication.setEffectEnabled(Qt.UIEffect.UI_AnimateCombo, animate)
+        # Qt kept it on screen for the combo box's width, not the widened one
+        geometry = container.geometry()
+        if geometry.right() > available.right():
+            container.move(max(available.left(), available.right() - geometry.width() + 1), geometry.y())
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -174,6 +177,7 @@ class ComboBox(Widget):
             self.qt_widget
         )
         self.qt_widget.view().setItemDelegate(self.delegate)
+        setup_popup_list(self.qt_widget.view())
 
         self.item_changed = self.qt_widget.currentIndexChanged
 
@@ -268,12 +272,7 @@ class ComboBox(Widget):
                 height: 12px;
             }}
 
-            QComboBox QAbstractItemView {{
-                background: {theme.border.color};
-                border: 2px solid;
-                border-radius: 4px;
-            }}
-
+            /* The list's look is in popup_list.py */
             QComboBox QAbstractItemView::item {{
                 height: 28px;
             }}

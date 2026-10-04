@@ -2,15 +2,11 @@ from PySide6.QtGui import QIcon
 
 from menus import base
 
-from ui.widgets import Button, Label, StyledLabel, LabelStyle, Surface, NumberChannelEdit, ChannelMode, Switcher
-from ui.dialogs import VehicleLoadingIssueDialog
+from ui.widgets import Button, LabelStyle, Separator
+from ui.dialogs import VehicleLoadingIssueDialog, CannotSaveDialog, NoBricksMatchDialog
 from ui.components import BrickSelector
-from ui.components.brick.property_widgets import Vec3PropertyWidget
-from ui.models import TooltipContents
-
-from brickedit import *
-
-from math import ceil, floor
+from ui.components.vehicle.brick_transform import transform_bricks
+from ui.components.vehicle.transform_settings import TransformSettings, CENTER
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -21,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class VehicleUpscalerMenu(base.BaseMenu):
-    """Menu for upscaling vehicle properties."""
+    """Menu rotating, scaling and moving the bricks of a vehicle (all of them, or those matching filters)."""
 
     def __init__(self, mw: 'BrickEditInterface'):
         super().__init__(mw)
@@ -33,76 +29,10 @@ class VehicleUpscalerMenu(base.BaseMenu):
         self.brick_selector = BrickSelector(self.mw, [], allow_all_if_empty=True, updates_requires_reloading=False)
         self.master_layout.addWidget(self.brick_selector)
 
-        self.pos_widget = Surface()
-        self.pos_layout = self.pos_widget.layout()
-        self.master_layout.addWidget(self.pos_widget)
+        self.settings = TransformSettings(CENTER, section_style=LabelStyle.HEADER_3)
+        self.master_layout.addWidget(self.settings)
 
-        self.pos_title = StyledLabel("Position", LabelStyle.LARGE_5)
-        self.pos_layout.addWidget(self.pos_title)
-
-        self.pos_label = Label("Offset by")
-        self.pos_layout.addWidget(self.pos_label)
-
-        self.pos_vec_widget = Vec3PropertyWidget('',
-        (Vec3(0.0, 0.0, 0.0),), False, Vec3(0.0, 0.0, 0.0), show_text=False)
-        self.pos_layout.addWidget(self.pos_vec_widget)
-
-        self.scale_widget = Surface()
-        self.scale_layout = self.scale_widget.layout()
-        self.master_layout.addWidget(self.scale_widget)
-
-        self.scale_title = StyledLabel("Scale", LabelStyle.LARGE_5)
-        self.scale_layout.addWidget(self.scale_title)
-
-        self.scale_mul_label = Label("Multiply by")
-        self.scale_layout.addWidget(self.scale_mul_label)
-
-        self.scale_mul_nce = NumberChannelEdit(
-            # allow_inf=False,
-            allow_nan=False
-        )
-        self.scale_layout.addWidget(self.scale_mul_nce)
-        self.scale_mul_nce.setValue(1.0)
-        self.scale_mul_nce.value_changed.connect(lambda: self.scale_input_updated(True))
-
-        self.scale_div_label = Label("Divide by")
-        self.scale_layout.addWidget(self.scale_div_label)
-
-        self.scale_div_nce = NumberChannelEdit(
-            # allow_inf=False,
-            allow_nan=False
-        )
-        self.scale_layout.addWidget(self.scale_div_nce)
-        self.scale_div_nce.setValue(1.0)
-        self.scale_div_nce.value_changed.connect(lambda: self.scale_input_updated(False))
-
-        self.rounding_widget = Surface()
-        self.rounding_layout = self.rounding_widget.layout()
-        self.master_layout.addWidget(self.rounding_widget)
-
-        self.rounding_title = StyledLabel("Rounding", LabelStyle.LARGE_5)
-        self.rounding_layout.addWidget(self.rounding_title)
-
-        self.rounding_mode_label = Label("Mode")
-        self.rounding_layout.addWidget(self.rounding_mode_label)
-
-        self.rounding_mode_switcher = Switcher(["Off", "Regular", "Up", "Down"])
-        self.rounding_layout.addWidget(self.rounding_mode_switcher)
-        self.rounding_mode_switcher.index_changed.connect(self.rounding_updated)
-
-        self.rounding_label = Label("Decimals")
-        self.rounding_label.set_tooltip(TooltipContents(
-            "Decimals",
-            "Sets the decimals to round the bricks' sizes to"
-            ))
-        self.rounding_layout.addWidget(self.rounding_label)
-
-        self.rounding_decimals_nce = NumberChannelEdit(
-            ChannelMode.INT, allow_inf=False, allow_nan=False,
-            minimum=0, maximum=3
-        )
-        self.rounding_layout.addWidget(self.rounding_decimals_nce)
-        self.rounding_decimals_nce.setDisabled(True)
+        self.master_layout.addWidget(Separator())
 
         self.transform_vehicle_button = Button("Set vehicle transform")
         self.master_layout.addWidget(self.transform_vehicle_button)
@@ -110,44 +40,9 @@ class VehicleUpscalerMenu(base.BaseMenu):
 
         self.vehicle_reloaded()
         self.master_layout.addStretch()
-    
-        self.ceil = lambda x, n: ((ceil(x * 10 ** n) / 10 ** n) if isinstance(x, float) else
-        Vec2(ceil(x.x * 10 ** n) / 10 ** n, ceil(x.y * 10 ** n) / 10 ** n) if isinstance(x, Vec2) else
-        Vec3(ceil(x.x * 10 ** n) / 10 ** n, ceil(x.y * 10 ** n) / 10 ** n, ceil(x.z * 10 ** n) / 10 ** n))
-
-        self.floor = lambda x, n: ((floor(x * 10 ** n) / 10 ** n) if isinstance(x, float) else
-        Vec2(floor(x.x * 10 ** n) / 10 ** n, floor(x.y * 10 ** n) / 10 ** n) if isinstance(x, Vec2) else
-        Vec3(floor(x.x * 10 ** n) / 10 ** n, floor(x.y * 10 ** n) / 10 ** n, floor(x.z * 10 ** n) / 10 ** n))
-
-    def scale_input_updated(self, from_mul: bool):
-        if from_mul:
-            value = float(self.scale_mul_nce.get_text())
-            result = 1.0 / value if value != 0 else float('inf')
-            self.scale_div_nce.blockSignals(True)
-            self.scale_div_nce.setValue(result)
-            self.scale_div_nce.blockSignals(False)
-        else:
-            value = float(self.scale_div_nce.get_text())
-            result = 1.0 / value if value != 0 else float('inf')
-            self.scale_mul_nce.blockSignals(True)
-            self.scale_mul_nce.setValue(result)
-            self.scale_mul_nce.blockSignals(False)
-
-    def rounding_updated(self):
-        enabled = self.rounding_mode_switcher.get_idx()
-        self.rounding_decimals_nce.setEnabled(enabled)
-
-    def get_rounding_mode(self) -> int:
-        return self.rounding_mode_switcher.get_idx()
-
-    def get_decimals(self) -> int:
-        return int(self.rounding_decimals_nce.get_text())
 
     def vehicle_reloaded(self):
-        brv = self.mw.vehicle_selector_banner.get_brvfile_ref()
-        disabled_when_vehicle_unloaded = [self.pos_widget, self.scale_widget, self.transform_vehicle_button]
-        for widget in disabled_when_vehicle_unloaded:
-            widget.setDisabled(brv is None)
+        self.transform_vehicle_button.setDisabled(self.mw.vehicle_selector_banner.get_brvfile_ref() is None)
 
     def get_menu_name(self) -> str:
         return "Vehicle Transformer"
@@ -160,49 +55,17 @@ class VehicleUpscalerMenu(base.BaseMenu):
         if brvfile is None:
             VehicleLoadingIssueDialog.create(self.mw, True).exec(); return
 
-        nothing_happened = True
+        error = self.settings.error()
+        if error is not None:
+            CannotSaveDialog.create(self.mw, error).exec(); return
 
-        # Apply transform
-        off_x = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).x)
-        off_y = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).y)
-        off_z = float(self.pos_vec_widget.get_value(Vec3(0.0, 0.0, 0.0)).z)
-        scale = float(self.scale_mul_nce.get_text())
-        
-        must_offset = (off_x != 0.0) or (off_y != 0.0) or (off_z != 0.0)
-        must_scale = scale != 1.0
+        bricks = [brick for brick in brvfile.bricks if self.brick_selector.is_allowed(brick)]
+        if not bricks:
+            NoBricksMatchDialog.create(self.mw).exec(); return
 
-        if must_offset:
-            for brick in brvfile.bricks:
-                if self.brick_selector.is_allowed(brick):
-                    brick.pos += Vec3(off_x, off_y, off_z)
-                    nothing_happened = False
+        transform = self.settings.get_transform()
+        transform_bricks(bricks, transform, self.settings.get_pivot(bricks))
 
-        if must_scale:
-            for brick in brvfile.bricks:
-                if not self.brick_selector.is_allowed(brick):
-                    continue
-                nothing_happened = False
-                # Position
-                brick.pos *= scale
-                # Modify properties
-                for prop, val in brick.get_all_properties().items():
-                    # Float & vec properties
-                    if prop in {
-                            p.BRICK_SIZE,
-                            p.SPINNER_RADIUS, p.SPINNER_SIZE,
-                            p.WHEEL_DIAMETER, p.WHEEL_WIDTH, p.TIRE_WIDTH,
-                            p.PATTERN_SCALE,
-                            p.FONT_SIZE
-                    }:
-                        mode = self.get_rounding_mode()
-                        decimals = self.get_decimals()
-                        brick.set_property(prop,
-                            val * scale if not mode else
-                            round((val * scale) / 100.0, decimals) * 100.0 if mode == 1 else
-                            self.ceil((val * scale) / 100.0, decimals) * 100.0 if mode == 2 else
-                            self.floor((val * scale) / 100.0, decimals) * 100.0
-                        )
-
-        logger.info(f"Transforming vehicle with scale {scale}" if must_scale else "Transforming vehicle")
-        self.mw.vehicle_selector_banner.save_brv(brvfile, description=f"Transformed using scale {scale}.", nothing_happened=nothing_happened)
-        logger.info(f"Vehicle transformed with scale {scale}" if must_scale else "Transforming vehicle")
+        summary = f"{transform.describe().capitalize()} {len(bricks):,} brick{'' if len(bricks) == 1 else 's'}."
+        logger.info(f"Transforming vehicle: {summary}")
+        self.mw.vehicle_selector_banner.save_brv(brvfile, description=f"{summary} Applied with the {self.get_menu_name()}.")

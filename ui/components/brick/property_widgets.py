@@ -9,6 +9,7 @@ from ui.components.brick.property_utils import get_or_make_property_display_name
 from utils import Sentinel
 
 import colorsys
+import re
 from typing import Hashable, TypeVar
 
 import brickedit
@@ -18,6 +19,41 @@ logger = logging.getLogger(__name__)
 
 
 T = TypeVar("T", bound=Hashable)
+
+
+# ---------- Edits as data (saved in rule presets, see property_edits)
+
+
+_EDIT_KINDS = {"value": "a value (\"value\")", "formula": "formulas (\"formula\")", "invert": "inverted (\"invert\")"}
+
+
+def _edit_kind(edit: dict, allowed: tuple[str, ...], extra_keys: tuple[str, ...] = ()) -> str:
+    """Which of allowed edit's kind is. Raises ValueError if it's another one, or has unknown keys."""
+    kinds = [key for key in _EDIT_KINDS if key in edit]
+    if len(kinds) != 1 or kinds[0] not in allowed or set(edit) - set(_EDIT_KINDS) - set(extra_keys):
+        raise ValueError("can only be " + " or ".join(_EDIT_KINDS[kind] for kind in allowed))
+    return kinds[0]
+
+
+def _edit_formulas(edit: dict, count: int, formula_mode: bool) -> list[str]:
+    formulas = edit["formula"]
+    if not isinstance(formulas, list) or len(formulas) != count or not all(isinstance(f, str) for f in formulas):
+        raise ValueError(f"\"formula\" must be a list of {count} formula{'s' if count > 1 else ''}")
+    if not formula_mode:
+        raise ValueError("formulas need a widget in formula mode")
+    return formulas
+
+
+def _edit_numbers(value, count: int) -> list[float]:
+    values = [value] if count == 1 else value
+    if not isinstance(values, list) or len(values) != count or not all(
+            isinstance(v, int | float) and not isinstance(v, bool) and v - v == 0 for v in values):
+        raise ValueError("\"value\" must be " + ("a number" if count == 1 else f"a list of {count} numbers"))
+    return [float(v) for v in values]
+
+
+def _is_identity(formulas, variables: tuple[str, ...]) -> bool:
+    return tuple(f.strip() for f in formulas) == variables
 
 
 class BasePropertyWidget(Widget):
@@ -106,6 +142,17 @@ class BasePropertyWidget(Widget):
         """gives a value that is valid for this widget."""
         raise NotImplementedError(f"Subclass {cls.__name__} must implement get_example_value()")
 
+    def get_edit(self) -> dict | None:
+        """This widget's edit as plain data (see property_edits): {"value": ...}, {"formula": [...]} or
+        {"invert": True}. None if it changes nothing."""
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement get_edit()")
+
+    def apply_edit(self, edit: dict) -> None:
+        """Makes this widget hold edit, made by get_edit of this or another widget of the same class (maybe in the
+        other mode), or read from a file. Formula and invert edits need formula mode. Raises ValueError if edit
+        doesn't suit this widget."""
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement apply_edit()")
+
 
 
 class TextPropertyWidget(BasePropertyWidget):
@@ -173,6 +220,25 @@ class TextPropertyWidget(BasePropertyWidget):
     def get_example_value(cls) -> str:
         return ""
 
+    def get_edit(self) -> dict | None:
+        if not self.dirty or (self.edit_button is not None and not self.edit_button.is_checked()):
+            return None
+        return {"value": self.input_le.get_text()}
+
+    def apply_edit(self, edit: dict) -> None:
+        _edit_kind(edit, ("value",))
+        value = edit["value"]
+        if not isinstance(value, str):
+            raise ValueError("\"value\" must be a text")
+        self._check_text(value)
+        if self.edit_button is not None and not self.edit_button.is_checked():
+            self.edit_button.set_checked(True)
+        self.set_value(value)
+        self.dirty = True
+
+    def _check_text(self, value: str) -> None:
+        """Raises ValueError if value can't be typed in this widget"""
+
 
 
 class AsciiPropertyWidget(TextPropertyWidget):
@@ -185,6 +251,10 @@ class AsciiPropertyWidget(TextPropertyWidget):
     def __init__(self, property_name: str, test_values: tuple[str, ...], formula_mode: bool, initial_value: str, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
         self.input_le.set_validator(ASCII_TEXT_ONLY)
+
+    def _check_text(self, value: str) -> None:
+        if not re.fullmatch(r"[ -~]*", value):  # Like ASCII_TEXT_ONLY
+            raise ValueError("\"value\" must be printable ASCII text")
 
 
 
@@ -239,6 +309,27 @@ class BooleanPropertyWidget(BasePropertyWidget):
     def get_example_value(cls) -> bool:
         return False
 
+    def get_edit(self) -> dict | None:
+        if not self.dirty:
+            return None
+        if self.formula_mode:  # Same, Invert, Off, On
+            return (None, {"invert": True}, {"value": False}, {"value": True})[self.setting_widget.get_idx() or 0]
+        return {"value": bool(self.setting_widget.get_value())}
+
+    def apply_edit(self, edit: dict) -> None:
+        if _edit_kind(edit, ("value", "invert")) == "invert":
+            if edit["invert"] is not True:
+                raise ValueError("\"invert\" must be true")
+            if not self.formula_mode:
+                raise ValueError("inverting needs a widget in formula mode")
+            self.set_value(1)
+        else:
+            value = edit["value"]
+            if not isinstance(value, bool):
+                raise ValueError("\"value\" must be true or false")
+            self.set_value((3 if value else 2) if self.formula_mode else value)
+        self.dirty = True
+
 
 
 class FloatPropertyWidget(BasePropertyWidget):
@@ -277,6 +368,25 @@ class FloatPropertyWidget(BasePropertyWidget):
     @classmethod
     def get_example_value(cls) -> float:
         return 0.0
+
+    def get_edit(self) -> dict | None:
+        if not self.dirty:
+            return None
+        if self.formula_mode:
+            formula = self.value_input.get_text()
+            return None if _is_identity((formula,), ("x",)) else {"formula": [formula]}
+        return {"value": float(self.value_input.value())}
+
+    def apply_edit(self, edit: dict) -> None:
+        if _edit_kind(edit, ("value", "formula")) == "formula":
+            self.value_input.setFormula(_edit_formulas(edit, 1, self.formula_mode)[0])
+        else:
+            value = _edit_numbers(edit["value"], 1)[0]
+            if self.formula_mode:
+                self.value_input.setFormula(repr(value))
+            else:
+                self.value_input.setValue(value)
+        self.dirty = True
 
 
 
@@ -365,6 +475,27 @@ class Vec2PropertyWidget(BasePropertyWidget):
     @classmethod
     def get_example_value(cls) -> brickedit.Vec2:
         return brickedit.Vec2(0, 0)
+
+    def get_edit(self) -> dict | None:
+        if not self.dirty:
+            return None
+        if self.formula_mode:
+            formulas = list(self.get_text())
+            return None if _is_identity(formulas, ("x", "y")) else {"formula": formulas}
+        return {"value": [float(self.x_widget.value()), float(self.y_widget.value())]}
+
+    def apply_edit(self, edit: dict) -> None:
+        if _edit_kind(edit, ("value", "formula")) == "formula":
+            for widget, formula in zip((self.x_widget, self.y_widget), _edit_formulas(edit, 2, self.formula_mode)):
+                widget.setFormula(formula)
+        else:
+            x, y = _edit_numbers(edit["value"], 2)
+            if self.formula_mode:
+                self.x_widget.setFormula(repr(x))
+                self.y_widget.setFormula(repr(y))
+            else:
+                self.set_value(brickedit.Vec2(x, y))
+        self.dirty = True
 
 
 
@@ -474,6 +605,28 @@ class Vec3PropertyWidget(BasePropertyWidget):
     def get_example_value(cls) -> brickedit.Vec3:
         return brickedit.Vec3(0, 0, 0)
 
+    def get_edit(self) -> dict | None:
+        if not self.dirty:
+            return None
+        if self.formula_mode:
+            formulas = list(self.get_text())
+            return None if _is_identity(formulas, ("x", "y", "z")) else {"formula": formulas}
+        return {"value": [float(w.value()) for w in (self.x_widget, self.y_widget, self.z_widget)]}
+
+    def apply_edit(self, edit: dict) -> None:
+        widgets = (self.x_widget, self.y_widget, self.z_widget)
+        if _edit_kind(edit, ("value", "formula")) == "formula":
+            for widget, formula in zip(widgets, _edit_formulas(edit, 3, self.formula_mode)):
+                widget.setFormula(formula)
+        else:
+            values = _edit_numbers(edit["value"], 3)
+            if self.formula_mode:
+                for widget, value in zip(widgets, values):
+                    widget.setFormula(repr(value))
+            else:
+                self.set_value(brickedit.Vec3(*values))
+        self.dirty = True
+
 
 
 class UnsignedInteger8PropertyWidget(BasePropertyWidget):
@@ -521,6 +674,27 @@ class UnsignedInteger8PropertyWidget(BasePropertyWidget):
     @classmethod
     def get_example_value(cls) -> int:
         return 0
+
+    def get_edit(self) -> dict | None:
+        if not self.dirty:
+            return None
+        if self.formula_mode:
+            formula = self.value_input.get_text()
+            return None if _is_identity((formula,), ("n",)) else {"formula": [formula]}
+        return {"value": int(self.value_input.value())}
+
+    def apply_edit(self, edit: dict) -> None:
+        if _edit_kind(edit, ("value", "formula")) == "formula":
+            self.value_input.setFormula(_edit_formulas(edit, 1, self.formula_mode)[0])
+        else:
+            value = edit["value"]
+            if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 255:
+                raise ValueError("\"value\" must be an integer from 0 to 255")
+            if self.formula_mode:
+                self.value_input.setFormula(str(value))
+            else:
+                self.value_input.setValue(value)
+        self.dirty = True
 
 
 
@@ -644,6 +818,8 @@ class ColorPropertyWidget(BasePropertyWidget):
         self.hsv_widgets = (self.h_widget, self.s_widget, self.v_widget, self.ha_widget)
         self.widgets = self.rgb_widgets + self.hsv_widgets
 
+        self.set_value(initial_value)  # Before connecting: the initial value isn't an edit
+
         for widget in self.widgets:
             if formula_mode:
                 widget.formula_changed.connect(self.on_value_changed)
@@ -653,7 +829,6 @@ class ColorPropertyWidget(BasePropertyWidget):
         for widget in self.widgets:
             self.master_layout.addWidget(widget, stretch=10)
 
-        self.set_value(initial_value)
         self.set_enabled(enabled)
         self._update_channel_visibility()
 
@@ -795,6 +970,50 @@ class ColorPropertyWidget(BasePropertyWidget):
     def get_example_value(cls) -> int:
         return 0xbcbcbcff
 
+    _COLOR_SPACES = {"rgba": "rgb", "hsva": "hsv"}  # Saved names
+    _VARIABLES = {"rgba": ("r", "g", "b", "a"), "hsva": ("h", "s", "v", "a")}
+
+    def get_edit(self) -> dict | None:
+        if not self.dirty:
+            return None
+        widgets = self.rgb_widgets if self.color_space == 'rgba' else self.hsv_widgets
+        if self.formula_mode:
+            formulas = [widget.get_text() for widget in widgets]
+            if _is_identity(formulas, self._VARIABLES[self.color_space]):
+                return None
+            return {"formula": formulas, "color_space": self._COLOR_SPACES[self.color_space]}
+        channels = [widget.value() for widget in widgets]
+        if self.color_space == 'hsva':
+            channels = self._hsva_to_rgba(*channels)
+        return {"value": f"{self._pack_rgba(*(int(c) for c in channels)):08X}"}
+
+    def _set_color_space(self, color_space: str):
+        if self.color_space != color_space:
+            self.on_color_space_changed()
+
+    def apply_edit(self, edit: dict) -> None:
+        if _edit_kind(edit, ("value", "formula"), extra_keys=("color_space",)) == "formula":
+            formulas = _edit_formulas(edit, 4, self.formula_mode)
+            spaces = {saved: space for space, saved in self._COLOR_SPACES.items()}
+            if edit.get("color_space", "rgb") not in spaces:
+                raise ValueError("\"color_space\" must be \"rgb\" or \"hsv\"")
+            self._set_color_space(spaces[edit.get("color_space", "rgb")])
+            for widget, formula in zip(self.rgb_widgets if self.color_space == 'rgba' else self.hsv_widgets, formulas):
+                widget.setFormula(formula)
+        else:
+            value = edit["value"]
+            if "color_space" in edit or not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{8}", value):
+                raise ValueError("\"value\" must be a RRGGBBAA hexadecimal color")
+            packed = int(value, 16)
+            if self.formula_mode:
+                self._set_color_space('rgba')
+                for widget, channel in zip(self.rgb_widgets, (packed >> 24 & 0xFF, packed >> 16 & 0xFF,
+                                                               packed >> 8 & 0xFF, packed & 0xFF)):
+                    widget.setFormula(str(channel))
+            else:
+                self.set_value(packed)
+        self.dirty = True
+
 
 
 def format_bin(data: bytes):
@@ -868,6 +1087,24 @@ class UnknownTypePropertyWidget(BasePropertyWidget):
     @classmethod
     def get_example_value(cls) -> bytes:
         return b""
+
+    def get_edit(self) -> dict | None:
+        if not self.dirty or (self.edit_button is not None and not self.edit_button.is_checked()):
+            return None
+        return {"value": self.input_le.get_text()}
+
+    def apply_edit(self, edit: dict) -> None:
+        _edit_kind(edit, ("value",))
+        try:
+            value = from_bin(edit["value"])
+        except (TypeError, ValueError):
+            raise ValueError("\"value\" must be hexadecimal bytes, eg. \"0A FF\"") from None
+        if len(value) > 65535:
+            raise ValueError("\"value\" is too long (65,535 bytes at most)")
+        if self.edit_button is not None and not self.edit_button.is_checked():
+            self.edit_button.set_checked(True)
+        self.set_value(value)
+        self.dirty = True
 
 
 # ----------

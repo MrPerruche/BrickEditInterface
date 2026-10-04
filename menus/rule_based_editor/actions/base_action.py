@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
 MAX_BRICKS = 50_000
 
+COPY_GROUPS_TOOLTIP = TooltipContents("Copy groups", "Put new bricks in the originals' editor and weld groups. "
+                                                     "Otherwise, they're ungrouped.")
+
 
 def plural(count: int, word: str = "brick") -> str:
     return f"{count:,} {word}{'' if count == 1 else 's'}"
@@ -94,6 +97,11 @@ class BaseAction(Widget):
     def removes_bricks(self) -> bool:
         """If True, the user is asked to confirm before applying."""
         return False
+
+    def needs_selection(self) -> bool:
+        """If False, the action is applied even when no brick is selected (eg. it selects bricks itself). Otherwise
+        it's skipped."""
+        return True
 
     def next_selection_hint(self) -> str | None:
         """Shown under the action when other actions follow it, if the next actions don't apply to the same bricks.

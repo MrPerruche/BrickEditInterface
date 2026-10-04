@@ -33,10 +33,14 @@ class FormulaApplyError(Exception):
         )
 
 
-def _make_pos_or_rot_widget(title: str, value_set: set[brickedit.Vec3]):
+POSITION_KEY = "@position"  # Keys of the position and rotation edits (see get_edits), unlike any property name
+ROTATION_KEY = "@rotation"
+
+
+def _make_pos_or_rot_widget(title: str, value_set: set[brickedit.Vec3], formula_mode: bool = False):
     if len(value_set) < 1:
-        return Vec3PropertyWidget(title, (brickedit.Vec3(0, 0, 0),), False, brickedit.Vec3(0, 0, 0))
-    return Vec3PropertyWidget(title, tuple(value_set), len(value_set) > 1, next(iter(value_set)))
+        return Vec3PropertyWidget(title, (brickedit.Vec3(0, 0, 0),), formula_mode, brickedit.Vec3(0, 0, 0))
+    return Vec3PropertyWidget(title, tuple(value_set), formula_mode or len(value_set) > 1, next(iter(value_set)))
 
 
 class PropertySet(Widget):
@@ -45,13 +49,16 @@ class PropertySet(Widget):
 
     def __init__(
         self, bs: 'BrickSelector', properties: dict[str, set], frozen_properties: set[str],
-        positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3]
+        positions: set[brickedit.Vec3], rotations: set[brickedit.Vec3], formula_properties: set[str] = frozenset()
         ):
+        """formula_properties: properties (or POSITION_KEY / ROTATION_KEY) shown in formula mode even if every brick
+        has the same value, eg. to apply formula edits (see apply_edits)."""
 
         super().__init__()
 
         self.bs = bs
         self.edited = False
+        self.formula_properties = formula_properties
 
         self.master_layout = QVBoxLayout()
         self.master_layout.setContentsMargins(0, 0, 0, 0)
@@ -91,18 +98,18 @@ class PropertySet(Widget):
             self.failed_properties = set()
 
             # Brick's position
-            self.pos_widget = _make_pos_or_rot_widget("Position", positions)
+            self.pos_widget = _make_pos_or_rot_widget("Position", positions, POSITION_KEY in self.formula_properties)
             self.pos_widget.value_changed.connect(self.on_property_edited)
             self.properties_layout.addWidget(self.pos_widget)
 
             # Brick's rotation
-            self.rot_widget = _make_pos_or_rot_widget("Rotation", rotations)
+            self.rot_widget = _make_pos_or_rot_widget("Rotation", rotations, ROTATION_KEY in self.formula_properties)
             self.rot_widget.value_changed.connect(self.on_property_edited)
             self.properties_layout.addWidget(self.rot_widget)
 
             for (prop, values) in sorted_properties:
 
-                formula_mode = len(values) > 1
+                formula_mode = len(values) > 1 or prop in self.formula_properties
                 if len(values) == 0:
                     continue
 
@@ -122,6 +129,35 @@ class PropertySet(Widget):
 
         return self.failed_properties
 
+
+    # --- Edits as data (see property_edits)
+
+    def widgets_by_key(self) -> dict[str, BasePropertyWidget]:
+        """Property name (or POSITION_KEY / ROTATION_KEY) -> its widget"""
+        widgets: dict[str, BasePropertyWidget] = {}
+        if self.pos_widget is not None and self.rot_widget is not None:
+            widgets |= {POSITION_KEY: self.pos_widget, ROTATION_KEY: self.rot_widget}
+        return widgets | {widget.get_property(): widget for widget in self.property_widgets}
+
+    def get_edits(self) -> dict[str, dict]:
+        """Property name (or POSITION_KEY / ROTATION_KEY) -> edit, for every widget which changes something"""
+        return {key: edit for key, widget in self.widgets_by_key().items() if (edit := widget.get_edit()) is not None}
+
+    def apply_edits(self, edits: dict[str, dict]) -> dict[str, str]:
+        """Shows edits (from get_edits, maybe of another selection) in the widgets. Edits needing formula mode must
+        be in formula_properties. Edits of properties without a widget are ignored. Returns the edits which couldn't
+        be applied: key -> why."""
+        widgets = self.widgets_by_key()
+        failed = {}
+        for key, edit in edits.items():
+            if key not in widgets:
+                continue
+            try:
+                widgets[key].apply_edit(edit)
+                self.edited = True
+            except ValueError as e:
+                failed[key] = str(e)
+        return failed
 
 
     @staticmethod

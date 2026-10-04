@@ -92,6 +92,18 @@ def copy_brick(brick: brickedit.Brick, ids: IdAllocator, keep_groups: bool,
     )
 
 
+def change_brick_type(brick: brickedit.Brick, meta: brickedit.bt.BrickMeta) -> brickedit.Brick:
+    """Replacement for brick, of another type. It keeps brick's ref (wires to it and groups are kept), transform and
+    the properties meta has. Properties meta doesn't have are dropped."""
+    return brickedit.Brick(
+        ref=brick.ref,
+        meta=meta,
+        pos=brick.pos,
+        rot=brick.rot,
+        ppatch=deepcopy({prop: value for prop, value in brick.ppatch.items() if prop in meta.p}),
+    )
+
+
 def mirror_brick(brick: brickedit.Brick, axis: int, plane_offset: float, ids: IdAllocator,
                  keep_groups: bool) -> brickedit.Brick:
     """New brick, mirror image of brick across the plane normal to axis at plane_offset (see mirror_rules)."""

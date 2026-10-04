@@ -11,8 +11,7 @@ from menus.rule_based_editor.actions.base_action import BaseAction, ActionContex
 import brickedit
 
 
-COLOR_TOOLTIP = TooltipContents("Color", "RRGGBBAA hexadecimal color, like in brick filters.")
-MATERIAL_TOOLTIP = TooltipContents("Material", "Material set along with the color, or keep each brick's own material.")
+COLOR_TOOLTIP = TooltipContents("RRGGBBAA hexadecimal color")
 KEEP_MATERIAL = "Keep current"
 
 
@@ -29,7 +28,7 @@ class PaintAction(BaseAction):
 
         self.material_cb = BaseFilter.make_combo_box([KEEP_MATERIAL] + [display for _, display, _ in MATERIALS])
         self.material_cb.item_changed.connect(self.emit_options_changed)
-        self.add_setting_row("Material", self.material_cb, MATERIAL_TOOLTIP)
+        self.add_setting_row("Material", self.material_cb)
 
         self._update_preview()
 
@@ -55,7 +54,7 @@ class PaintAction(BaseAction):
 
     @classmethod
     def get_tooltip(cls) -> TooltipContents | None:
-        return TooltipContents("Set the color (and material) of the selected bricks", "Useful to find them in Brick Rigs.")
+        return TooltipContents("Set the color and material of the selected bricks")
 
     def describe(self, count: int) -> str:
         return f"Paint {plural(count)}"

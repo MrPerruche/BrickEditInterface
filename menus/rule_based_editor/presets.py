@@ -21,6 +21,8 @@ from pathlib import Path
 
 from ui.components.brick_filter.filters import FilterMode, BaseFilter, filters_by_config_type
 from ui.components.vehicle.brick_analysis import GAME_POSITION_TOLERANCE, GAME_ANGLE_TOLERANCE
+
+from brickedit import p
 from systems.bei_files import BeiFileFormat, BeiFileError, ConfigReader, FileLibrary, enum_key
 
 from menus.rule_based_editor.actions import BaseAction, actions_by_config_type
@@ -141,7 +143,19 @@ def user_presets() -> FileLibrary[Preset]:
 # ----- Built-in presets
 
 
-HIGHLIGHT = {"type": "paint", "color": "FF00FFFF", "material": ""}
+# Highlights bricks without changing them: a slightly bigger purple glass copy around each one, all of them in a new
+#  editor group so they're easy to remove
+HIGHLIGHT = [
+    {"type": "copy", "copies": 1, "offset": [0.0, 0.0, 0.0], "copy_groups": False},
+    {"type": "edit_properties", "properties": [
+        {"property": p.BRICK_COLOR, "value": "800080FF"},
+        {"property": p.BRICK_MATERIAL, "value": p.BrickMaterial.FROSTED_GLASS},
+        {"property": p.BRICK_SIZE, "formula": ["x+1", "y+1", "z+1"]},
+        {"property": p.SPINNER_SIZE, "formula": ["x+max(1, 1 if y == 0 else x/y)", "y+1"]},
+    ]},
+    {"type": "group", "group_type": "editor", "move_to": "new"},
+]
+HIGHLIGHT_NOTE = ""  # " Highlights are glass copies, grouped together so they're easy to remove."
 
 
 def _builtin(name: str, description: str, conditions: list[dict], actions: list[dict]) -> Preset:
@@ -150,7 +164,7 @@ def _builtin(name: str, description: str, conditions: list[dict], actions: list[
 
 
 # Mirror presets use Brick Rigs' own tolerances: only exact mirror images count, like in game
-STRICT_NOTE = " Exact mirrors only: raise the tolerances for hand-built vehicles."
+# STRICT_NOTE = " Exact mirrors only: raise the tolerances for hand-built vehicles."
 
 
 def _mirror_status(status: str, side: str = "both", mode: str = "must") -> dict:
@@ -185,37 +199,43 @@ BUILTIN_PRESETS: list[Preset] = [
     ),
     _builtin(
         "Highlight duplicates",
-        "Paints duplicated bricks magenta, the first one included. Ignores color.",
+        "Highlights magenta duplicated bricks, the first one included. Ignores color." + HIGHLIGHT_NOTE,
         [{"type": "duplicate", "mode": "must", "match": "has_copies", "compare": "ignore_color"}],
-        [HIGHLIGHT],
+        HIGHLIGHT,
     ),
     _builtin(
         "Highlight mirror issues",
-        "Paints magenta every brick with a missing or imperfect counterpart (Y axis)." + STRICT_NOTE,
+        "Highlights magenta every brick with a missing or imperfect counterpart (Y axis)." + HIGHLIGHT_NOTE,
         [_mirror_status("any_issue")],
-        [HIGHLIGHT],
+        HIGHLIGHT,
     ),
     _builtin(
         "Mirror the - side onto the + side",
-        "Mirrors - side bricks without a counterpart onto the + side (Y axis)." + STRICT_NOTE,
+        "Mirrors - side bricks without a counterpart onto the + side (Y axis).",
         [_mirror_status("missing", "negative")],
         [_mirror("skip")],
     ),
     _builtin(
         "Mirror the + side onto the - side",
-        "Mirrors + side bricks without a counterpart onto the - side (Y axis)." + STRICT_NOTE,
+        "Mirrors + side bricks without a counterpart onto the - side (Y axis).",
         [_mirror_status("missing", "positive")],
         [_mirror("skip")],
     ),
     _builtin(
         "Fix badly mirrored bricks (- side wins)",
-        "Re-mirrors - side bricks whose + side counterpart is imperfect (Y axis)." + STRICT_NOTE,
+        "Re-mirrors - side bricks whose + side counterpart is imperfect (Y axis).",
         [_mirror_status("any_issue", "negative"), _mirror_status("missing", mode="must_not")],
         [_mirror("replace")],
     ),
     _builtin(
+        "Fix badly mirrored bricks (+ side wins)",
+        "Re-mirrors + side bricks whose - side counterpart is imperfect (Y axis).",
+        [_mirror_status("any_issue", "positive"), _mirror_status("missing", mode="must_not")],
+        [_mirror("replace")],
+    ),
+    _builtin(
         "Remove bricks without counterpart",
-        "Deletes + side bricks without a counterpart on the - side (Y axis)." + STRICT_NOTE,
+        "Deletes + side bricks without a counterpart on the - side (Y axis).",
         [_mirror_status("missing", "positive")],
         [{"type": "delete"}],
     ),

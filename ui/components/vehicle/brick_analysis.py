@@ -104,7 +104,9 @@ def mirror_rotation(rot: brickedit.Vec3, axis: int, flip: LocalFlip = LOCAL_FLIP
     return axes_to_rotation(mirror_axes(rotation_axes(rot), axis, flip))
 
 
-def _local_to_world(axes: Axes, v: TupleVec3) -> TupleVec3:
+def local_to_world(axes: Axes, v: TupleVec3) -> TupleVec3:
+    """World direction of v, given in the space of a brick whose local axes are axes. Also rotates v by the rotation
+    whose axes are axes (see brick_transform)."""
     return tuple(v[0] * axes[0][k] + v[1] * axes[1][k] + v[2] * axes[2][k] for k in range(3))  # type: ignore[return-value]
 
 
@@ -118,7 +120,7 @@ def mirror_transform(brick: brickedit.Brick, axis: int, plane_offset: float, rul
     if not any(rule.rotation_origin):
         return pos, image_axes
     # Measured in game (see mirror_rules.MirrorRule.rotation_origin)
-    offset = _local_to_world(image_axes, rule.rotation_origin)
+    offset = local_to_world(image_axes, rule.rotation_origin)
     return brickedit.Vec3(pos.x + offset[0], pos.y + offset[1], pos.z + offset[2]), image_axes
 
 

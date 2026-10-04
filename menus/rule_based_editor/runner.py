@@ -38,7 +38,7 @@ def run_actions(mw: 'BrickEditInterface', actions: list[BaseAction], brvfile: br
     brvfile (the loaded vehicle's data does: same bricks, same ref ids). Raises ActionFailed."""
     outcomes = []
     for index, action in enumerate(actions):
-        if not selected_ids:
+        if not selected_ids and action.needs_selection():
             outcomes.append(ActionOutcome(index, action, None))
             continue
         ctx = ActionContext(mw, brvfile, set(selected_ids), vehicle_data)

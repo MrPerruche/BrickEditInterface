@@ -180,11 +180,6 @@ class RuleBasedEditor(base.BaseMenu):
         self.apply_button.clicked.connect(self.apply_actions)
         self.master_layout.addWidget(self.apply_button)
 
-        self.last_result_label = Label("", muted=True)
-        self.last_result_label.set_font_size(11)
-        self.master_layout.addWidget(self.last_result_label)
-        self.last_result_label.hide()
-
         self.master_layout.addStretch()
 
         mw.vehicle_selector_banner.vehicle_loaded.connect(self.schedule_preview)
@@ -247,8 +242,7 @@ class RuleBasedEditor(base.BaseMenu):
 
     def update_preset_widgets(self, *_):
         preset = self.current_preset()
-        text = "" if preset is None else preset.description if preset.is_builtin else \
-            (preset.description + "\n" if preset.description else "") + "Your preset."
+        text = "" if preset is None else preset.description
         self.preset_description.set_text(text)
         self.preset_description.setVisible(bool(text))
         self.use_preset_button.set_enabled(preset is not None)
@@ -417,7 +411,8 @@ class RuleBasedEditor(base.BaseMenu):
             self.apply_button.set_text(f"{actions[0].describe(count)} and save")
         else:
             self.apply_button.set_text(f"Apply {len(actions)} actions to {plural(count)} and save")
-        self.apply_button.set_enabled(self.mw.vehicle_selector_banner.is_vehicle_loaded() and bool(self.selection))
+        self.apply_button.set_enabled(self.mw.vehicle_selector_banner.is_vehicle_loaded() and (
+            bool(self.selection) or not all(action.needs_selection() for action in actions)))
 
     def apply_actions(self):
         banner = self.mw.vehicle_selector_banner
@@ -426,11 +421,11 @@ class RuleBasedEditor(base.BaseMenu):
             VehicleLoadingIssueDialog.create(self.mw, True).exec()
             return
         self.refresh_selection()  # Don't trust a preview which may be waiting for its timer
-        if not self.selection:
+        actions = self.action_list.actions()
+        if not self.selection and all(action.needs_selection() for action in actions):
             NoBricksMatchDialog.create(self.mw).exec()
             return
 
-        actions = self.action_list.actions()
         brvfile = banner.get_brvfile_copy()  # The loaded vehicle's data describes it: same bricks, same ref ids
         logger.info(f"Applying {len(actions)} action(s) to {len(self.selection)} brick(s)")
         try:
@@ -450,7 +445,6 @@ class RuleBasedEditor(base.BaseMenu):
         changed = [o for o in outcomes if o.result is not None and o.result.changed]
         if not changed:
             NothingEverHappensDialog.create(self.mw, saved=False).exec()
-            self.show_result(lines + ["Nothing was saved."])
             return
 
         if any(o.action.removes_bricks() for o in changed):
@@ -460,15 +454,10 @@ class RuleBasedEditor(base.BaseMenu):
         saved = banner.save_brv(brvfile, description=" ".join(lines) + f" Applied with the {self.get_menu_name()}.")
         if not saved:
             return
-        self.show_result(lines)
         logger.info("Actions applied: " + " ".join(lines))
 
         if self.reload_switch.get_value():
             banner.load_vehicle(banner.get_vehicle_loc())
-
-    def show_result(self, lines: list[str]):
-        self.last_result_label.set_text("Last run:\n" + "\n".join(lines))
-        self.last_result_label.show()
 
 
     # ----- Menu
@@ -486,7 +475,8 @@ class RuleBasedEditor(base.BaseMenu):
                           "conditions select bricks (which bricks?), then actions are applied to them (what to "
                           "do with them?).")
                 .add_text("It can find and fix duplicated bricks and mirroring mistakes, select bricks with "
-                          "custom formulas, and delete, paint, edit, group, mirror or copy them.")
+                          "custom formulas, and delete, paint, edit, group, transform, mirror or copy them, or "
+                          "change their type.")
                 .add_header("Getting started")
                 .add_steps(
                     "Save your vehicle in Brick Rigs, then load (or reload) it in BrickEdit-Interface.",
@@ -503,8 +493,9 @@ class RuleBasedEditor(base.BaseMenu):
                 .add_text("Presets fill the conditions and actions in for common tasks. Save your own setups "
                           "with \"Save\", and share them as files with \"Export\" and \"Import\".")
                 .add_text(pmd(f"Your presets are `{PRESET_FORMAT.extension}` files, stored in "
-                              f"BrickEdit-Interface's settings folder (\"Open folder\" opens it). Property edits of \"Edit properties\" "
-                              "aren't saved in presets."))
+                              f"BrickEdit-Interface's settings folder (\"Open folder\" opens it). Every setting is "
+                              "saved, including the edits of \"Edit properties\": they're applied to the bricks the "
+                              "preset selects, formulas for each brick."))
                 .add_header("Conditions")
                 .add_text("Conditions work like the brick editor's filters: a brick is selected if it matches "
                           "the conditions. When there is no condition, no brick is selected. \"Invert selection\" "
@@ -541,6 +532,9 @@ class RuleBasedEditor(base.BaseMenu):
                           "deletes bricks: after \"Copy\" and \"Mirror\", the next actions apply to the new bricks "
                           "only, and nothing is left after \"Delete\". Order matters: copying then painting paints "
                           "the copies only, painting then copying paints both.")
+                .add_text(pmd("\"Select\" changes which bricks the next actions apply to with a formula, like "
+                              "\"Satisfy condition\": among the selected bricks (eg. only the copies with "
+                              "`z > 100`), or in the whole vehicle, to apply several rules at once."))
                 .add_collection("Actions",
                     ("Delete", "Removes the selected bricks. Wires from other bricks to them are removed too."),
                     ("Edit properties", "Edits the position, rotation and properties of every selected brick at "
@@ -548,9 +542,16 @@ class RuleBasedEditor(base.BaseMenu):
                     ("Paint", "Sets the color (and optionally the material) of the selected bricks. Handy to "
                         "find them in Brick Rigs before deciding what to do with them."),
                     ("Set group", "Moves the selected bricks to a named group, a new group, or out of their group."),
+                    ("Transform", "Rotates, scales and moves the selected bricks as a whole, about the center of "
+                        "the selection or a point, or each brick in place. Scaling also scales sizes (brick size, "
+                        "wheel diameter...)."),
+                    ("Change type", "Turns the selected bricks into bricks of another type. They keep their "
+                        "position, rotation, groups, wires, and the properties both types have. Type part of the "
+                        "type's internal name to list the matching types; any name works, modded bricks included."),
                     ("Mirror", "Creates a mirror image of the selected bricks. Bricks which already have a "
                         "counterpart can be skipped, replaced, or mirrored anyway. Wires are mirrored too."),
                     ("Copy", "Copies the selected bricks one or more times, each copy moved by an offset."),
+                    ("Select", "Changes which bricks the next actions apply to, with a formula."),
                 )
                 .add_warning("Detecting duplicates and mirror issues relies on heuristics: always check the "
                              "selection before applying. Every save makes a backup, which you can recover in the "

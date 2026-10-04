@@ -7,7 +7,7 @@ from systems.bei_files import ConfigReader
 from ui.components.vehicle.brick_ops import IdAllocator, mirror_brick, remap_references, remove_bricks
 
 from menus.rule_based_editor.actions.base_action import (
-    BaseAction, ActionContext, ActionResult, ActionError, plural, MAX_BRICKS
+    BaseAction, ActionContext, ActionResult, ActionError, plural, MAX_BRICKS, COPY_GROUPS_TOOLTIP
 )
 
 
@@ -16,19 +16,13 @@ COUNTERPART_KEYS = ("skip", "replace", "keep_both")  # Saved
 SKIP, REPLACE, KEEP_BOTH = range(3)
 
 COUNTERPART_TOOLTIP = TooltipContents(
-    "If a counterpart exists",
-    "What to do with selected bricks which already have a counterpart (a brick of the same type, or its left / right "
-    "version, at their mirrored position, see the mirror status condition).\n"
-    "Skip: don't mirror them. Replace: delete the counterpart and mirror the brick again (wires to the counterpart "
-    "are moved to the new brick). Keep both: mirror them anyway, which usually creates duplicates."
+    "If the mirrored position is taken",
+    "Skip: don't mirror. Replace: delete the brick there (its wires go to the new one). Keep both: may duplicate."
 )
 TOLERANCE_TOOLTIP = TooltipContents(
-    "Tolerance",
-    "How far (in cm, on each axis) an existing brick can be from a brick's mirrored position to be its counterpart. "
-    "Bricks closer than this to the mirror plane are on it, and aren't mirrored.\n"
-    f"Brick Rigs: {GAME_POSITION_TOLERANCE:g} cm. Use the same value as the mirror status condition."
+    "Tolerance (cm)",
+    f"Max gap to count as the same position, or as on the plane. Brick Rigs: {GAME_POSITION_TOLERANCE:g}."
 )
-GROUPS_TOOLTIP = TooltipContents("Copy groups", "Put mirrored bricks in the editor and weld groups of the original bricks. Otherwise, they aren't in any group.")
 
 
 class MirrorAction(BaseAction):
@@ -41,8 +35,7 @@ class MirrorAction(BaseAction):
 
         self.offset_nce = NumberChannelEdit(ChannelMode.FLOAT32, allow_nan=False, allow_inf=False)
         self.offset_nce.setValue(plane_offset)
-        self.add_setting_row("Plane at", self.offset_nce, TooltipContents(
-            "Position of the mirror plane along the mirror axis (cm). 0 is the vehicle's center in Brick Rigs."))
+        self.add_setting_row("Plane at (cm)", self.offset_nce, TooltipContents("0 is the vehicle's center."))
 
         self.counterparts_sw = Switcher(list(COUNTERPARTS), counterparts)
         self.add_setting_row("Counterparts", self.counterparts_sw, COUNTERPART_TOOLTIP)
@@ -53,7 +46,7 @@ class MirrorAction(BaseAction):
         self.add_setting_row("Tolerance", self.tolerance_nce, TOLERANCE_TOOLTIP)
 
         self.groups_switch = BoolSwitch(False)
-        self.add_setting_row("Copy groups", self.groups_switch, GROUPS_TOOLTIP)
+        self.add_setting_row("Copy groups", self.groups_switch, COPY_GROUPS_TOOLTIP)
 
         for signal in (self.axis_sw.index_changed, self.offset_nce.value_changed, self.counterparts_sw.index_changed,
                        self.tolerance_nce.value_changed, self.groups_switch.on_toggled):
@@ -66,11 +59,7 @@ class MirrorAction(BaseAction):
 
     @classmethod
     def get_tooltip(cls) -> TooltipContents | None:
-        return TooltipContents(
-            "Create mirrored copies of the selected bricks",
-            "Bricks on the mirror plane are never mirrored. Wires between mirrored bricks are mirrored too.\n"
-            "Bricks are mirrored like Brick Rigs does: left and right bricks are swapped, and properties such as "
-            "spinner angles are mirrored.")
+        return TooltipContents("Create mirrored copies of the selected bricks", "Mirrors like Brick Rigs does.")
 
     def describe(self, count: int) -> str:
         return f"Mirror {plural(count)}"
@@ -79,7 +68,7 @@ class MirrorAction(BaseAction):
         return (self.counterparts_sw.get_idx() or 0) == REPLACE
 
     def next_selection_hint(self) -> str | None:
-        return "The next actions apply to the new mirror images only."
+        return "Next actions apply to the mirror images."
 
 
     CONFIG_TYPE = "mirror"

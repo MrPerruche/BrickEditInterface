@@ -39,6 +39,7 @@ class LineEdit(Widget):
         self._layout.addWidget(self.qt_widget)
 
         self.text_changed = self.qt_widget.textChanged
+        self.text_edited = self.qt_widget.textEdited  # Only when the user changes the text, not set_text
         self.editing_finished = self.qt_widget.editingFinished
 
         self.qt_widget.setProperty('validation', 'acceptable')

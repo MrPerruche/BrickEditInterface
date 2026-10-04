@@ -9,8 +9,7 @@ class DeleteAction(BaseAction):
 
     def __init__(self, mw):
         super().__init__(mw)
-        info = Label("Removes every selected brick. Wires from other bricks to the removed ones (input "
-                     "sources, owning seat...) are removed as well.", muted=True)
+        info = Label("Removes and disconnects selected bricks.", muted=True)
         self.master_layout.addWidget(info)
 
     @classmethod
@@ -28,7 +27,7 @@ class DeleteAction(BaseAction):
         return True
 
     def next_selection_hint(self) -> str | None:
-        return "No bricks are left for the next actions."
+        return "No bricks left for the next actions."
 
     CONFIG_TYPE = "delete"
 

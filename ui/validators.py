@@ -6,6 +6,20 @@ HEX_4COLOR_VALIDATOR           = QRegularExpressionValidator(r"^[a-fA-F0-9]{8}$"
 ASCII_TEXT_ONLY                = QRegularExpressionValidator(r"^[ -~]*$")
 
 
+class AsciiNameValidator(QValidator):
+    """Printable ASCII, not blank. Eg. brick type names, saved as ASCII in vehicles."""
+
+    def validate(self, input: str, pos: int):
+        if not all(" " <= c <= "~" for c in input):
+            return QValidator.State.Invalid, input, pos
+        if not input.strip():
+            return QValidator.State.Intermediate, input, pos
+        return QValidator.State.Acceptable, input, pos
+
+
+ASCII_NAME_VALIDATOR           = AsciiNameValidator()
+
+
 # BINARY_HEX_VALIDATOR hates huge limits like 64KiB in regex
 
 
