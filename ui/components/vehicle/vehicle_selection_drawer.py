@@ -526,8 +526,8 @@ ERROR: {format_exc()}""").exec()
             with open(metadata_file, 'rb') as f:
 
                 version: int = int.from_bytes(f.read(1), 'little')
-                name_len: int = int.from_bytes(f.read(2), 'little')
-                f.read(name_len)  # Clear out name
+                name_len: int = int.from_bytes(f.read(2), 'little', signed=True)
+                f.read(name_len if name_len >= 0 else -2 * name_len)  # Clear out name (negative length = UTF-16)
 
                 new = bytearray()
                 new.extend(version.to_bytes(1, 'little'))
