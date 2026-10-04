@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QComboBox
 from ui.widgets import Label, ComboBox
 from ui.components.brick_filter.filters.base_filter import FilterMode, FilterResult, BaseFilter
 from ui.models import TooltipContents
+from systems.bei_files import ConfigReader
 
 from brickedit import Brick
 
@@ -19,6 +20,7 @@ class BaseGroupFilter(BaseFilter):
     def __init__(self, mw: 'BrickEditInterface', mode: FilterMode):
         super().__init__(mw)
         self.mode = mode
+        self.wanted_group: str | None = None  # Last group picked. Kept listed if a reloaded vehicle doesn't have it
 
         self.label_layout = QHBoxLayout()
         self.label_layout.setContentsMargins(0, 0, 0, 0)
@@ -41,27 +43,51 @@ class BaseGroupFilter(BaseFilter):
         self.master_layout.addWidget(self.combo_box)
 
         self.on_vehicle_reload()  # Populate combo box
+        self.combo_box.item_changed.connect(self._on_group_selected)
+
+
+    def _on_group_selected(self, *_):
+        self.wanted_group = self.combo_box.get_current_text() or None
+        self.emit_edited()
 
 
     def on_vehicle_reload(self):
         # print("on_vehicle_reload called")
-        previous_selection = self.combo_box.get_current_text()
+        previous_selection = self.wanted_group or self.combo_box.get_current_text()
 
-        self.combo_box.clear_items()
+        # Repopulating is not an edit from the user
+        self.combo_box.qt_widget.blockSignals(True)
+        try:
+            self.combo_box.clear_items()
 
-        vehicle_data = self.mw.vehicle_selector_banner.get_brvfile_ref_data()
-        if vehicle_data is None:
-            # print("no vehicle_data found")
-            return
+            vehicle_data = self.mw.vehicle_selector_banner.get_brvfile_ref_data()
+            names = []
+            if vehicle_data is not None:
+                groups = vehicle_data.editor_groups if self.group_name() == "editor" else vehicle_data.weld_groups
+                names = list(groups.keys())
+            if self.wanted_group is not None and self.wanted_group not in names:
+                names.append(self.wanted_group)  # Matches nothing, but doesn't silently switch to another group
+            for group_name in names:
+                self.combo_box.add_item(group_name)
 
-        groups = vehicle_data.editor_groups if self.group_name() == "editor" else vehicle_data.weld_groups
-        for group_name in groups.keys():
-            self.combo_box.add_item(group_name)
+            if previous_selection:
+                idx = self.combo_box.qt_widget.findText(previous_selection)
+                if idx != -1:
+                    self.combo_box.set_current_idx(idx)
+        finally:
+            self.combo_box.qt_widget.blockSignals(False)
 
-        if previous_selection:
-            idx = self.combo_box.qt_widget.findText(previous_selection)
-            if idx != -1:
-                self.combo_box.set_current_idx(idx)
+
+    def get_config(self) -> dict:
+        group = self.combo_box.get_current_text()
+        return {"group": group} if group else {}
+
+    def apply_config(self, config: ConfigReader) -> None:
+        group = config.get_str("group")
+        if group:
+            self.wanted_group = group
+            self.on_vehicle_reload()
+            self.emit_edited()
 
 
     def is_allowed(self, brick: Brick) -> FilterResult:
@@ -87,9 +113,13 @@ class BaseGroupFilter(BaseFilter):
 
 class EditorGroupFilter(BaseGroupFilter):
 
+    CONFIG_TYPE = "editor_group"
+
     def is_allowed(self, brick: Brick) -> FilterResult:
 
-        vehicle_data = self.mw.vehicle_selector_banner.get_brvfile_ref_data()
+        vehicle_data = self.get_vehicle_data()
+        if vehicle_data is None:
+            return self.mode.filter_did_not_match()
         target_group = self.combo_box.get_current_text()
 
         brick_group = vehicle_data.editor_be_to_bei.get(brick.ref.editor, None)
@@ -112,9 +142,13 @@ class EditorGroupFilter(BaseGroupFilter):
 
 class WeldGroupFilter(BaseGroupFilter):
 
+    CONFIG_TYPE = "weld_group"
+
     def is_allowed(self, brick: Brick) -> FilterResult:
 
-        vehicle_data = self.mw.vehicle_selector_banner.get_brvfile_ref_data()
+        vehicle_data = self.get_vehicle_data()
+        if vehicle_data is None:
+            return self.mode.filter_did_not_match()
         target_group = self.combo_box.get_current_text()
 
         brick_group = vehicle_data.weld_be_to_bei.get(brick.ref.weld, None)

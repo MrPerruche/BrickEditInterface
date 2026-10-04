@@ -8,6 +8,7 @@ from ui.dialogs.vehicle_save_dialogs import *
 from ui.dialogs.vehicle_version_dialogs import *
 from ui.dialogs.expression_dialogs import *
 from ui.dialogs.brick_dialogs import *
+from ui.dialogs.rule_dialogs import *
 from ui.dialogs.system_dialogs import *
 from ui.dialogs.update import *
 from ui.dialogs.confirm import *

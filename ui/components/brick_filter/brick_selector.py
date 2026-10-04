@@ -91,6 +91,7 @@ class BrickSelector(Widget):
         if filters:
             self.no_filters_label.hide()
         else:
+            self.no_filters_label.show()
             self.enable_reload_label()
 
         for f in self.filters:
@@ -114,6 +115,7 @@ class BrickSelector(Widget):
         filter.deleteLater()
 
         if not self.filters:
+            self.no_filters_label.show()
             self.enable_reload_label()
 
         self.filter_changed()

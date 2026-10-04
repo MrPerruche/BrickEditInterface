@@ -16,6 +16,7 @@ class ForceAllFilter(BaseFilter):
     def __init__(self, mw: 'BrickEditInterface', mode: FilterMode):
 
         super().__init__(mw)
+        self.mode = mode
 
         self.hlayout = QHBoxLayout()
         self.master_layout.addLayout(self.hlayout)
@@ -25,6 +26,8 @@ class ForceAllFilter(BaseFilter):
 
         self.hlayout.addWidget(self.remove_filter_button)
 
+
+    CONFIG_TYPE = "force_all"
 
     def is_allowed(self, brick: 'brickedit.Brick') -> FilterResult:
         return FilterResult.FORCE_ALLOWED

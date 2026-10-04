@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QHBoxLayout
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QPainterPath, QPen
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QPainterPath, QPen, QDesktopServices
+from PySide6.QtCore import Qt, QRectF, QUrl
 
 import os
 
@@ -135,6 +135,11 @@ class SettingsMenu(base.BaseMenu):
         self.reset_btn.clicked.connect(self.on_reset_btn_clicked)
         self.apply_layout.addWidget(self.reset_btn)
 
+        # Open settings file in file explorer. Own row: a third button is too wide for the window's minimum width
+        self.open_settings_file_btn = Button("Reveal in file explorer")
+        self.open_settings_file_btn.clicked.connect(self.open_settings_file)
+        self.master_layout.addWidget(self.open_settings_file_btn)
+
         # END OF INIT
         self.ui_scale_slider_changed()
         self.refresh_ignore_update_switch()
@@ -230,6 +235,10 @@ class SettingsMenu(base.BaseMenu):
     def reset_and_restart_procedure(self):
         self.mw.settings.reset_all()
         restart()
+
+    def open_settings_file(self):
+        target = self.mw.settings.get_settings_path().parent
+        QDesktopServices.openUrl(QUrl.fromLocalFile(target))
 
 
     def get_menu_name(self) -> str:

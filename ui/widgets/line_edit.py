@@ -65,6 +65,13 @@ class LineEdit(Widget):
         self._on_text_changed(text)
 
 
+    def reset_text(self, text: str):
+        """Like set_text, but text also becomes what get_text falls back to, like the default given to __init__
+        (even if the validator doesn't accept it)."""
+        self._last_acceptable = text
+        self.set_text(text)
+
+
     def set_border_color(self, color: str | None):
         """Force border color. Color format: '#AARRGGBB'. Set to None to go back to default."""
         self.border_color = color

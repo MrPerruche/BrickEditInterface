@@ -1,13 +1,29 @@
 from PySide6.QtWidgets import QPlainTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QTextOption
+from PySide6.QtCore import Qt, QMimeData
+from PySide6.QtGui import QTextOption, QTextCursor, QKeyEvent, QKeySequence, QInputMethodEvent
 
 from ui.widgets import Widget
 from ui.theme import Theme, style_rules
 
+import unicodedata
+
 _BORDER_WIDTH = 2      # matches the QSS border below
 _VERTICAL_PADDING = 2  # matches the QSS padding below (top + bottom each)
 _GRIP_HEIGHT = 8        # reserved strip inset into the bottom of the widget, not added to its outer height
+
+
+def _utf16_len(text: str) -> int:
+    return len(text.encode('utf-16-le')) // 2
+
+
+def _truncate_utf16(text: str, max_units: int) -> str:
+    """Longest start of text at most max_units UTF-16 code units long, without splitting a surrogate pair"""
+    units = 0
+    for i, ch in enumerate(text):
+        units += 2 if ord(ch) > 0xFFFF else 1
+        if units > max_units:
+            return text[:i]
+    return text
 
 
 @style_rules
@@ -55,11 +71,102 @@ def _multiline_edit_rules(theme: Theme) -> str:
 
 class _MultilinePlainTextEdit(QPlainTextEdit):
     """QPlainTextEdit that keeps its resize grip (if any) pinned to its own bottom edge, inset
-    into the viewport-margin strip reserved for it -- see MultilineEdit."""
+    into the viewport-margin strip reserved for it -- see MultilineEdit. Also has an equivalent of
+    QLineEdit.setMaxLength, which QPlainTextEdit lacks."""
 
     def __init__(self):
         super().__init__()
         self.grip: "_MultilineEditGrip | None" = None
+
+        self._max_length: int | None = None
+        self._last_insert_end = 0  # Document position right after the last inserted text
+        self.document().contentsChange.connect(self._on_contents_change)
+        self.textChanged.connect(self._enforce_max_length)
+
+    # -- max length -- #
+    # User input that doesn't fit is cut *before* being inserted (keys, paste / drop, input methods): trimming it
+    #  afterwards would be a separate undo step, and undoing it would bring the overflow back, trimmed again at once,
+    #  so the undo history before it would be out of reach. _enforce_max_length is only a fallback for other edits.
+
+    def set_max_length(self, max_length: int | None):
+        self._max_length = None if max_length is None else max(0, max_length)
+        if self._max_length is not None and self._text_length() > self._max_length:
+            self.setPlainText(self.toPlainText())  # Truncated, and clears the undo history of the longer text
+
+    def setPlainText(self, text: str):
+        super().setPlainText(text if self._max_length is None else _truncate_utf16(text, self._max_length))
+
+    def _text_length(self) -> int:
+        # In UTF-16 code units like QLineEdit.maxLength, minus the document's trailing paragraph separator
+        return self.document().characterCount() - 1
+
+    def _room(self) -> int | None:
+        """UTF-16 code units that can be inserted in place of the selection, None if there's no limit"""
+        if self._max_length is None:
+            return None
+        cursor = self.textCursor()
+        return max(0, self._max_length - self._text_length() + cursor.selectionEnd() - cursor.selectionStart())
+
+    @staticmethod
+    def _typed_text(e: QKeyEvent) -> str:
+        """Text a key press inserts, mirroring QWidgetTextControl's key handling"""
+        if (e.matches(QKeySequence.StandardKey.InsertParagraphSeparator)
+                or e.matches(QKeySequence.StandardKey.InsertLineSeparator)):
+            return "\n"
+        text = e.text()
+        # Qt inserts tabs and printable text (QChar::isPrint is false for the C* categories)
+        if text and (text[0] == "\t" or unicodedata.category(text[0])[0] != "C"):
+            return text
+        return ""
+
+    def keyPressEvent(self, e: QKeyEvent):
+        room = self._room()
+        if room is not None and _utf16_len(self._typed_text(e)) > room:
+            e.accept()  # Swallowed, so a parent doesn't get it either (eg. Enter accepting a dialog)
+            return
+        super().keyPressEvent(e)
+
+    def insertFromMimeData(self, source: QMimeData):  # Paste and drop
+        room = self._room()
+        if room is not None and source.hasText():
+            text = source.text().replace("\r\n", "\n")  # Inserted as a single line break
+            source = QMimeData()
+            source.setText(_truncate_utf16(text, room))
+        super().insertFromMimeData(source)
+
+    def inputMethodEvent(self, e: QInputMethodEvent):
+        room = self._room()
+        if room is not None and e.commitString():
+            e.setCommitString(
+                _truncate_utf16(e.commitString(), room + e.replacementLength()),
+                e.replacementStart(), e.replacementLength()
+            )
+        super().inputMethodEvent(e)
+
+    def _on_contents_change(self, position: int, _removed: int, added: int):
+        self._last_insert_end = position + added
+
+    def _enforce_max_length(self):
+        if self._max_length is None:
+            return
+        overflow = self._text_length() - self._max_length
+        if overflow <= 0:
+            return
+
+        # Drop the overflow from the end of what was just inserted, keeping the existing text like QLineEdit
+        end = min(self._last_insert_end, self._text_length())
+        if end < overflow:
+            end = self._text_length()
+        start = end - overflow
+        if start > 0 and 0xDC00 <= ord(self.document().characterAt(start)) <= 0xDFFF:
+            start -= 1  # Don't split a surrogate pair (eg. an emoji)
+
+        cursor = QTextCursor(self.document())
+        cursor.setPosition(start)
+        cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+        cursor.joinPreviousEditBlock()  # Merges with the insertion's undo step, if it was an edit block itself
+        cursor.removeSelectedText()
+        cursor.endEditBlock()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -177,6 +284,10 @@ class MultilineEdit(Widget):
 
     def set_read_only(self, read_only: bool):
         self.qt_widget.setReadOnly(read_only)
+
+    def set_max_length(self, max_length: int | None):
+        """Like LineEdit.set_max_length (counted in UTF-16 code units, as Qt does); None removes the limit"""
+        self.qt_widget.set_max_length(max_length)
 
     def set_line_wrap(self, enabled: bool):
         self.qt_widget.setLineWrapMode(

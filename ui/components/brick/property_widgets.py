@@ -230,8 +230,10 @@ class BooleanPropertyWidget(BasePropertyWidget):
             self.setting_widget.set_value(bool(value))
 
     def get_value(self, default_value: bool) -> bool:
-        idx = self.setting_widget.get_idx()
-        return self.FORMULA_MODE_ACTIONS[idx](default_value) if self.formula_mode else self.setting_widget.get_value()
+        if self.formula_mode:
+            _, action = self.FORMULA_MODE_ACTIONS[self.setting_widget.get_idx()]
+            return action(default_value)
+        return self.setting_widget.get_value()
 
     @classmethod
     def get_example_value(cls) -> bool:

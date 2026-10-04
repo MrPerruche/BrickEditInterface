@@ -80,6 +80,7 @@ class BrickEditInterface(QMainWindow):
             HomeMenu(self),
             SettingsAndBackupsMenu(self),
             EditBrickMenu(self),
+            RuleBasedEditor(self),
             GradientMaker(self),
             VehicleUpscalerMenu(self),
             DowngradeVehicleMenu(self),
@@ -87,7 +88,6 @@ class BrickEditInterface(QMainWindow):
             SettingsMenu(self),
         ]
         self.in_dev_menus = [
-            RuleBasedEditor(self),
             DeveloperTestMenu(self),
         ]
         if IS_PRIVATE_VERSION:

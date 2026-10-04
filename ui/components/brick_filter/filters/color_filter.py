@@ -5,13 +5,18 @@ from ui.widgets import Label, LineEdit, Button
 from ui.components.brick_filter.filters.base_filter import FilterMode, FilterResult, BaseFilter
 from ui.validators import HEX_4COLOR_VALIDATOR
 
+from systems.bei_files import ConfigReader, BeiFileError
 from utils import get_random_color
 
+import re
 import brickedit
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from mainwindow import BrickEditInterface
+
+
+HEX_COLOR = re.compile(r"[0-9A-Fa-f]{8}")
 
 
 def rgba(col: QColor) -> str:
@@ -77,6 +82,17 @@ class ColorFilter(BaseFilter):
         self.color = QColor('#' + col_argb)
         self.color_le.set_border_color('#' + col_argb)
         self.filter_edited.emit(self)
+
+    CONFIG_TYPE = "color"
+
+    def get_config(self) -> dict:
+        return {"color": rgba(self.color).upper()}
+
+    def apply_config(self, config: ConfigReader) -> None:
+        color = config.get_str("color", rgba(self.color))
+        if not HEX_COLOR.fullmatch(color):
+            raise BeiFileError(f"{config.where}: \"{color}\" is not a RRGGBBAA color.")
+        self.color_le.set_text(color.upper())  # Updates self.color
 
     def is_allowed(self, brick) -> FilterResult:
         col_tuple = self.color.red(), self.color.green(), self.color.blue(), self.color.alpha()

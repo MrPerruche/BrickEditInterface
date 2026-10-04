@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QFont, QIcon, QPainter, QPixmap, QTextLayout, QTextOption
 
 from ui.widgets.widget import Widget
-from ui.theme import Theme, register_has_theme_and_apply, style_rules, set_style_property
+from ui.theme import Theme, register_has_theme_and_apply, style_rules, set_style_property, theme_manager
 from ui.models import TooltipContents
 from ui.rich_text import style_rich_text, highlight_rich_text, count_matches
 
@@ -289,6 +289,7 @@ class Label(Widget):
         if muted != self.is_muted:
             self.is_muted = muted
             set_style_property(self.qt_widget, 'muted', muted)
+            self._apply_theme(theme_manager.current())  # Re-tint the tooltip icon
 
     def get_text(self) -> str:
         return self.qt_widget.text()
@@ -351,9 +352,8 @@ class Label(Widget):
         self.qt_widget.set_icon_visible(self.tooltip_enabled)
 
     def _apply_theme(self, theme: Theme):
-        pixmap = tint_icon(
-            self.info_icon, theme.text.color_hex_argb, size=self.info_icon_size
-        ).pixmap(self.info_icon_size)
+        color = theme.text.muted_hex_argb if self.is_muted else theme.text.color_hex_argb
+        pixmap = tint_icon(self.info_icon, color, size=self.info_icon_size).pixmap(self.info_icon_size)
         self.qt_widget.set_icon(pixmap, self.info_icon_size)
 
 

@@ -30,7 +30,8 @@ class FilterEntry(Widget):
 
         self.filter_selector = filter_selector
 
-        self.label = Label('')
+        # Single line: a wrapping label asks for 2 lines of height even when its text fits on one
+        self.label = Label('', overflow=Label.Overflow.ELIDE_RIGHT)
         self.master_layout.addWidget(self.label, stretch=1)
 
         self.filter_class = None

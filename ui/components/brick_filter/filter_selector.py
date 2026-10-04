@@ -45,6 +45,7 @@ class FilterSelector(Widget):
         self.setFixedWidth(self.WIDTH)
 
         self.master_layout = QVBoxLayout(self)
+        self.master_layout.setContentsMargins(12, 12, 12, 12)
         self.setLayout(self.master_layout)
 
         self.brick_selector = brick_selector
@@ -65,6 +66,13 @@ class FilterSelector(Widget):
         self.filter_mode_combo_box.add_item(NAND_FILTER[0])
         self.filter_mode_layout.addWidget(self.filter_mode_combo_box)
 
+        # Own layout so the entries can be packed tight without squashing the mode row (2 px keeps the bordered
+        #  buttons apart)
+        self.entries_layout = QVBoxLayout()
+        self.entries_layout.setContentsMargins(0, 0, 0, 0)
+        self.entries_layout.setSpacing(6)
+        self.master_layout.addLayout(self.entries_layout)
+
         self.filter_entries: list[FilterEntry] = []
         for filter_cls in filter_classes:
 
@@ -74,7 +82,7 @@ class FilterSelector(Widget):
 
             filter_entry = FilterEntry(self.mw, self, filter_cls)
             self.filter_entries.append(filter_entry)
-            self.master_layout.addWidget(filter_entry)
+            self.entries_layout.addWidget(filter_entry)
             filter_entry.filter_selected.connect(self.entry_adds_filter)
 
         self.filter_mode_combo_box.item_changed.connect(self.update_modes)

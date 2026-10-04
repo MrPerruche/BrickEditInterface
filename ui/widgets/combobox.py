@@ -9,6 +9,9 @@ from utils import stack_qcolors, tint_icon
 
 
 
+SEPARATOR_HEIGHT = 9
+
+
 class ComboBoxItemDelegate(QStyledItemDelegate):
 
     def __init__(self, theme, combo_box, parent=None):
@@ -20,6 +23,15 @@ class ComboBoxItemDelegate(QStyledItemDelegate):
         self.theme = theme
         self.combo_box.view().viewport().update()
 
+    @staticmethod
+    def _is_separator(index) -> bool:
+        return index.data(Qt.AccessibleDescriptionRole) == "separator"  # See QComboBox.insertSeparator
+
+    def sizeHint(self, option, index):
+        if self._is_separator(index):
+            return QSize(option.rect.width(), SEPARATOR_HEIGHT)
+        return super().sizeHint(option, index)
+
     def paint(self, painter, option, index):
         painter.save()
 
@@ -28,6 +40,13 @@ class ComboBoxItemDelegate(QStyledItemDelegate):
 
         # Base background for every item
         painter.fillRect(option.rect, background)
+
+        if self._is_separator(index):
+            y = option.rect.center().y()
+            painter.fillRect(QRect(option.rect.left() + 6, y, option.rect.width() - 12, 1),
+                             QColor(self.theme.border.color_hex_argb))
+            painter.restore()
+            return
 
         # Hover/selection overlay
         if option.state & QStyle.State_MouseOver:
@@ -175,6 +194,12 @@ class ComboBox(Widget):
 
     def clear_items(self):
         self.qt_widget.clear()
+        self._og_icons = []
+
+    def add_separator(self):
+        """A line between two groups of items. It can't be selected, but counts as an item (index)."""
+        self._og_icons.append(None)
+        self.qt_widget.insertSeparator(self.qt_widget.count())
 
     def add_item(self, text: str, icon: QIcon | None = None, *args, **kwargs):
         self._og_icons.append(icon)

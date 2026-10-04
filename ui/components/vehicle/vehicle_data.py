@@ -1,5 +1,9 @@
+from typing import Callable, Hashable, TypeVar
+
 import brickedit
 
+
+T = TypeVar("T")
 
 BEI_GROUP_ID_PREFIX = 'bei#'
 GROUP_ID_LEN_LIMIT = 100
@@ -46,8 +50,23 @@ class VehicleData:
         self.weld_be_to_bei: dict[str, str] = {}
 
         self.unique_properties: set[str] = set()
+        self.unique_types: set[str] = set()
+        self.brick_indices: dict[str, int] = {}  # brick.ref.id -> index in brvfile.bricks
+
+        # Derived vehicle-wide data (duplicates, mirrors...), computed on first use. See get_analysis
+        self._analysis_cache: dict[Hashable, object] = {}
 
         self.load_brvfile(brvfile)
+
+
+    def get_analysis(self, key: Hashable, factory: Callable[[], T]) -> T:
+        """Returns the analysis cached under key, computing it with factory() the first time. Analyses live as long
+        as this VehicleData, ie. until the vehicle is reloaded. key must include every parameter of the analysis."""
+        try:
+            return self._analysis_cache[key]  # type: ignore[return-value]
+        except KeyError:
+            result = self._analysis_cache[key] = factory()
+            return result
 
 
     def load_brvfile(self, brvfile: brickedit.BRVFile):
@@ -58,8 +77,13 @@ class VehicleData:
         weld_be_to_bei: dict[str, str] = {}
 
         properties = set()
+        types = set()
+        brick_indices = {}
 
-        for brick in brvfile.bricks:
+        for i, brick in enumerate(brvfile.bricks):
+
+            brick_indices[brick.ref.id] = i
+            types.add(brick.meta().name())
 
             # GROUPS
             editor, weld = brick.ref.editor, brick.ref.weld
@@ -101,6 +125,9 @@ class VehicleData:
 
         # Merge changes
         self.unique_properties = properties
+        self.unique_types = types
+        self.brick_indices = brick_indices
+        self._analysis_cache = {}
 
         self.editor_groups = {editor_be_to_bei[be_group]: bricklist for be_group, bricklist in editor_grp_to_bricks.items() if be_group in editor_be_to_bei}
         self.weld_groups = {weld_be_to_bei[be_group]: bricklist for be_group, bricklist in weld_grp_to_bricks.items() if be_group in weld_be_to_bei}
