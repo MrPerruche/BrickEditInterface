@@ -94,6 +94,9 @@ class ColorFilter(BaseFilter):
             raise BeiFileError(f"{config.where}: \"{color}\" is not a RRGGBBAA color.")
         self.color_le.set_text(color.upper())  # Updates self.color
 
+    def get_locked_properties(self) -> set[str]:
+        return {brickedit.p.BRICK_COLOR}
+
     def is_allowed(self, brick) -> FilterResult:
         col_tuple = self.color.red(), self.color.green(), self.color.blue(), self.color.alpha()
         col_num = col_tuple[0] << 24 | col_tuple[1] << 16 | col_tuple[2] << 8 | col_tuple[3]

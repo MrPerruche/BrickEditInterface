@@ -84,8 +84,6 @@ class BaseFilter(Widget):
         self.remove_filter_button.clicked.connect(self.request_remove)
         # Filter's job to add this button somewhere
 
-        mw.vehicle_selector_banner.vehicle_loaded.connect(self.on_vehicle_reload)
-
 
     # Layout helpers
 
@@ -159,7 +157,14 @@ class BaseFilter(Widget):
         self.remove_requested.emit(self)
 
     def on_vehicle_reload(self):
-        pass
+        """Called by the BrickSelector holding the filter when a vehicle is (re)loaded, before any brick is filtered.
+        Settings must be kept (eg. a picked value must not become the first brick's). Not an edit: don't emit
+        filter_edited."""
+
+    def get_locked_properties(self) -> set[str]:
+        """Properties the brick editor doesn't let users edit: editing them would change which bricks the filter
+        selects once the vehicle is reloaded."""
+        return set()
 
     @classmethod
     def get_tooltip_contents(cls) -> TooltipContents | None:

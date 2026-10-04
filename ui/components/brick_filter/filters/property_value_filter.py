@@ -129,9 +129,11 @@ class PropertyValueFilter(BaseFilter):
         super().__init__(mw)
         self.mode = mode
         self.properties: list[str] = []  # Internal names, in the combo box's order
-        self.wanted_property = prop
+        self.wanted_property = prop  # Kept listed if a reloaded vehicle doesn't have it
         self._matcher = None  # value -> bool, or None if nothing can match
-        self._value_config = dict  # () -> value settings to save, set by the _build_* methods
+        # Values picked by the user: {"value": v} or {"min": v, "max": v}, set by the _build_* methods. Kept when the
+        # value widgets are rebuilt (vehicle reloaded, comparison switched), only cleared when the property changes
+        self._values: dict = {}
 
         self.add_title_row(f"Property", PROPERTY_VALUE_TOOLTIP)
 
@@ -147,20 +149,25 @@ class PropertyValueFilter(BaseFilter):
 
         self.on_vehicle_reload()
         self.property_cb.item_changed.connect(self._on_property_selected)
-        self.comparison_sw.index_changed.connect(self._rebuild_value_widgets)
+        self.comparison_sw.index_changed.connect(self._on_comparison_changed)
 
 
     # ----- Property list
 
-    def on_vehicle_reload(self):  # Connected to a signal with an argument: must not take any
-        self._refresh()
+    def on_vehicle_reload(self):
+        # Same settings, only the lists are refreshed: not an edit (it would ask to reload the vehicle again)
+        self.blockSignals(True)
+        try:
+            self._refresh(self._values)
+        finally:
+            self.blockSignals(False)
 
     def _refresh(self, initial: dict | None = None):
-        """initial: value settings to start from (see apply_config), instead of a value found in the vehicle"""
+        """initial: value settings to start from (see _rebuild_value_widgets), instead of a value found in the vehicle"""
         vehicle_data = self.get_vehicle_data()
         properties = set(vehicle_data.unique_properties) if vehicle_data is not None else set()
         if self.wanted_property is not None:
-            properties.add(self.wanted_property)
+            properties.add(self.wanted_property)  # Matches nothing, but doesn't silently switch to another
         self.properties = sorted(properties, key=get_or_make_property_display_name)
 
         self.property_cb.qt_widget.blockSignals(True)
@@ -169,18 +176,33 @@ class PropertyValueFilter(BaseFilter):
             for prop in self.properties:
                 self.property_cb.add_item(get_or_make_property_display_name(prop))
             if self.wanted_property not in self.properties:
-                self.wanted_property = self.properties[0] if self.properties else None
+                self._set_property(self.properties[0] if self.properties else None)
+                initial = None
             if self.wanted_property is not None:
                 self.property_cb.set_current_idx(self.properties.index(self.wanted_property))
         finally:
             self.property_cb.qt_widget.blockSignals(False)
-        self._rebuild_value_widgets(initial=initial)
+        self._rebuild_value_widgets(initial)
+
+    def _set_property(self, prop: str | None):
+        if prop != self.wanted_property:
+            self.wanted_property = prop
+            self._values = {}  # Values of another property
 
     def _on_property_selected(self, *_):
         idx = self.property_cb.get_current_idx()
         if 0 <= idx < len(self.properties) and self.properties[idx] != self.wanted_property:
-            self.wanted_property = self.properties[idx]
+            self._set_property(self.properties[idx])
             self._rebuild_value_widgets()
+
+    def _on_comparison_changed(self, *_):
+        # Carry the values over, eg. "equal to 5" becomes "within 5 and 5"
+        values = self._values
+        if self.get_comparison() == PropertyComparison.EQUALS and "min" in values:
+            values = {"value": values["min"]}
+        elif self.get_comparison() == PropertyComparison.WITHIN and "value" in values:
+            values = {"min": values["value"], "max": values["value"]}
+        self._rebuild_value_widgets(values)
 
     def get_comparison(self) -> PropertyComparison:
         return PropertyComparison(self.comparison_sw.get_idx() or 0)
@@ -199,11 +221,11 @@ class PropertyValueFilter(BaseFilter):
                 values.append(brick.get_property(prop))
         return values
 
-    def _rebuild_value_widgets(self, *_, initial: dict | None = None):
-        """initial: {"value": v} or {"min": v, "max": v}, already converted (see apply_config)"""
+    def _rebuild_value_widgets(self, initial: dict | None = None):
+        """initial: {"value": v} or {"min": v, "max": v}, already converted (see apply_config). Default: a value found
+        in the vehicle"""
         wipe_layout(self.value_layout)
         self._matcher = None
-        self._value_config = dict
         initial = initial or {}
         prop = self.wanted_property
         if prop is not None:
@@ -221,7 +243,7 @@ class PropertyValueFilter(BaseFilter):
                     self._unsupported("Comparing this property's value is not supported.")
             elif widget_cls in NUMBER_WIDGETS:
                 self._build_number_range(widget_cls is UnsignedInteger8PropertyWidget, sample, initial)
-            elif widget_cls in VECTOR_WIDGETS and (sample is not None or initial):
+            elif widget_cls in VECTOR_WIDGETS and (sample is not None or "min" in initial):
                 self._build_vector_range(prop, sample if sample is not None else initial["min"], initial)
             else:
                 self._unsupported("\"within\" cannot be used here.")
@@ -230,8 +252,10 @@ class PropertyValueFilter(BaseFilter):
     def _unsupported(self, text: str):
         self.value_layout.addWidget(Label(text, muted=True))
 
-    def _set_matcher(self, matcher):
+    def _set_matcher(self, matcher, values: dict):
+        """values: what matcher compares to, see self._values"""
         self._matcher = matcher
+        self._values = values
         self.emit_edited()
 
     def _build_equals(self, prop: str, sample):
@@ -243,8 +267,7 @@ class PropertyValueFilter(BaseFilter):
 
         def update(*_):
             expected = widget.get_value(sample)
-            self._value_config = lambda: {"value": value_to_config(expected)} if value_to_config(expected) is not None else {}
-            self._set_matcher(lambda value: values_equal(value, expected))
+            self._set_matcher(lambda value: values_equal(value, expected), {"value": expected})
         widget.value_changed.connect(update)
         update()
 
@@ -263,9 +286,11 @@ class PropertyValueFilter(BaseFilter):
 
         def update(*_):
             idx = combo.get_current_idx()
-            expected = options[idx] if 0 <= idx < len(options) else None
-            self._value_config = lambda: {"value": expected} if expected is not None else {}
-            self._set_matcher((lambda value: value == expected) if expected is not None else None)
+            if 0 <= idx < len(options):
+                expected = options[idx]
+                self._set_matcher(lambda value: value == expected, {"value": expected})
+            else:
+                self._set_matcher(None, self._values)
         combo.item_changed.connect(update)
         update()
 
@@ -281,9 +306,8 @@ class PropertyValueFilter(BaseFilter):
 
         def update(*_):
             lo, hi = convert(low.value()), convert(high.value())
-            self._value_config = lambda: {"min": lo, "max": hi}
             self._set_matcher(lambda value: isinstance(value, int | float) and not isinstance(value, bool)
-                                            and _within(value, lo, hi))
+                                            and _within(value, lo, hi), {"min": lo, "max": hi})
         low.value_changed.connect(update)
         high.value_changed.connect(update)
         update()
@@ -297,13 +321,13 @@ class PropertyValueFilter(BaseFilter):
         self.add_setting_row("Maximum", high, layout=self.value_layout)
 
         def update(*_):
-            lo, hi = low.get_value(low_start).as_tuple(), high.get_value(high_start).as_tuple()
-            self._value_config = lambda: {"min": list(lo), "max": list(hi)}
+            low_value, high_value = low.get_value(low_start), high.get_value(high_start)
+            lo, hi = low_value.as_tuple(), high_value.as_tuple()
             def matcher(value) -> bool:
                 comps = _float_components(value)
                 return comps is not None and len(comps) == len(lo) and all(
                     _within(c, l, h) for c, l, h in zip(comps, lo, hi))
-            self._set_matcher(matcher)
+            self._set_matcher(matcher, {"min": low_value, "max": high_value})
         low.value_changed.connect(update)
         high.value_changed.connect(update)
         update()
@@ -317,7 +341,10 @@ class PropertyValueFilter(BaseFilter):
         config = {"comparison": enum_key(self.get_comparison())}
         if self.wanted_property is not None:
             config["property"] = self.wanted_property
-        return config | self._value_config()
+        values = {key: value_to_config(value) for key, value in self._values.items()}
+        if self._matcher is not None and None not in values.values():  # Else not the current comparison's values
+            config |= values
+        return config
 
     def apply_config(self, config: ConfigReader) -> None:
         prop = config.get_str("property") or self.wanted_property
@@ -330,7 +357,7 @@ class PropertyValueFilter(BaseFilter):
             if all(key in config.data for key in keys):
                 initial = {key: value_from_config(config.get_raw(key), widget_cls, config.where) for key in keys}
 
-        self.wanted_property = prop
+        self._set_property(prop)
         self.comparison_sw.blockSignals(True)  # Rebuilt once, below
         try:
             self.comparison_sw.set_index(comparison.value)
@@ -340,6 +367,9 @@ class PropertyValueFilter(BaseFilter):
 
 
     # ----- Filtering
+
+    def get_locked_properties(self) -> set[str]:
+        return {self.wanted_property} if self.wanted_property is not None else set()
 
     def is_allowed(self, brick: Brick) -> FilterResult:
         matcher, prop = self._matcher, self.wanted_property

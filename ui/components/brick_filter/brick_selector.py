@@ -78,6 +78,10 @@ class BrickSelector(Widget):
 
 
     def on_reload(self):
+        # Filters refresh here rather than on their own: this slot is connected when the selector is built, so it
+        # runs before the reload slots of whatever filters bricks with it (even filters added later are up to date)
+        for f in self.filters:
+            f.on_vehicle_reload()
         self.must_reload_label.hide()
 
     def enable_reload_label(self):
@@ -166,12 +170,12 @@ class BrickSelector(Widget):
 
 
     def get_frozen_properties(self) -> set[str]:
-        return {brickedit.p.BRICK_COLOR} if any([isinstance(f, ColorFilter) for f in self.filters]) else set()
+        """Properties the brick editor locks, see BaseFilter.get_locked_properties"""
+        return set().union(*(f.get_locked_properties() for f in self.filters))
 
 
     def is_property_editable(self, property_name: str) -> bool:
-        return property_name in self.get_frozen_properties()
-        # return not (property_name == brickedit.p.BRICK_COLOR and any([isinstance(f, ColorFilter) for f in self.filters]))
+        return property_name not in self.get_frozen_properties()
 
 
     def open_filter_selector(self):
