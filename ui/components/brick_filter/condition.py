@@ -1,6 +1,3 @@
-"""Boolean conditions written by users, evaluated per brick with asteval (eval/exec are forbidden, see CLAUDE.md).
-Conditions are parsed once, then run against each brick. Only the variables a condition uses are computed."""
-
 import ast
 import math
 import warnings

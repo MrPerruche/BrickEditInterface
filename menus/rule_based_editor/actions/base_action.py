@@ -90,6 +90,12 @@ class BaseAction(Widget):
     def get_tooltip(cls) -> TooltipContents | None:
         return None
 
+    @classmethod
+    def get_description(cls) -> str:
+        """What the action does, in a few sentences. Listed in the menu's tutorial. Defaults to the tooltip."""
+        tooltip = cls.get_tooltip()
+        return tooltip.text if tooltip is not None else ""
+
     def describe(self, count: int) -> str:
         """Short imperative description, used on the apply button. Eg. "Delete 12 bricks"."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement describe()")

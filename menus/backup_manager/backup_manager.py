@@ -4,19 +4,21 @@ from PySide6.QtGui import QDesktopServices, QIcon
 
 import os.path as path
 from pathlib import Path
+from datetime import datetime, timezone
 
 from menus import base
 
-from systems.backup import BackupInfo
+from systems.backup import BackupInfo, BackupSystem
 
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Surface, SurfaceStyle, Slider, LineEdit, ToolButton
 from ui.components import Tutorial
-from ui.dialogs import RecoverBackupDialog, DeleteBackupDialog, DeleteExcessBackupsDialog, BackupOperationFailedDialog
+from ui.dialogs import (RecoverBackupDialog, DeleteBackupDialog, DeleteExcessBackupsDialog, BackupOperationFailedDialog,
+    FastUndoConfirmDialog, NothingToUndoDialog)
 from ui.models import TooltipContents
 from ui.rich_text import pmd
 
-from utils import repr_file_size, dir_size, get_vehicles_path, wipe_layout
-from menus.backup_manager.widgets.backup_entry import BackupEntry, describe_backup
+from utils import repr_file_size, dir_size, get_vehicles_path, wipe_layout, str_time_since
+from menus.backup_manager.widgets.backup_entry import BackupEntry, describe_backup, RECOVER_BTN_ICON
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -31,7 +33,26 @@ class SettingsAndBackupsMenu(base.BaseMenu):
 
     def __init__(self, mw: 'BrickEditInterface'):
         super().__init__(mw)
-        
+
+        # ---------------
+        # Fast undo
+        # ---------------
+
+        self.fast_undo_button = Button("Fast undo", RECOVER_BTN_ICON, True)
+        self.fast_undo_button.set_tooltip(TooltipContents(
+            "Fast undo",
+            "Reverts the loaded vehicle to its latest BrickEdit-Interface backup, without making a backup first.\n"
+            + ("That backup is then deleted: undoing again goes one step further back.\n"
+               if self.main_window.backups.FAST_UNDO_CONSUMES_BACKUP else "")
+            + "Asks for confirmation if that backup is older than the delay set in the settings."
+        ))
+        self.fast_undo_button.clicked.connect(self.fast_undo)
+        self.master_layout.addWidget(self.fast_undo_button)
+
+        # Latest backup, hidden if there is none
+        self.fast_undo_label = Label(muted=True)
+        self.master_layout.addWidget(self.fast_undo_label)
+
         # ---------------
         # Backup manager
         # ---------------
@@ -212,6 +233,16 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                     "short-term or long-term backup.")
                 .refer_to("backup_manager_backup_types")
 
+                .add_header("Fast undo")
+                .add_text("The fast undo button, at the top of this menu, reverts the loaded vehicle to its latest "
+                    "BEI backup. Unlike recovering a backup from the list, no backup of the current vehicle is made "
+                    "first: use it to quickly undo your last change."
+                    + (" The backup is then deleted, so pressing it again undoes the change before."
+                       if self.main_window.backups.FAST_UNDO_CONSUMES_BACKUP else ""))
+                .add_note("If the latest backup is older than "
+                    f"{self.main_window.settings.get_default(BackupSystem.FAST_UNDO_CONFIRM_SETTING) // 60} minutes "
+                    "(can be changed in the settings), you will be asked to confirm first.")
+
                 .add_header("Getting started")
                 .add_text("Steps in order to restore a backup:")
                 .add_steps(
@@ -322,6 +353,8 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             vehicle_dir = str(Path(path.dirname(brv_file)).resolve())
             result = self.main_window.backups.get_all_backup_infos(vehicle_dir)
 
+        self.update_fast_undo()
+
         # If no backup is found, leave a label.
         if not result:
             self.backup_entries_layout.addWidget(Label("No backups found."))
@@ -333,6 +366,58 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             self.backup_entries_layout.addWidget(backup_entry)
 
         self.update_excess_label()
+
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Saving from other menus makes backups without notifying this one
+        self.update_fast_undo()
+
+
+    def update_fast_undo(self):
+        vehicle_dir = self.main_window.vehicle_selector_banner.get_vehicle_loc()
+        self.fast_undo_button.set_enabled(vehicle_dir is not None)
+        backup = None if vehicle_dir is None else self.main_window.backups.find_latest_backup(vehicle_dir)
+        self.fast_undo_label.setVisible(backup is not None)
+        if backup is not None:
+            self.fast_undo_label.set_text(describe_backup(self.main_window, backup))
+
+
+    def fast_undo(self):
+        """Reverts to the latest BEI backup without making a backup of the current vehicle"""
+        backups = self.main_window.backups
+        vehicle_dir = self.main_window.vehicle_selector_banner.get_vehicle_loc()
+        if vehicle_dir is None:
+            return
+        # Found again rather than trusting the label: backups may have changed since
+        backup = backups.find_latest_backup(vehicle_dir)
+        if backup is None:
+            NothingToUndoDialog.create(self.main_window).exec()
+            self.update_fast_undo()
+            return
+
+        if backups.fast_undo_needs_confirmation(backup):
+            age = (datetime.now(tz=timezone.utc) - backup.time).total_seconds()
+            age_text = str_time_since(int(age)) if age >= 0 else None
+            label = describe_backup(self.main_window, backup)
+            if not FastUndoConfirmDialog.create(self.main_window, label, age_text).exec():
+                return
+
+        try:
+            backups.recover_backup(vehicle_dir, backup, backup_current=False)
+        except OSError as e:
+            BackupOperationFailedDialog.create(self.main_window, "undo the last change", [e]).exec()
+            self.update_backup_recovery_entries()
+            return
+        # Its content is now Vehicle.brv's: deleting it loses nothing, and lets the next fast undo go further back
+        if backups.FAST_UNDO_CONSUMES_BACKUP:
+            try:
+                backups.delete_backup(backup.path, recycle_bin=False)
+            except OSError as e:  # The vehicle was reverted all the same
+                BackupOperationFailedDialog.create(self.main_window, "delete the backup that was reverted to", [e]).exec()
+        # The loaded copy of the vehicle is outdated: saving it would redo what was just undone.
+        # Reloading also refreshes the backup entries.
+        self.main_window.vehicle_selector_banner.load_vehicle(vehicle_dir)
 
 
     def collapse_expand_backups(self):

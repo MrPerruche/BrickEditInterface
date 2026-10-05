@@ -56,6 +56,11 @@ class ChangeTypeAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return None
 
+    @classmethod
+    def get_description(cls) -> str:
+        return ("Change what type a brick is. Properties are set to either the current value if "
+            "it exists in the old type, or is left to the new type's default value.")
+
     def describe(self, count: int) -> str:
         return f"Turn {plural(count)} into {self.get_type()}"
 

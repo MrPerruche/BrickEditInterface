@@ -14,6 +14,8 @@ from ui.rich_text import pmd
 
 def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
     return (Tutorial(name, mw, title_is_raw=True, show_header=False, standalone=standalone, use_scroll_area=standalone)
+        .add_warning(title=None)
+        .focus()
         .add_header("MUST KNOW BEFORE USING BEI !")
         .add_text(pmd("BrickEdit-Interface (BEI) edits the vehicle **stored on disk** (just like "
             "HexEdit !). Changes made in Brick Rigs (BR) do NOT automatically happen in BEI !"))
@@ -24,6 +26,7 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
         .add_text("If the vehicle loaded in BEI is older than the one on disk, the reload button "
             "will glow red. BEI does not automatically reload the vehicle because keeping "
             "an old version loaded can sometimes be useful.")
+        .unfocus()
 
         .add_header("How to select (load) vehicles")
         .add_text("Vehicles can be selected in the dropdown located at the top of every menu. "

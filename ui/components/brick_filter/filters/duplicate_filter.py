@@ -17,12 +17,14 @@ class DuplicateMatch(Enum):
     COPIES = 0        # Every brick but the first of its group
     HAS_COPIES = 1    # Every brick of a group, the first included
     BEYOND_N = 2      # Every brick past the first N of its group
+    FIRST_ONLY = 3    # The first brick of each group, only if it has copies
 
     def display_name(self) -> str:
         return {
             DuplicateMatch.COPIES: "a copy (not the 1st)",
             DuplicateMatch.HAS_COPIES: "duplicated (1st too)",
             DuplicateMatch.BEYOND_N: "a copy past the Nth",
+            DuplicateMatch.FIRST_ONLY: "duplicated (1st only)",
         }[self]
 
 
@@ -34,7 +36,8 @@ DUPLICATE_TOOLTIP = TooltipContents(
     "the whole vehicle, so combining this condition with others never changes which brick is the first.\n\n"
     "a copy (not the 1st): every duplicate but the first.\n"
     "duplicated (1st too): every duplicate, the first included.\n"
-    "a copy past the Nth: every duplicate but the first N."
+    "a copy past the Nth: every duplicate but the first N.\n"
+    "duplicated (1st only): only the first of each group of duplicates."
 )
 COMPARE_TOOLTIP = TooltipContents(
     "Compare",
@@ -125,6 +128,8 @@ class DuplicateFilter(BaseFilter):
             matched = info.occurrence > 1
         elif match == DuplicateMatch.HAS_COPIES:
             matched = info.group_size > 1
+        elif match == DuplicateMatch.FIRST_ONLY:
+            matched = info.occurrence == 1 and info.group_size > 1
         else:
             matched = info.occurrence > self.keep_count_nce.value()
         return self.mode.filter_matched() if matched else self.mode.filter_did_not_match()

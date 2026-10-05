@@ -61,6 +61,10 @@ class MirrorAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Create mirrored copies of the selected bricks", "Mirrors like Brick Rigs does.")
 
+    @classmethod
+    def get_description(cls) -> str:
+        return ("Mirrors selected bricks. Logic connections are mirrored too.")
+
     def describe(self, count: int) -> str:
         return f"Mirror {plural(count)}"
 

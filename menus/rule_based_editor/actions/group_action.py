@@ -93,6 +93,10 @@ class GroupAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Move the selected bricks to an editor or weld group")
 
+    @classmethod
+    def get_description(cls) -> str:
+        return "Moves the selected bricks to a named group, a new group, or out of their group."
+
     def describe(self, count: int) -> str:
         operation = self.operation_sw.get_idx() or 0
         kind = KINDS[self.kind_sw.get_idx() or 0].lower()

@@ -71,6 +71,11 @@ class BackupSystem:
     # Lowercase file name -> kind. Brick Rigs writes "Backup.brv" and "Autosave.brv" next to Vehicle.brv.
     BRICK_RIGS_BACKUP_FILES = {"backup.brv": "br_backup", "autosave.brv": "br_autosave"}
 
+    # Fast undo deletes the backup it reverts to, so that undoing again goes one step further back
+    FAST_UNDO_CONSUMES_BACKUP: bool = True
+    # Fast undo asks for confirmation before reverting to a backup older than this. 0: always ask
+    FAST_UNDO_CONFIRM_SETTING = "fast_undo_confirm_after_seconds"
+
     def __init__(self, mw: "BrickEditInterface"):
         self.main_window = mw
         self.not_eligible_for_lt = set()
@@ -79,6 +84,7 @@ class BackupSystem:
         mw.settings.register("st_backup_size_limit_kb", 8192)
         mw.settings.register("lt_backup_count_limit", 3)
         mw.settings.register("lt_backup_size_limit_kb", 8192)
+        mw.settings.register(self.FAST_UNDO_CONFIRM_SETTING, 15 * 60)
 
 
     def full_backup_procedure(self, vehicle_path, description="No description provided."):
@@ -132,15 +138,18 @@ class BackupSystem:
             f.write(toml_w)
 
 
-    def recover_backup(self, vehicle_path, backup: BackupInfo):
-        """Overwrites Vehicle.brv with the backup's .brv. The current Vehicle.brv is backed up first, like any
-        other modification made by BEI. Raises OSError (FileNotFoundError if the backup has no .brv)."""
+    def recover_backup(self, vehicle_path, backup: BackupInfo, backup_current: bool = True):
+        """Overwrites Vehicle.brv with the backup's .brv. Unless backup_current is False (fast undo), the current
+        Vehicle.brv is backed up first, like any other modification made by BEI.
+        Raises OSError (FileNotFoundError if the backup has no .brv)."""
         if not path.isfile(backup.brv_path):
             raise FileNotFoundError(backup.brv_path)
-        self.create_backup(vehicle_path, "Automatic backup made before recovering a backup.")
+        if backup_current:
+            self.create_backup(vehicle_path, "Automatic backup made before recovering a backup.")
         shutil.copy2(backup.brv_path, path.join(vehicle_path, "Vehicle.brv"))
         # Only now: the recovered backup may itself have been excess
-        self.delete_excess(vehicle_path)
+        if backup_current:
+            self.delete_excess(vehicle_path)
 
 
     @staticmethod
@@ -291,6 +300,30 @@ class BackupSystem:
         backups.sort(key=lambda b: path.basename(b.path), reverse=True)  # Stable order among backups of equal date
         backups.sort(key=lambda b: (b.time is not None, b.time or _datetime.min.replace(tzinfo=_tz.utc)), reverse=True)
         return backups
+
+
+    def find_latest_backup(self, vehicle_path) -> BackupInfo | None:
+        """Newest recoverable BEI backup of a vehicle, used by fast undo. Backups with an unknown date are ignored:
+        there is no telling whether they are the latest."""
+        backups = [self.get_backup_info(p) for p in self.find_backups(vehicle_path)]
+        recoverable = [b for b in backups if b.time is not None and path.isfile(b.brv_path)]
+        # Ties are broken by name, like get_all_backup_infos
+        return max(recoverable, key=lambda b: (b.time, path.basename(b.path)), default=None)
+
+
+    def fast_undo_confirm_after(self) -> int | float:
+        """Seconds, see FAST_UNDO_CONFIRM_SETTING. Settings can be edited by hand: invalid values (wrong type,
+        negative, NaN) fall back to the default. inf is valid: never ask (but for backups dated in the future)."""
+        value = self.main_window.settings.get(self.FAST_UNDO_CONFIRM_SETTING)
+        if type(value) not in (int, float) or not value >= 0:  # Not isinstance: bool is an int. NaN fails >= 0
+            return self.main_window.settings.get_default(self.FAST_UNDO_CONFIRM_SETTING)
+        return value
+
+    def fast_undo_needs_confirmation(self, backup: BackupInfo) -> bool:
+        """Whether fast undo should ask before reverting to a (dated) backup: it is older than the delay set in the
+        settings, or dated in the future (the clock or its name was changed: it may be much older than it looks)."""
+        age = (_datetime.now(tz=_tz.utc) - backup.time).total_seconds()
+        return not 0 <= age < self.fast_undo_confirm_after()
 
 
     # ---------------

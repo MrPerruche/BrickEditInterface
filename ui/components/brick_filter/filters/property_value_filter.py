@@ -11,7 +11,6 @@ from ui.components.brick.property_widgets import (
     TextPropertyWidget, AsciiPropertyWidget, BooleanPropertyWidget, FloatPropertyWidget, UnsignedInteger8PropertyWidget,
     Vec2PropertyWidget, Vec3PropertyWidget, ColorPropertyWidget,
 )
-from ui.components.brick.materials import MATERIAL_DISPLAY_NAMES
 from ui.models import TooltipContents
 from systems.bei_files import ConfigReader, BeiFileError, enum_key
 from utils import wipe_layout
@@ -66,15 +65,6 @@ def _within(value: float, low: float, high: float) -> bool:
     if isinstance(value, float):
         return low <= value <= high or _close(value, low) or _close(value, high)
     return low <= value <= high
-
-
-def enum_values(prop: str) -> list[str]:
-    """Every value an enum property is known to take (constants of its brickedit class)"""
-    meta_cls = brickedit.p.pmeta_registry.get(prop)
-    if not isinstance(meta_cls, type):
-        return []
-    values = {getattr(meta_cls, name) for name in dir(meta_cls) if name.isupper()}
-    return [v for v in values if isinstance(v, str)]
 
 
 # ----- Saving values (rule presets)
@@ -272,26 +262,15 @@ class PropertyValueFilter(BaseFilter):
         update()
 
     def _build_enum_equals(self, prop: str, vehicle_values: list, initial: str | None):
-        def display(value: str) -> str:
-            return MATERIAL_DISPLAY_NAMES.get(value, get_or_make_property_display_name(value))
-        known = set(enum_values(prop)) | {v for v in vehicle_values if isinstance(v, str)}
-        if initial is not None:
-            known.add(initial)  # Eg. a modded material
-        options = sorted(known, key=display)
-        combo = self.make_combo_box([display(v) for v in options])
-        start = initial if initial is not None else vehicle_values[0] if vehicle_values else None
-        if start in options:
-            combo.set_current_idx(options.index(start))
-        self.value_layout.addWidget(combo)
+        # Internal names, typed: the enum's values are suggested, and the vehicle's unknown ones (modded)
+        start = initial if initial is not None else vehicle_values[0] if vehicle_values else ""
+        widget = AsciiPropertyWidget(prop, tuple(dict.fromkeys(vehicle_values)), False, start, show_text=False)
+        self.value_layout.addWidget(widget)
 
         def update(*_):
-            idx = combo.get_current_idx()
-            if 0 <= idx < len(options):
-                expected = options[idx]
-                self._set_matcher(lambda value: value == expected, {"value": expected})
-            else:
-                self._set_matcher(None, self._values)
-        combo.item_changed.connect(update)
+            expected = widget.get_value(start)
+            self._set_matcher(lambda value: value == expected, {"value": expected})
+        widget.value_changed.connect(update)
         update()
 
     def _build_number_range(self, integer: bool, sample, initial: dict):

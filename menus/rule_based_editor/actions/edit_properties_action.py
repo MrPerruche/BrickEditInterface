@@ -116,6 +116,11 @@ class EditPropertiesAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Edit the properties of the selected bricks, like the brick editor")
 
+    @classmethod
+    def get_description(cls) -> str:
+        return ("Edits the position, rotation and properties of every selected brick at once, "
+            "using formulas, like the brick editor.")
+
     def describe(self, count: int) -> str:
         return f"Edit {plural(count)}"
 

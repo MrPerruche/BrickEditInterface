@@ -1,12 +1,10 @@
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Signal, QSize, Qt
+from PySide6.QtCore import Signal, Qt
 
-from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, MultilineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button, BoolSwitch
+from ui.widgets import Widget, Switcher, StyledLabel, LabelStyle, LineEdit, MultilineEdit, NumberChannelEdit, FormulaChannelEdit, ChannelMode, ToolButton, Button, BoolSwitch, SuggestionLineEdit
 from ui.validators import ASCII_TEXT_ONLY, BINARY_HEX_VALIDATOR_65535_MAX
-from ui.components.brick.property_utils import get_or_make_property_display_name
-
-from utils import Sentinel
+from ui.components.brick.property_utils import get_or_make_property_display_name, enum_suggestions
 
 import colorsys
 import re
@@ -61,14 +59,6 @@ class BasePropertyWidget(Widget):
     value_changed = Signal(tuple)
 
     def __init__(self, property_name: str, test_values: tuple[T, ...], formula_mode: bool, initial_value: T, enabled: bool = True, show_text: bool = True):
-        """Property name is the internal property name from Brick Rigs (eg. bGenerateLift).
-
-        Test values is a set of values that must be tested for when evaluating a widget. Eg. when
-        a user inputs a formula like 1/(x-1), this formula may yield invalid numbers if eg. x is 1.
-        If any of these test values cause an error, then the input will not be allowed.
-
-        Test values are not guarenteed to be used as they are irrelevant for some property types
-        such as booleans."""
         super().__init__()
 
         self.property_name = property_name
@@ -242,15 +232,14 @@ class TextPropertyWidget(BasePropertyWidget):
 
 
 class AsciiPropertyWidget(TextPropertyWidget):
-    """Keeps using LineEdit (rather than the multiline base): ASCII properties are single-line
-    values (eg. enum tags), and QPlainTextEdit has no QValidator support to enforce that anyway."""
 
-    INPUT_WIDGET_CLS = LineEdit
+    INPUT_WIDGET_CLS = SuggestionLineEdit
     INPUT_WIDGET_ARGS = {}
 
     def __init__(self, property_name: str, test_values: tuple[str, ...], formula_mode: bool, initial_value: str, enabled: bool = True, show_text: bool = True):
         super().__init__(property_name, test_values, formula_mode, initial_value, enabled, show_text)
         self.input_le.set_validator(ASCII_TEXT_ONLY)
+        self.input_le.set_suggestions(enum_suggestions(property_name, test_values))
 
     def _check_text(self, value: str) -> None:
         if not re.fullmatch(r"[ -~]*", value):  # Like ASCII_TEXT_ONLY

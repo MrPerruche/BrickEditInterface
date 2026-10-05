@@ -3,10 +3,10 @@ can still be typed: suggestions only help. Same API as LineEdit, plus set_sugges
 
 from PySide6.QtWidgets import QCompleter, QListView, QStyledItemDelegate
 from PySide6.QtGui import QColor
-from PySide6.QtCore import Qt, QSize, QModelIndex, QItemSelectionModel, QStringListModel
+from PySide6.QtCore import Qt, QSize, QRect, QModelIndex, QItemSelectionModel, QStringListModel, QEvent, QTimer
 
 from ui.widgets.line_edit import LineEdit
-from ui.widgets.popup_list import setup_popup_list
+from ui.widgets.popup_list import setup_popup_list, SCROLL_BAR_WIDTH
 from ui.theme import Theme, theme_manager
 
 from utils import stack_qcolors
@@ -19,9 +19,15 @@ Suggestion = str | tuple[str, str]  # A value, or (value, hint). The hint is sho
 
 HINT_ROLE = Qt.ItemDataRole.UserRole + 1
 ITEM_HEIGHT = 28  # Like ComboBox's items
+TEXT_MARGIN = 6   # Left and right of an item, like ComboBox's
+HINT_SPACING = 8  # Between a value and its hint
 MAX_VISIBLE_ITEMS = 8
 
 _SEPARATORS_RE = re.compile(r"[\s_\-]+")
+# Focus given by the user to the line edit, which lists every suggestion if it's empty. Not eg. PopupFocusReason: the
+#  list closing gives the focus back to the line edit, it must not reopen
+_USER_FOCUS_REASONS = (Qt.FocusReason.MouseFocusReason, Qt.FocusReason.TabFocusReason,
+                       Qt.FocusReason.BacktabFocusReason, Qt.FocusReason.ShortcutFocusReason)
 
 
 def squash(text: str) -> str:
@@ -29,15 +35,20 @@ def squash(text: str) -> str:
     return _SEPARATORS_RE.sub("", text).casefold()
 
 
-def rank_suggestions(text: str, entries: Iterable[tuple[str, str]]) -> list[str]:
-    """Values of entries ((value, squash(value))) containing every word of text, best first: the exact match, then the
-    ones starting with the first word, then by where the first word is, shortest first."""
+def rank_suggestions(text: str, entries: Iterable[tuple[str, str, str]], all_if_empty: bool = False) -> list[str]:
+    """Values of entries ((value, squash(value), squash(hint))) whose value or hint contains every word of text, best
+    first: the exact match, then the ones whose value starts with the first word, then by where the first word is in
+    the value (matches in the hint only last), shortest first.
+    Text without words: every value in alphabetical order if all_if_empty, else none."""
     words = [word for word in map(squash, text.split()) if word]
     if not words:
-        return []
-    whole = "".join(words)
-    ranked = [(squashed != whole, squashed.find(words[0]), len(squashed), value.casefold(), value)
-              for value, squashed in entries if all(word in squashed for word in words)]
+        return sorted((value for value, *_ in entries), key=str.casefold) if all_if_empty else []
+    whole, first = "".join(words), words[0]
+    ranked = []
+    for value, squashed, hint in entries:
+        if all(word in squashed or word in hint for word in words):
+            position = squashed.find(first)
+            ranked.append((squashed != whole, position < 0, position, len(squashed), value.casefold(), value))
     ranked.sort()
     return [value for *_, value in ranked]
 
@@ -45,9 +56,9 @@ def rank_suggestions(text: str, entries: Iterable[tuple[str, str]]) -> list[str]
 class _SuggestionModel(QStringListModel):
     """Matching suggestions, with their hint (HINT_ROLE)"""
 
-    def __init__(self, parent=None):
+    def __init__(self, hints: dict[str, str], parent=None):
         super().__init__(parent)
-        self.hints: dict[str, str] = {}
+        self.hints = hints
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if role == HINT_ROLE:
@@ -64,7 +75,13 @@ class _SuggestionDelegate(QStyledItemDelegate):
         self.theme = theme_manager.current()
 
     def sizeHint(self, option, index):
-        return QSize(option.rect.width(), ITEM_HEIGHT)
+        # Width as laid out by paint: what the list is widened to (see SuggestionLineEdit._show_popup)
+        metrics = option.fontMetrics
+        hint = index.data(HINT_ROLE)
+        width = 2 * TEXT_MARGIN + metrics.horizontalAdvance(index.data(Qt.ItemDataRole.DisplayRole) or "") + 1
+        if hint:
+            width += HINT_SPACING + metrics.horizontalAdvance(hint)
+        return QSize(width, ITEM_HEIGHT)
 
     def paint(self, painter, option, index):
         painter.save()
@@ -75,55 +92,35 @@ class _SuggestionDelegate(QStyledItemDelegate):
         if index == self.view.currentIndex():
             painter.fillRect(option.rect, stack_qcolors(background, QColor(self.theme.surface.color_hex_argb)))
 
-        rect = option.rect.adjusted(6, 0, -6, 0)
+        rect = option.rect.adjusted(TEXT_MARGIN, 0, -TEXT_MARGIN, 0)
         metrics = painter.fontMetrics()
         hint = index.data(HINT_ROLE)
         if hint:
             painter.setPen(QColor(self.theme.text.muted_hex_argb))
             painter.drawText(rect, Qt.AlignVCenter | Qt.AlignRight, hint)
-            rect.setRight(rect.right() - metrics.horizontalAdvance(hint) - 8)
+            rect.setRight(rect.right() - metrics.horizontalAdvance(hint) - HINT_SPACING)
 
         painter.setPen(QColor(self.theme.text.color_hex_argb))
+        # Elided when the list can't be widened enough (see SuggestionLineEdit._show_popup)
         text = metrics.elidedText(index.data(Qt.ItemDataRole.DisplayRole), Qt.TextElideMode.ElideRight, rect.width())
         painter.drawText(rect, Qt.AlignVCenter | Qt.AlignLeft, text)
         painter.restore()
 
 
 class SuggestionLineEdit(LineEdit):
-    """LineEdit showing, while typing, the suggestions which contain every word of its text (case, spaces, "_" and "-"
-    don't matter), best first. Pick one with a click, or the arrow keys then Enter; Escape closes the list.
-    When editing finishes, a text matching a suggestion but for case, spaces, "_" and "-" becomes that suggestion
-    (eg. "scalable brick" -> "ScalableBrick").
-
-    Same API as LineEdit: picking a suggestion sets the text, so text_changed is emitted (not text_edited)."""
+    SHOW_ALL_WHEN_EMPTY = True
 
     def __init__(self, default: str = "", placeholder: str = "", force_validation: bool = True, parent=None, *,
                  suggestions: Iterable[Suggestion] = ()):
         super().__init__(default, placeholder, force_validation, parent)
-        self._entries: list[tuple[str, str]] = []           # (value, squash(value))
+        self._entries: list[tuple[str, str, str]] = []     # (value, squash(value), squash(hint))
+        self._hints: dict[str, str] = {}
         self._by_squashed: dict[str, str | None] = {}       # None: several suggestions, never snapped to
+        self._completer: QCompleter | None = None           # See _ensure_popup
+        self._popup: QListView | None = None
+        self._closing_click = False                         # See eventFilter
 
-        self._model = _SuggestionModel(self)
-        self._completer = QCompleter(self._model, self)
-        # Unfiltered: the model only holds the matches, ranked by rank_suggestions
-        self._completer.setCompletionMode(QCompleter.CompletionMode.UnfilteredPopupCompletion)
-        self._completer.setMaxVisibleItems(MAX_VISIBLE_ITEMS)
-
-        # The completer's own list (it deletes it). A parentless popup window: the global stylesheet doesn't reach it,
-        #  it carries it itself (see _apply_theme). Don't reparent it: it would be deleted twice
-        self._popup: QListView = self._completer.popup()
-        setup_popup_list(self._popup)
-        self._popup.setUniformItemSizes(True)
-        self._popup.setMouseTracking(True)
-        self._popup.entered.connect(self._on_item_hovered)
-        self._delegate = _SuggestionDelegate(self._popup)
-        self._popup.setItemDelegate(self._delegate)
-        self._apply_popup_theme(theme_manager.current())
-        # Not QLineEdit.setCompleter: the line edit would filter the list itself, and put the highlighted suggestion
-        #  in the text while browsing them with the arrow keys
-        self._completer.setWidget(self.qt_widget)
-        self._completer.activated[str].connect(self._choose)
-
+        self.qt_widget.installEventFilter(self)
         self.text_edited.connect(self._update_popup)
         self.editing_finished.connect(self._snap_to_suggestion)
         self.set_suggestions(suggestions)
@@ -131,30 +128,32 @@ class SuggestionLineEdit(LineEdit):
 
     def set_suggestions(self, suggestions: Iterable[Suggestion]):
         """Values suggested while typing. A suggestion is a value, or (value, hint), the hint being shown muted next to
-        it (eg. "modded")."""
+        it (eg. "modded"). Typed words are looked for in hints too."""
         self._entries = []
-        hints: dict[str, str] = {}
+        self._hints = {}
         by_squashed: dict[str, str | None] = {}
         for suggestion in suggestions:
             value, hint = (suggestion, "") if isinstance(suggestion, str) else suggestion
             squashed = squash(value)
-            self._entries.append((value, squashed))
-            hints[value] = hint
+            self._entries.append((value, squashed, squash(hint)))
+            self._hints[value] = hint
             by_squashed[squashed] = value if by_squashed.get(squashed, value) == value else None
-        self._model.hints = hints
         self._by_squashed = by_squashed
-        if self._popup.isVisible():
-            self._update_popup(self.get_true_text())
+        if self._popup is not None:
+            self._model.hints = self._hints
+            if self._popup.isVisible():
+                self._update_popup(self.get_true_text())
 
     def get_suggestions(self) -> list[str]:
-        return [value for value, _ in self._entries]
+        return [value for value, *_ in self._entries]
 
     def matching_suggestion(self, text: str) -> str | None:
         """The suggestion text matches, but for case, spaces, "_" and "-". None if there isn't exactly one."""
         return self._by_squashed.get(squash(text))
 
     def hide_suggestions(self):
-        self._popup.hide()
+        if self._popup is not None:
+            self._popup.hide()
 
 
     def set_text(self, text: str):
@@ -167,16 +166,76 @@ class SuggestionLineEdit(LineEdit):
         super().set_enabled(enabled)
 
 
+    def _ensure_popup(self):
+        if self._popup is not None:
+            return
+        self._model = _SuggestionModel(self._hints, self)
+        self._completer = QCompleter(self._model, self)
+        # Unfiltered: the model only holds the matches, ranked by rank_suggestions
+        self._completer.setCompletionMode(QCompleter.CompletionMode.UnfilteredPopupCompletion)
+        self._completer.setMaxVisibleItems(MAX_VISIBLE_ITEMS)
+
+        # The completer's own list (it deletes it). A parentless popup window: the global stylesheet doesn't reach it,
+        #  it carries it itself (see _apply_popup_theme). Don't reparent it: it would be deleted twice
+        self._popup = self._completer.popup()
+        setup_popup_list(self._popup)
+        self._popup.setUniformItemSizes(True)
+        self._popup.setMouseTracking(True)
+        self._popup.entered.connect(self._on_item_hovered)
+        self._delegate = _SuggestionDelegate(self._popup)
+        self._popup.setItemDelegate(self._delegate)
+        self._apply_popup_theme(theme_manager.current())
+        # Not QLineEdit.setCompleter: the line edit would filter the list itself, and put the highlighted suggestion
+        #  in the text while browsing them with the arrow keys
+        self._completer.setWidget(self.qt_widget)
+        self._completer.activated[str].connect(self._choose)
+        self._popup.installEventFilter(self)  # After the completer's: runs before it
+
+    def eventFilter(self, watched, event):
+        kind = event.type()
+        if watched is self._popup:
+            if kind == QEvent.Type.MouseButtonPress and not self._popup.rect().contains(event.position().toPoint()):
+                # A click outside closes the list, then Qt replays it on what's under the mouse: if it's this line
+                #  edit, it must not list every suggestion again
+                self._closing_click = True
+                QTimer.singleShot(0, self, self._end_closing_click)
+        elif watched is self.qt_widget and self.SHOW_ALL_WHEN_EMPTY:
+            if ((kind == QEvent.Type.FocusIn and event.reason() in _USER_FOCUS_REASONS)
+                    or (kind == QEvent.Type.MouseButtonPress and not self._closing_click)):
+                QTimer.singleShot(0, self, self._show_all_if_empty)  # Once the click or focus change is handled
+        return super().eventFilter(watched, event)
+
+    def _end_closing_click(self):
+        self._closing_click = False
+
+    def _show_all_if_empty(self):
+        shown = self._popup is not None and self._popup.isVisible()
+        if (self.SHOW_ALL_WHEN_EMPTY and not shown and self.qt_widget.hasFocus() and self.qt_widget.isEnabled()
+                and not squash(self.get_true_text())):
+            self._update_popup(self.get_true_text())
+
     def _update_popup(self, text: str):
-        matches = rank_suggestions(text, self._entries)
+        matches = rank_suggestions(text, self._entries, all_if_empty=self.SHOW_ALL_WHEN_EMPTY)
         if not matches or matches == [text]:
             self.hide_suggestions()
             return
+        self._ensure_popup()
         self._model.setStringList(matches)
-        self._completer.complete()  # Shows the list under the line edit, sized for the matches
+        self._show_popup(len(matches))
         # No suggestion picked yet: Enter keeps the text as typed
         self._popup.selectionModel().setCurrentIndex(QModelIndex(), QItemSelectionModel.SelectionFlag.Clear)
         self._popup.scrollToTop()
+
+    def _show_popup(self, count: int):
+        # As wide as the line edit, or wider to fit the suggestions (like ComboBox's list), as far as the screen allows
+        #  (beyond, they are elided). The completer keeps it on screen
+        self._popup.ensurePolished()  # Measured with the stylesheet's font, even before it's first shown
+        width = self._popup.sizeHintForColumn(0) + 2 * self._popup.frameWidth()
+        if count > MAX_VISIBLE_ITEMS:
+            width += SCROLL_BAR_WIDTH
+        width = min(max(width, self.qt_widget.width()), self.qt_widget.screen().availableGeometry().width())
+        # Where the completer puts it by default: under the line edit, 2 px up (the list goes at the rect's bottom left)
+        self._completer.complete(QRect(0, -1, width, self.qt_widget.height()))
 
     def _on_item_hovered(self, index: QModelIndex):
         # Like a combo box: the hovered suggestion is the current one, the one Enter picks
@@ -194,7 +253,7 @@ class SuggestionLineEdit(LineEdit):
 
     def _apply_theme(self, theme: Theme):
         super()._apply_theme(theme)
-        if hasattr(self, "_delegate"):  # Not yet when LineEdit.__init__ applies the first theme
+        if getattr(self, "_popup", None) is not None:  # Not built yet (or LineEdit.__init__ applying the first theme)
             self._apply_popup_theme(theme)
 
     def _apply_popup_theme(self, theme: Theme):

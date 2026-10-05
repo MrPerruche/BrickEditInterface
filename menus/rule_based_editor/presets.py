@@ -199,8 +199,9 @@ BUILTIN_PRESETS: list[Preset] = [
     ),
     _builtin(
         "Highlight duplicates",
-        "Highlights magenta duplicated bricks, the first one included. Ignores color." + HIGHLIGHT_NOTE,
-        [{"type": "duplicate", "mode": "must", "match": "has_copies", "compare": "ignore_color"}],
+        "Highlights magenta the first brick of each stack of duplicates (one highlight per stack). Ignores "
+        "color." + HIGHLIGHT_NOTE,
+        [{"type": "duplicate", "mode": "must", "match": "first_only", "compare": "ignore_color"}],
         HIGHLIGHT,
     ),
     _builtin(

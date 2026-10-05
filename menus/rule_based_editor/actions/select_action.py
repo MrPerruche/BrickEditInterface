@@ -84,6 +84,10 @@ class SelectAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Change which bricks the next actions apply to")
 
+    @classmethod
+    def get_description(cls) -> str:
+        return "Changes which bricks the next actions apply to, with a formula."
+
     def describe(self, count: int) -> str:
         return f"Select among {plural(count)}" if self._source() == SELECTION else "Select bricks of the vehicle"
 

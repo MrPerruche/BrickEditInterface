@@ -24,6 +24,11 @@ class TransformAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Rotate, scale and move the selected bricks")
 
+    @classmethod
+    def get_description(cls) -> str:
+        return ("Rotates, scales and moves the selected bricks as a whole using many parameters. "
+            "Resizable bricks & spinners are scaled too.")
+
     def describe(self, count: int) -> str:
         return f"Transform {plural(count)}"
 

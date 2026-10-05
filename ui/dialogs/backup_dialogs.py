@@ -20,6 +20,36 @@ class RecoverBackupDialog(BooleanOutcomeDialog):
         )
 
 
+class FastUndoConfirmDialog(BooleanOutcomeDialog):
+
+    @staticmethod
+    def create(mw, backup_label: str, age_text: str | None):
+        """age_text: how long ago the backup was made (eg. "1h 5m"), None if it is dated in the future"""
+        when = "dated in the future" if age_text is None else f"{html.escape(age_text)} ago"
+        return FastUndoConfirmDialog(
+            mw=mw,
+            icon=FastUndoConfirmDialog.WARNING_ICON(),
+            title="Fast Undo",
+            text=f"<html>Revert to <b>{html.escape(backup_label)}</b> ({when})?<br>"
+                 "Changes made since will be lost.</html>",
+            outcome_1_text="Revert",
+            outcome_2_text="Cancel",
+            default_outcome=2,
+        )
+
+
+class NothingToUndoDialog(BasicInfoDialog):
+
+    @staticmethod
+    def create(mw):
+        return NothingToUndoDialog(
+            mw=mw,
+            icon=NothingToUndoDialog.WARNING_ICON(),
+            title="Nothing to Undo",
+            text="This vehicle has no BrickEdit-Interface backup to revert to.",
+        )
+
+
 class DeleteBackupDialog(BooleanOutcomeDialog):
 
     @staticmethod

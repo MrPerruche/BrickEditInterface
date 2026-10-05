@@ -5,11 +5,13 @@ from PySide6.QtCore import Qt, QRectF, QUrl
 import os
 
 from systems.settings import settings_manager
+from systems.backup import BackupSystem
 from menus import base
-from utils import restart
+from utils import restart, str_time_since
 
 from ui.widgets import Label, StyledLabel, LabelStyle, Button, Separator, Slider, ComboBox, BoolSwitch
 from ui.dialogs import ConfirmRestartDialog
+from ui.models import TooltipContents
 from ui.theme import theme_manager, Theme
 
 
@@ -20,6 +22,21 @@ UI_SCALE_SLIDER_VALUES = sorted(
     list(range(200, 400+1, 5)) +
     [125, 175]
 )
+
+# (text, seconds). Any other duration can be set by editing the settings file.
+FAST_UNDO_CONFIRM_OPTIONS = (
+    ("Always", 0),
+    ("5 minutes", 5 * 60),
+    ("15 minutes", 15 * 60),
+    ("30 minutes", 30 * 60),
+    ("1 hour", 60 * 60),
+    ("4 hours", 4 * 60 * 60),
+    ("1 day", 24 * 60 * 60),
+)
+
+def _describe_duration(seconds: int | float) -> str:
+    return "never" if seconds == float("inf") else str_time_since(int(seconds))
+
 
 def _make_theme_preview_icon(theme: Theme, size: int = 32) -> QIcon:
     """Small swatch showing a theme's palette: background with a sidebar strip, plus text and accent chips."""
@@ -120,6 +137,34 @@ class SettingsMenu(base.BaseMenu):
         self.check_updates_btn.clicked.connect(self.mw.check_for_updates)
         self.master_layout.addWidget(self.check_updates_btn)
 
+        # BACKUPS
+        self.backups_label = StyledLabel("Backups", LabelStyle.HEADER_3)
+        self.master_layout.addWidget(self.backups_label)
+
+        self.fast_undo_lay = QHBoxLayout()
+        self.fast_undo_lay.setContentsMargins(0, 0, 0, 0)
+        self.master_layout.addLayout(self.fast_undo_lay)
+
+        self.fast_undo_label = Label("Require confirmation for fast undo after ")
+        self.fast_undo_label.set_tooltip(TooltipContents(
+            "Fast undo confirmation",
+            "Fast undo, in the Backup Manager, asks for confirmation before reverting to a backup older than this."
+        ))
+        self.fast_undo_lay.addWidget(self.fast_undo_label)
+
+        self.fast_undo_cb = ComboBox(False)
+        self.fast_undo_cb_values = [seconds for _, seconds in FAST_UNDO_CONFIRM_OPTIONS]
+        for text, _ in FAST_UNDO_CONFIRM_OPTIONS:
+            self.fast_undo_cb.add_item(text)
+        # Set by hand in the settings file: kept as an extra option rather than overwritten
+        fast_undo_delay = self.mw.backups.fast_undo_confirm_after()
+        if fast_undo_delay not in self.fast_undo_cb_values:
+            self.fast_undo_cb.add_item(f"Custom ({_describe_duration(fast_undo_delay)})")
+            self.fast_undo_cb_values.append(fast_undo_delay)
+        self.fast_undo_cb.set_current_idx(self.fast_undo_cb_values.index(fast_undo_delay))
+        self.fast_undo_cb.item_changed.connect(self.now_dirty)
+        self.fast_undo_lay.addWidget(self.fast_undo_cb)
+
         # APPLY BUTTONS
         self.master_layout.addWidget(Separator())
 
@@ -190,6 +235,11 @@ class SettingsMenu(base.BaseMenu):
         target = known_update if (self.ignore_update_switch.get_value() and known_update) else "0.0.0"
         if settings_manager.get("remind_updates_after", "0.0.0") != target:
             settings_manager.set("remind_updates_after", target)
+
+        # Fast undo confirmation
+        fast_undo_delay = self.fast_undo_cb_values[self.fast_undo_cb.get_current_idx()]
+        if settings_manager.get(BackupSystem.FAST_UNDO_CONFIRM_SETTING) != fast_undo_delay:
+            settings_manager.set(BackupSystem.FAST_UNDO_CONFIRM_SETTING, fast_undo_delay)
 
 
     def _apply_changes_full(self, must_restart: bool):

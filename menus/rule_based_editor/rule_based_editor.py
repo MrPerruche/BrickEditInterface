@@ -18,7 +18,7 @@ from ui.rich_text import pmd
 from systems.bei_files import BeiFileError
 from menus import base
 
-from menus.rule_based_editor.actions import ActionError, plural
+from menus.rule_based_editor.actions import ActionError, plural, action_classes
 from menus.rule_based_editor.action_list import ActionList
 from menus.rule_based_editor.selection_preview import SelectionPreview
 from menus.rule_based_editor.runner import ActionFailed, run_actions
@@ -471,88 +471,40 @@ class RuleBasedEditor(base.BaseMenu):
         """Return the icon for this menu."""
         return base.MenuInfo(QIcon(":/assets/icons/RuleBasedEditor.png"), True,
             tutorial=Tutorial("R.B. Editor", self.mw)  # Name too long for tutorials
-                .add_text("The rule based editor edits every brick matching a set of conditions at once: "
-                          "conditions select bricks (which bricks?), then actions are applied to them (what to "
-                          "do with them?).")
-                .add_text("It can find and fix duplicated bricks and mirroring mistakes, select bricks with "
-                          "custom formulas, and delete, paint, edit, group, transform, mirror or copy them, or "
-                          "change their type.")
+                .add_text("The rule based editor is possibly the most powerful (and complicated) "
+                    "tool in BrickEdit-Interface: you can edit vehicles in many ways using a set "
+                    "of filters and actions. See a few things this tool can do using presets!: A "
+                    "few general-purpose configs are included.")
                 .add_header("Getting started")
                 .add_steps(
-                    "Save your vehicle in Brick Rigs, then load (or reload) it in BrickEdit-Interface.",
-                    "Pick a preset and press \"Use\", or add conditions and actions yourself. A preset only fills "
-                        "the menu in: nothing is applied yet.",
-                    "Check the selection: how many bricks match, of which types, and (with \"Show bricks\") "
-                        "where they are. Adjust the conditions until only the right bricks are selected.",
-                    "Check the actions and their settings.",
-                    "Press the apply button. The vehicle is saved, after making a backup.",
-                    "Re-open your vehicle in Brick Rigs to see the changes. Reload it in BEI before applying "
-                        "again, or enable \"Reload after saving\".",
+                    "Save your vehicle in Brick Rigs, then load (or reload) it in "
+                    "BrickEdit-Interface.",
+                    "Pick a preset and press \"Use\". You can also build your own by configuring "
+                    "conditions and actions below.",
+                    "Press the apply button and re-open your vehicle in Brick Rigs to see the "
+                    "changes."
                 )
                 .add_header("Presets")
-                .add_text("Presets fill the conditions and actions in for common tasks. Save your own setups "
-                          "with \"Save\", and share them as files with \"Export\" and \"Import\".")
-                .add_text(pmd(f"Your presets are `{PRESET_FORMAT.extension}` files, stored in "
-                              f"BrickEdit-Interface's settings folder (\"Open folder\" opens it). Every setting is "
-                              "saved, including the edits of \"Edit properties\": they're applied to the bricks the "
-                              "preset selects, formulas for each brick."))
+                .add_text(pmd("You can store any config you input in this menu into presets. They "
+                    f"can then be saved, loaded and shared as `{PRESET_FORMAT.extension}` files."))
                 .add_header("Conditions")
-                .add_text("Conditions work like the brick editor's filters: a brick is selected if it matches "
-                          "the conditions. When there is no condition, no brick is selected. \"Invert selection\" "
-                          "selects every brick which doesn't match instead.")
+                .add_text("Conditions are used to select bricks. They rely on filters. In this "
+                    "menu, you also have an \"Invert Selection\" button to invert easily (despite "
+                    "inverting being possible without this button by modifying filters). You can "
+                    "also see a preview of selected bricks. Last: unlike the brick editor, "
+                    "filters update the selection live. No reloads are required.")
                 .refer_to("getting_started_filters")
-                .add_text("Unlike in the brick editor, the selection updates live: there's no need to reload "
-                          "the vehicle after editing conditions.")
-                .add_low_header("Duplicates")
-                .add_text("Bricks are duplicates when they have the same type, position and orientation, and "
-                          "(depending on the comparison) the same properties. Among duplicates, the first brick is "
-                          "the one which comes first in the vehicle. \"a copy\" selects all but the first, "
-                          "\"duplicated\" selects all of them, and \"a copy past the Nth\" keeps N of them.")
-                .add_low_header("Mirror status")
-                .add_text("Every brick is paired with the brick of the same type (or its left / right version, "
-                          "eg. for wings and doors) at its mirrored position. Brick Rigs vehicles are usually "
-                          "symmetric along the Y axis, with the mirror plane at 0. A pair is perfectly mirrored if "
-                          "both bricks are rotated like mirror images and share the same color and properties. "
-                          "Some properties are expected to change, like Brick Rigs does when mirroring: eg. a "
-                          "spinner's angle is inverted.")
-                .add_text("By default, only exact mirror images count, like in Brick Rigs: a counterpart may be "
-                          "off by 0.0001 cm and 0.01° at most. For a vehicle built by hand, increase the position "
-                          "and angle tolerances (eg. 0.1 cm and 1°), and allow turned symmetric bricks.")
-                .add_text("\"Side\" restricts the condition to one side of the mirror plane, eg. to delete the "
-                          "bricks missing a counterpart on one side only.")
-                .add_low_header("Property values and formulas")
-                .add_text("\"Property must be\" compares a property to a value, or checks it's within a range.")
-                .add_text(pmd("\"Satisfy condition\" selects bricks for which a formula is true, eg. "
-                              "`y > 0 and sz <= 10`. Hover the condition to see every variable available."))
-                .refer_to("getting_started_expressions")
+
                 .add_header("Actions")
-                .add_text("Actions are applied from top to bottom, then the vehicle is saved once. Drag an action "
-                          "by its header to move it.")
-                .add_text("Each action applies to the selected bricks, except after an action which creates or "
-                          "deletes bricks: after \"Copy\" and \"Mirror\", the next actions apply to the new bricks "
-                          "only, and nothing is left after \"Delete\". Order matters: copying then painting paints "
-                          "the copies only, painting then copying paints both.")
-                .add_text(pmd("\"Select\" changes which bricks the next actions apply to with a formula, like "
-                              "\"Satisfy condition\": among the selected bricks (eg. only the copies with "
-                              "`z > 100`), or in the whole vehicle, to apply several rules at once."))
-                .add_collection("Actions",
-                    ("Delete", "Removes the selected bricks. Wires from other bricks to them are removed too."),
-                    ("Edit properties", "Edits the position, rotation and properties of every selected brick at "
-                        "once, with formulas, like the brick editor."),
-                    ("Paint", "Sets the color (and optionally the material) of the selected bricks. Handy to "
-                        "find them in Brick Rigs before deciding what to do with them."),
-                    ("Set group", "Moves the selected bricks to a named group, a new group, or out of their group."),
-                    ("Transform", "Rotates, scales and moves the selected bricks as a whole, about the center of "
-                        "the selection or a point, or each brick in place. Scaling also scales sizes (brick size, "
-                        "wheel diameter...)."),
-                    ("Change type", "Turns the selected bricks into bricks of another type. They keep their "
-                        "position, rotation, groups, wires, and the properties both types have. Type part of the "
-                        "type's internal name to list the matching types; any name works, modded bricks included."),
-                    ("Mirror", "Creates a mirror image of the selected bricks. Bricks which already have a "
-                        "counterpart can be skipped, replaced, or mirrored anyway. Wires are mirrored too."),
-                    ("Copy", "Copies the selected bricks one or more times, each copy moved by an offset."),
-                    ("Select", "Changes which bricks the next actions apply to, with a formula."),
-                )
+                .add_text("Actions are applied from top to bottom, then the vehicle is saved "
+                    "once. Drag an action by its header to move it.")
+                .add_text("Each action applies to the selected bricks, but actions can change "
+                    "what bricks are selected after its execution. For example, \"Copy\" or "
+                    "\"Mirror\" will set selection to the new bricks, \"Delete\" removes the "
+                    "entire selection, and \"Select\" can rebuild the selection.")
+
+                .add_collection("Actions", *[(cls.get_name(), cls.get_description()) for cls in action_classes])
+                # TODO REWRITE
                 .add_warning("Detecting duplicates and mirror issues relies on heuristics: always check the "
                              "selection before applying. Every save makes a backup, which you can recover in the "
                              "backup manager.")

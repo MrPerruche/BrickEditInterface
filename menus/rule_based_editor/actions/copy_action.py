@@ -40,6 +40,10 @@ class CopyAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Copy the selected bricks one or more times")
 
+    @classmethod
+    def get_description(cls) -> str:
+        return "Copies the selected bricks one or more times, each copy moved by an offset."
+
     def describe(self, count: int) -> str:
         copies = self.count_nce.value()
         return f"Copy {plural(count)}" + (f" {copies:,} times" if copies > 1 else "")

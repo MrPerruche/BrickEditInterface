@@ -56,6 +56,10 @@ class PaintAction(BaseAction):
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Set the color and material of the selected bricks")
 
+    @classmethod
+    def get_description(cls) -> str:
+        return ("Sets the color (and optionally the material) of the selected bricks.")
+
     def describe(self, count: int) -> str:
         return f"Paint {plural(count)}"
 

@@ -9,7 +9,7 @@ class DeleteAction(BaseAction):
 
     def __init__(self, mw):
         super().__init__(mw)
-        info = Label("Removes and disconnects selected bricks.", muted=True)
+        info = Label(self.get_description(), muted=True)
         self.master_layout.addWidget(info)
 
     @classmethod
@@ -19,6 +19,10 @@ class DeleteAction(BaseAction):
     @classmethod
     def get_tooltip(cls) -> TooltipContents | None:
         return TooltipContents("Delete the selected bricks")
+
+    @classmethod
+    def get_description(cls) -> str:
+        return "Removes and disconnects selected bricks."
 
     def describe(self, count: int) -> str:
         return f"Delete {plural(count)}"
