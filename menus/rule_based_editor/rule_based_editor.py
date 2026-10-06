@@ -504,27 +504,27 @@ class RuleBasedEditor(base.BaseMenu):
                     "entire selection, and \"Select\" can rebuild the selection.")
 
                 .add_collection("Actions", *[(cls.get_name(), cls.get_description()) for cls in action_classes])
-                # TODO REWRITE
-                .add_warning("Detecting duplicates and mirror issues relies on heuristics: always check the "
-                             "selection before applying. Every save makes a backup, which you can recover in the "
-                             "backup manager.")
+                .add_warning("Always check the selection before applying. Every save makes a "
+                    "backup, which you can recover in the backup manager.")
                 .add_sep()
                 .add_faq(
-                    "<b>Why aren't my bricks seen as mirrored?</b><br>"
-                        "By default, only exact mirror images count, like in Brick Rigs. Bricks placed by hand are "
-                        "often slightly off: try larger tolerances (eg. 0.1 cm and 1°) and allow turned symmetric "
-                        "bricks. The mirror plane may also not be at 0, or the bricks may be of different types.",
-                    "<b>A mirrored brick is rotated the wrong way</b><br>"
-                        "BEI mirrors bricks with the rules Brick Rigs uses, extracted from the game's data. If a "
-                        "brick is mirrored differently than in Brick Rigs, please report it on the BrickEdit "
-                        "discord.",
-                    "<b>Why is the apply button disabled?</b><br>"
-                        "No brick is selected: load a vehicle and add conditions matching at least one brick.",
-                    "<b>I applied twice and the first changes disappeared</b><br>"
-                        "Applying saves the vehicle as it was loaded, edited by the actions. Reload the vehicle "
-                        "between two runs, or enable \"Reload after saving\".",
-                    "<b>A preset can't be loaded</b><br>"
-                        "It may have been made with a newer version of BrickEdit-Interface, or the file may be "
-                        "damaged. The reason is shown under the preset buttons.",
+                    pmd("**Why aren't my bricks seen as mirrored?**\n"
+                    "BEI uses Brick Rigs' exact criterias to determine if a brick is mirrored. "
+                    "The issue is Brick Rigs' tolerences are very low. You can increase the "
+                    "tolerances, but it will no longer only detect mirrored mirrored bricks."),
+                    pmd("**A \"mirrored\" brick is rotated the wrong way.**\n"
+                    "BEI does not have any information about modded bricks. If it has deal with "
+                    "mirroring modded bricks, it will (sometimes incorrectly) guess how this "
+                    "brick may be mirrored.\n"
+                    "If it is a vanilla brick, please report it on BEI's discord! The link can be "
+                    "found in the welcome menu."),
+                    pmd("**Why can't I apply changes?**\n"
+                    "You cannot apply changes if no bricks match the conditions."),
+                    pmd("**I applied twice and the first changes disappeared.**\n"
+                    "Applying saves the vehicle as it was loaded, edited by the actions. Reload the vehicle "
+                    "between two runs, or enable \"Reload after saving\"."),
+                    pmd("**A preset can't be loaded.**\n"
+                    "It may have been made with a newer version of BrickEdit-Interface, or the file may be "
+                    "damaged.")
                 )
         )

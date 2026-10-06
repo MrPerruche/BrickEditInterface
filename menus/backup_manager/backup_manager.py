@@ -145,11 +145,11 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             default_value = self.main_window.settings.get("st_backup_count_limit")
         )
         self.st_count_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'st_count'))
-        self.st_backup_count_layout.addWidget(self.st_count_limit_slider, 10)
+        self.st_backup_count_layout.addWidget(self.st_count_limit_slider, 20)
 
         self.st_count_limit_label = Label("Backups")
         self.st_count_limit_label.qt_widget.setAlignment(Qt.AlignRight)
-        self.st_backup_count_layout.addWidget(self.st_count_limit_label, 3)
+        self.st_backup_count_layout.addWidget(self.st_count_limit_label, 7)
 
 
         # Short term KB
@@ -161,11 +161,11 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             default_value = self.main_window.settings.get("st_backup_size_limit_kb") // self.BACKUP_SIZE_STEP_KB
         )
         self.st_size_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'st_size'))
-        self.st_backup_size_layout.addWidget(self.st_size_limit_slider, 10)
+        self.st_backup_size_layout.addWidget(self.st_size_limit_slider, 20)
 
         self.st_size_limit_label = Label("KB")
         self.st_size_limit_label.set_alignment(Qt.AlignRight)
-        self.st_backup_size_layout.addWidget(self.st_size_limit_label, 3)
+        self.st_backup_size_layout.addWidget(self.st_size_limit_label, 7)
 
 
         # Long term
@@ -187,11 +187,11 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             default_value = self.main_window.settings.get("lt_backup_count_limit")
         )
         self.lt_count_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'lt_count'))
-        self.lt_count_limit_layout.addWidget(self.lt_count_limit_slider, 10)
+        self.lt_count_limit_layout.addWidget(self.lt_count_limit_slider, 20)
 
         self.lt_count_limit_label = Label("Backups")
         self.lt_count_limit_label.set_alignment(Qt.AlignRight)
-        self.lt_count_limit_layout.addWidget(self.lt_count_limit_label, 3)
+        self.lt_count_limit_layout.addWidget(self.lt_count_limit_label, 7)
 
 
         # Long term KB
@@ -203,11 +203,11 @@ class SettingsAndBackupsMenu(base.BaseMenu):
             default_value = self.main_window.settings.get("lt_backup_size_limit_kb") // self.BACKUP_SIZE_STEP_KB
         )
         self.lt_size_limit_slider.value_changed.connect(lambda value: self.slider_updated(value, 'lt_size'))
-        self.lt_size_limit_layout.addWidget(self.lt_size_limit_slider, 10)
+        self.lt_size_limit_layout.addWidget(self.lt_size_limit_slider, 20)
 
         self.lt_size_limit_label = Label("KB")
         self.lt_size_limit_label.set_alignment(Qt.AlignRight)
-        self.lt_size_limit_layout.addWidget(self.lt_size_limit_label, 3)
+        self.lt_size_limit_layout.addWidget(self.lt_size_limit_label, 7)
 
         self.main_window.vehicle_selector_banner.vehicle_loaded.connect(self.update_backup_recovery_entries)
 
@@ -234,14 +234,13 @@ class SettingsAndBackupsMenu(base.BaseMenu):
                 .refer_to("backup_manager_backup_types")
 
                 .add_header("Fast undo")
-                .add_text("The fast undo button, at the top of this menu, reverts the loaded vehicle to its latest "
-                    "BEI backup. Unlike recovering a backup from the list, no backup of the current vehicle is made "
-                    "first: use it to quickly undo your last change."
-                    + (" The backup is then deleted, so pressing it again undoes the change before."
-                       if self.main_window.backups.FAST_UNDO_CONSUMES_BACKUP else ""))
-                .add_note("If the latest backup is older than "
-                    f"{self.main_window.settings.get_default(BackupSystem.FAST_UNDO_CONFIRM_SETTING) // 60} minutes "
-                    "(can be changed in the settings), you will be asked to confirm first.")
+                .add_text("You can revert to the latest BEI backup by pressing the "
+                    "\"Fast undo\" button. Unlike reverting to a backup from the list, this does "
+                    "not create a pre-revert backup. The backup is "
+                    + ("consumed." if self.main_window.backups.FAST_UNDO_CONSUMES_BACKUP else "not consumed."))
+                .add_note("If the most recent backup is old (> than " +
+                    str(self.main_window.settings.get_default(BackupSystem.FAST_UNDO_CONFIRM_SETTING) // 60) +
+                    "minutes), a confirmation message will appear. Delay can be changed in settings.")
 
                 .add_header("Getting started")
                 .add_text("Steps in order to restore a backup:")

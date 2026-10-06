@@ -116,7 +116,6 @@ class GradientMaker(base.BaseMenu):
                     "- `Double LMB` to add a point here ;\n"
                     "- `Double LMB` on a point to edit its color ;\n"
                     "- `RMB` on a point to remove it."
-                    
                 ))
 
                 .add_header("Settings")
@@ -124,8 +123,6 @@ class GradientMaker(base.BaseMenu):
                     "defined amount of bricks, where the first one is at 0% and last one at 100%.")
                 .add_text("Some bricks have special interactions: text bricks display additionnal "
                     "information and spinners automatically placed in a circle.")
-
-                .refer_to("getting_started_colors")
         )
 
     def on_brick_count_updated(self):

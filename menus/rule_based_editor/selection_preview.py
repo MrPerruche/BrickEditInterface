@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt
 
 from collections import Counter
 
+from ui.rich_text import pmd
 from ui.widgets import Button, Label, StyledLabel, LabelStyle, Surface
 from ui.components.brick.property_utils import get_or_make_property_display_name
 
@@ -64,7 +65,7 @@ class SelectionPreview(Surface):
         shown = [f"{name} ×{count:,}" for name, count in types.most_common(LISTED_TYPES_LIMIT)]
         if len(types) > LISTED_TYPES_LIMIT:
             shown.append(f"{len(types) - LISTED_TYPES_LIMIT:,} other types")
-        self.types_label.set_text(" · ".join(shown))
+        self.types_label.set_text(" - ".join(shown))
         self.types_label.setVisible(bool(shown))
         self._update_list()
 
@@ -77,7 +78,7 @@ class SelectionPreview(Surface):
         for brick in self.bricks[:LISTED_BRICKS_LIMIT]:
             index = self.vehicle_data.brick_indices.get(brick.ref.id, -1) if self.vehicle_data is not None else -1
             x, y, z = brick.pos.as_tuple()
-            lines.append(f"#{index}  {get_or_make_property_display_name(brick.meta().name())}  ({x:g}, {y:g}, {z:g})")
+            lines.append(f"#`{index}` {get_or_make_property_display_name(brick.meta().name())} ({round(x/100, 2):g}, {round(y/100, 2):g}, {round(z/100, 2):g})")
         if len(self.bricks) > LISTED_BRICKS_LIMIT:
             lines.append(f"... and {plural(len(self.bricks) - LISTED_BRICKS_LIMIT)} more")
-        self.list_label.set_text("\n".join(lines))
+        self.list_label.set_text(pmd("\n".join(lines)))

@@ -45,7 +45,11 @@ COMPARE_TOOLTIP = TooltipContents(
     "All but color: same, except the color may differ.\n"
     "Type & transform: type, position and rotation only. Bricks stacked on top of each other."
 )
-TOLERANCE_TOOLTIP = TooltipContents("Tolerance", "How far apart (in cm, on each axis) two positions can be while still being considered the same.")
+TOLERANCE_TOOLTIP = TooltipContents("Position tolerance", "How far apart (in cm, on each axis) two positions can be while still being considered the same.")
+ANGLE_TOLERANCE_TOOLTIP = TooltipContents(
+    "Angle tolerance",
+    "How far apart (in degrees) two rotations can be while still being considered the same."
+)
 
 
 class DuplicateFilter(BaseFilter):
@@ -53,7 +57,7 @@ class DuplicateFilter(BaseFilter):
     def __init__(self, mw: 'BrickEditInterface', mode: FilterMode,
                  match: DuplicateMatch = DuplicateMatch.COPIES,
                  comparison: DuplicateComparison = DuplicateComparison.EVERYTHING,
-                 keep_count: int = 1, tolerance: float = 0.1):
+                 keep_count: int = 1, tolerance: float = 0.0001, angle_tolerance: float = 0.01):
         super().__init__(mw)
         self.mode = mode
 
@@ -69,14 +73,20 @@ class DuplicateFilter(BaseFilter):
         self.comparison_cb = self.make_combo_box([c.display_name() for c in DuplicateComparison], comparison.value)
         self.add_setting_row("Compare", self.comparison_cb, COMPARE_TOOLTIP)
 
-        self.tolerance_nce = NumberChannelEdit(ChannelMode.FLOAT32, minimum=0, allow_nan=False, allow_inf=False)
+        self.tolerance_nce = NumberChannelEdit(ChannelMode.FLOAT32, decimals=4, minimum=0, allow_nan=False, allow_inf=False)
         self.tolerance_nce.setValue(tolerance)
-        self.add_setting_row("Tolerance", self.tolerance_nce, TOLERANCE_TOOLTIP)
+        self.add_setting_row("Position tolerance", self.tolerance_nce, TOLERANCE_TOOLTIP)
+
+        self.angle_tolerance_nce = NumberChannelEdit(ChannelMode.FLOAT32, decimals=4, minimum=0, maximum=180,
+                                                     allow_nan=False, allow_inf=False)
+        self.angle_tolerance_nce.setValue(angle_tolerance)
+        self.add_setting_row("Angle tolerance", self.angle_tolerance_nce, ANGLE_TOLERANCE_TOOLTIP)
 
         self._update_visibility()
         self.match_cb.item_changed.connect(self._update_visibility)
         for signal in (self.match_cb.item_changed, self.comparison_cb.item_changed,
-                       self.keep_count_nce.value_changed, self.tolerance_nce.value_changed):
+                       self.keep_count_nce.value_changed, self.tolerance_nce.value_changed,
+                       self.angle_tolerance_nce.value_changed):
             signal.connect(self.emit_edited)
 
 
@@ -95,9 +105,10 @@ class DuplicateFilter(BaseFilter):
         if vehicle_data is None:
             return None
         comparison, tolerance = self.get_comparison(), float(self.tolerance_nce.value())
+        angle_tolerance = float(self.angle_tolerance_nce.value())
         return vehicle_data.get_analysis(
-            ("duplicates", comparison, tolerance),
-            lambda: DuplicateAnalysis(vehicle_data.brvfile.bricks, comparison, tolerance)
+            ("duplicates", comparison, tolerance, angle_tolerance),
+            lambda: DuplicateAnalysis(vehicle_data.brvfile.bricks, comparison, tolerance, angle_tolerance)
         )
 
 
@@ -109,6 +120,7 @@ class DuplicateFilter(BaseFilter):
             "n": int(self.keep_count_nce.value()),
             "compare": enum_key(self.get_comparison()),
             "tolerance": float(self.tolerance_nce.value()),
+            "angle_tolerance": float(self.angle_tolerance_nce.value()),
         }
 
     def apply_config(self, config: ConfigReader) -> None:
@@ -116,6 +128,8 @@ class DuplicateFilter(BaseFilter):
         self.keep_count_nce.setValue(config.get_int("n", int(self.keep_count_nce.value()), 1, 65535))
         self.comparison_cb.set_current_idx(config.get_enum("compare", DuplicateComparison, self.get_comparison()).value)
         self.tolerance_nce.setValue(config.get_float("tolerance", float(self.tolerance_nce.value()), minimum=0.0))
+        self.angle_tolerance_nce.setValue(config.get_float(
+            "angle_tolerance", float(self.angle_tolerance_nce.value()), minimum=0.0, maximum=180.0))
 
     def is_allowed(self, brick: Brick) -> FilterResult:
         analysis = self.get_analysis()

@@ -77,17 +77,17 @@ POSITION_TOLERANCE_TOOLTIP = TooltipContents(
     "Position tolerance",
     "How far (in cm, on each axis) a counterpart can be from the exact mirrored position. Bricks closer than this to "
     "the mirror plane are on it.\n"
-    f"Brick Rigs: {GAME_POSITION_TOLERANCE:g} cm. Eg. 0.1 accepts bricks placed by hand."
+    f"Brick Rigs uses {GAME_POSITION_TOLERANCE:g} cm."
 )
 ANGLE_TOLERANCE_TOOLTIP = TooltipContents(
     "Angle tolerance",
     "How far (in degrees) a counterpart's rotation can be from the exact mirror image's.\n"
-    f"Brick Rigs: about {GAME_ANGLE_TOLERANCE:g}°. Eg. 1 accepts bricks rotated by hand."
+    f"Brick Rigs uses {GAME_ANGLE_TOLERANCE:g}°."
 )
 TURNED_TOOLTIP = TooltipContents(
     "Turned symmetric bricks",
     "Also accept a counterpart turned in a way that only looks the same if the brick is symmetric: eg. upside down, "
-    "or a 30×60 plate turned by 90° and resized to 60×30. Asymmetric bricks facing the wrong way are accepted too.\n"
+    "or a 30 x 60 plate turned by 90° and resized to 60 x 30. Asymmetric bricks facing the wrong way are accepted too.\n"
     "Brick Rigs doesn't. Bricks on the mirror plane can always be turned: Brick Rigs never pairs a brick with itself."
 )
 

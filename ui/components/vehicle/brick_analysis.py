@@ -74,8 +74,9 @@ def _clean_angle(angle: float) -> float:
     return 0.0 if rounded == 0 else rounded
 
 
-def same_orientation(a: Axes, b: Axes) -> bool:
-    return all(_dot(a[i], b[i]) >= SAME_DIRECTION_COS for i in range(3))
+def same_orientation(a: Axes, b: Axes, min_cos: float = SAME_DIRECTION_COS) -> bool:
+    """Whether each local axis of a and b are within the angle whose cosine is min_cos"""
+    return all(_dot(a[i], b[i]) >= min_cos for i in range(3))
 
 
 def _reflect(v: TupleVec3, axis: int) -> TupleVec3:
@@ -266,14 +267,17 @@ class DuplicateInfo:
 
 class DuplicateAnalysis:
     """Bricks are duplicates if they have the same type, the same position (within tolerance), the same
-    orientation and (depending on comparison) the same properties. Groups are transitive.
+    orientation (each local axis within angle_tolerance, in degrees) and (depending on comparison) the same
+    properties. Groups are transitive.
 
     The occurrence index is computed over the whole vehicle, never relative to another filter: "is a duplicate"
     (occurrence > 1) combined with "beyond the first N" (occurrence > N) can't spare the wrong brick."""
 
-    def __init__(self, bricks: list[brickedit.Brick], comparison: DuplicateComparison, tolerance: float):
+    def __init__(self, bricks: list[brickedit.Brick], comparison: DuplicateComparison, tolerance: float,
+                 angle_tolerance: float):
         self.comparison = comparison
         self.tolerance = max(tolerance, MIN_TOLERANCE)
+        self.min_cos = cos(radians(max(angle_tolerance, MIN_ANGLE_TOLERANCE)))
         self.info: dict[str, DuplicateInfo] = {}
         self.group_count = 0  # Number of groups with at least 2 bricks
         self._analyze(bricks)
@@ -301,7 +305,7 @@ class DuplicateAnalysis:
             key = self._key(brick)
             pos = brick.pos.as_tuple()
             for j in spatial.query(key, pos):
-                if same_orientation(axes_list[i], axes_list[j]):
+                if same_orientation(axes_list[i], axes_list[j], self.min_cos):
                     root_i, root_j = find(i), find(j)
                     if root_i != root_j:
                         parent[max(root_i, root_j)] = min(root_i, root_j)

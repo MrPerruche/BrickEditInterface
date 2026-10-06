@@ -256,7 +256,7 @@ class VehicleBricksEditor(Widget):
         self.live_property_set = property_set
         
         if not active_gm_idx:
-            property_set.brick_title.set_text(f"{get_or_make_property_display_name(brick_name)} #{brick_idx}")
+            property_set.brick_title.set_text(f"{get_or_make_property_display_name(brick_name)} #{brick_idx+1}")
         else:
             property_set.brick_title.hide()
 

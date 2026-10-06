@@ -393,7 +393,7 @@ class Tutorial(QDialog):
         return self.add_text(text, style=LabelStyle.LARGE_2 if nomargin else LabelStyle.HEADER_2)
 
     def add_header(self, text: str, nomargin: bool = False):
-        return self.add_text(text, style=LabelStyle.LARGE_4 if nomargin else LabelStyle.HEADER_4)
+        return self.add_text(text, style=LabelStyle.LARGE_4 if nomargin else LabelStyle.HEADER_3)
 
     def add_low_header(self, text: str, nomargin: bool = False):
         return self.add_text(text, style=LabelStyle.LARGE_5 if nomargin else LabelStyle.HEADER_5)

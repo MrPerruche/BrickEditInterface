@@ -16,7 +16,7 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
     return (Tutorial(name, mw, title_is_raw=True, show_header=False, standalone=standalone, use_scroll_area=standalone)
         .add_warning(title=None)
         .focus()
-        .add_header("MUST KNOW BEFORE USING BEI !")
+        .add_header("Must know before using BEI!")
         .add_text(pmd("BrickEdit-Interface (BEI) edits the vehicle **stored on disk** (just like "
             "HexEdit !). Changes made in Brick Rigs (BR) do NOT automatically happen in BEI !"))
         .add_text("If you do not save (in BR) before (re-)loading a vehicle in BEI, the program "
