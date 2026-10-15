@@ -85,7 +85,7 @@ class GradientMaker(base.BaseMenu):
                     "(Optional) customize the colors of the gradient.",
                     "(Optional) customize the number of bricks and what bricks the gradient is "
                     "made of.",
-                    "Press \"Create vehicle\"."
+                    "Press \"Create vehicle\" then open in Brick Rigs."
                 )
 
                 .add_header("Making gradients")
@@ -117,6 +117,11 @@ class GradientMaker(base.BaseMenu):
                     "- `Double LMB` on a point to edit its color ;\n"
                     "- `RMB` on a point to remove it."
                 ))
+
+                .add_low_header("Stacked points")
+                .add_text("If two points are at identical positions, it creates an hard edge, "
+                    "and the color of each side is determined by in which order the points were "
+                    "added.")
 
                 .add_header("Settings")
                 .add_text("When importing in Brick Rigs, your gradient will be split into the "

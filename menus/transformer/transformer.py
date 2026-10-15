@@ -7,6 +7,8 @@ from ui.dialogs import VehicleLoadingIssueDialog, CannotSaveDialog, NoBricksMatc
 from ui.components import BrickSelector
 from ui.components.vehicle.brick_transform import transform_bricks
 from ui.components.vehicle.transform_settings import TransformSettings, CENTER
+from ui.components import Tutorial
+from ui.rich_text import pmd
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -48,7 +50,50 @@ class VehicleUpscalerMenu(base.BaseMenu):
         return "Vehicle Transformer"
 
     def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(":/assets/icons/GizmoIcon.png"), True)
+        return base.MenuInfo(QIcon(":/assets/icons/GizmoIcon.png"), True,
+            tutorial=Tutorial(self.get_menu_name(), self.mw)
+                .add_text("This menu is meant to rotate, scale and move either the entire "
+                    "vehicles or only parts of.")
+                .add_steps(
+                    "Make sure your vehicle is saved in BR then (re)load in BEI.",
+                    "(Optional) Limit what in your vehicle is transformed (offset / rotated / scaled).",
+                    "Set transform values (offset / rotation / scale / scale rounding).",
+                    "Press \"Set vehicle transform\" then re-open your vehicle in Brick Rigs.",
+                )
+
+                .add_header("Selecting bricks")
+                .add_text("Applying transform only on parts of the vehicle can be extremely "
+                    "useful: creating tiny details, dealing with size limits, etc.")
+                .add_text("Selecting only parts of your vehicle is done using filters. If no "
+                    "filters are specified, the whole vehicle will be selected.")
+                .refer_to("getting_started_filters")
+
+                .add_header("Transforms")
+                .add_text("Most transforms are more or less likely to break connections between "
+                    "bricks. Transforms are made in the following order: rotate, then scale, then "
+                    "round, then offset.")
+                .add_text("Rotate: You can rotate by set angles (in degrees) either: the vehicle "
+                    "around the center, each brick around its center, or the vehicle around a "
+                    "specific point (pivot point).\n"
+                    "Scale: You can multiply or divide the scale of a vehicle by a factor. "
+                    "Bricks that are not scalable will just be moved. When scaling, it is likely "
+                    "many bricks are disconnected.\n"
+                    "Brick Size Rounding: Round the brick sizes of vehicles (either "
+                    "normally, up or down) by a given step.\n"
+                    "Offset: Move the vehicle towards a direction. Only transform that "
+                    "shouldn't break connections.")
+
+                .add_sep()
+                .add_tips(pmd("**Trying to build tiny details the editor won't let you make?**\n"
+                    "You can upscale your vehicle in order to build small details at a scale the "
+                    "editor will allow you to, then downscale it back to the original scale with "
+                    "the tiny details added."),
+                    pmd("**You're limited by editor size limits?**\n"
+                    "Using offset transforms, you can move your vehicle around, past the editor "
+                    "limits, and build the parts you're working on within bounds."
+                    "Keep in mind floating point error may accumulate, use responsibly.")
+                )
+            )
 
     def save_changes(self):
         brvfile = self.mw.vehicle_selector_banner.get_brvfile_copy()

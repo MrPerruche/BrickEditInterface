@@ -6,6 +6,7 @@ from menus import base
 from ui.widgets import Button, ComboBox, StyledLabel, LabelStyle, Label, Slider, Surface, Separator, BoolSwitch, Switcher
 from ui.components.image.image_selector import ImageSelector
 from ui.components import Tutorial
+from ui.rich_text import pmd
 from ui.components.brick.materials import OPAQUE_MATERIALS_LIST
 from ui.models import TooltipContents
 from ui.dialogs import OverwriteOrCancelDialog, CannotSaveOverLimit, UnexpectedErrorDialog
@@ -555,11 +556,103 @@ class ImageImporter(base.BaseMenu):
     def _make_menu_info(self) -> base.MenuInfo:
         return base.MenuInfo(QIcon(":/assets/icons/ImageIcon.png"), True,
             tutorial=Tutorial(self.get_menu_name(), self.mw)
-                .add_text("Test!")
-                .add_collection("Some collection",
-                    "Collection test 1!",
-                    "Collection test 2 ??",
-                    "Collection test 3.",
-                    "Some very\nlong text with spaces and random stuff"
+                .add_text("Using the Image Importer, you can import images into Brick Rigs at a "
+                    "reasonable brick count! The Image Importer supports over 40 image formats.")
+                .add_warning("BEI's various and powerful optimizations may mislead you into "
+                    "thinking importing high-res images into Brick Rigs (containing hundreds of "
+                    "thousands of pixels) is reasonable.\n"
+                    "It's not! The kind of optimizations required to make the brick count so good "
+                    "are extremely expensive. Expect long import times if you try to load images "
+                    "at a high resolution, with many colors and a fancy optimization method.")
+
+                .add_header("Getting Started")
+                .add_text("Steps in order to load an image with very basic optimizations:")
+                .add_steps(
+                    "Load an image.",
+                    "(Optional) Set the optimization method and its settings. 3D optimizations "
+                        "can be quite confusing to understand. Consider using 2D Stacking for "
+                        "your first import, then figure out 3D optimization methods after.",
+                    "Configure \"quantization\" (simplification of colors). K-means++ in OKLAB "
+                        "is highly recommended and the other options are often pointless."
+                    "Set the resolution of the output image (recommended under ~316x317 ie. "
+                        "100,000 pixels) for decent loading speeds."
+                    "(Optional) adjust other settings like how groups are created, what material "
+                        "it is, how thick the plate is, etc.",
+                    "Press \"Import\" (wait if necessary) and open it in Brick Rigs."
+                )
+
+                .add_header("Optimization methods")
+                .add_text("4 optimization methods are available in order to drastically reduce "
+                    "the number of bricks required to import an image. They are all lossless, "
+                    "though require quantization in order to do anything meaningful which is not "
+                    "lossless. If you don't pick any (\"No optimization\"), 1 pixel = 1 brick.")
+                
+                .add_low_header("2D merging")
+                .add_text("Merges pixels of identical color together into rectangles. For complex "
+                    "shapes, rectangles may go through each other in order to merge more "
+                    "efficiently. (cannot cause Z-Fighting). Unlike 3D methods, ")
+
+                .add_low_header("3D greedy stacking")
+                .add_text("Splits the image into different layers stacked on top of each other. "
+                    "Lower layers can use the empty space hidden by higher layers to create larger "
+                    "rectangles (instead of creating many smaller rectangles). Each layer is "
+                    "simplified using 2D Merging. Layer thickness matters. If it is too low it can "
+                    "cause lots of Z-Fightning. If two individual layers do not overlap each "
+                    "other, they can be merged to reduce the amount of layers. The maximum amount "
+                    "of layers and the thickness of layers can be controlled.")
+
+                .add_low_header("3D stacking (slow)")
+                .add_text("Same as 3D greedy stacking, but instead of picking greedy stacking's "
+                    "initial good-enough layer order, it tries as many different layer orders as "
+                    "possible until you tell it to stop, and builds the best one (lowest brick "
+                    "count). Additionally, it can be ran on multiple cores to speed up the search. "
+                    "Remember it will NEVER stop itself automatically, even if it has checked "
+                    "every possible outcome. You have to stop it yourself.")
+
+                .add_warning("These optimization methods are completely useless if you don't use "
+                    "quantization!")
+
+                .add_header("Quantization")
+                .add_text("Quantization is the process of simplifying (reducing the amount of "
+                    "different) colors in an image. It is useful to make the optimization methods "
+                    "work.")
+                .add_text("2 quantization methods are available: Median cut (which is extremely "
+                    "basic) and K-means++ in OKLAB. The later gives significantly better results "
+                    "for pretty much no extra cost. We highly recommend you use it. Median cut is "
+                    "available for reference / specific applications.")
+
+                .add_header("Import settings")
+                .add_text("First is at what resolution the image is imported at. Lowering the "
+                    "resolution will significantly reduce brick count. It's recommended to keep "
+                    "it at worst under 100,000 pixels (~316x317). You can set resolution either "
+                    "using percentages or manually. If an image is currently loaded, it will show "
+                    "the output resolution & if the image is stretched in any way.")
+                .add_text("Pixel Size & Image Size controls how large the image is. Editing "
+                    "either will affect the other. Changing the image resolution will change the "
+                    "image size.")
+                .add_text("Thickness is how thick the image is. The minimum thickness is set by "
+                    "the 3D stacking optimization's settings. If you're using any kind of 3D "
+                    "stacking, know that added thickness will be added to the bottom, it will not "
+                    "by itself give the layers more space to avoid Z-Fighting. If you want layers "
+                    "to have more space, give them more space manually by increasing it in the "
+                    "optimization settings.")
+                .add_text("Material, Grouped bricks & Welded bricks respectively controls the "
+                    "material of the bricks, and how they are grouped / welded.")
+
+                .add_sep()
+                .add_faq(
+                    pmd("**Why is 3D stacking taking forever?**\n"
+                        "3D stacking will not stop trying different ways to stack layers on top "
+                        "of each other unless you stop it yourself. It will never stop itself, "
+                        "even if it tried all possible permutations of layers."),
+                    pmd("**What is the difference between 3D greedy stacking and 3D stacking?**"
+                        "There are many ways to import an image in 3D. The first takes the first "
+                        "one (which is most often good enough), the later tries to get the "
+                        "best by trying as many different ways as possible until you tell it "
+                        "you're satisfied."),
+                    pmd("**Can I import transparent images?**\n"
+                        "There is no proper support for transparent images. If you want the "
+                        "output to be transparent, you can make the image glass / frosted glass "
+                        "in Brick Rigs' editor but it will likely look bad.")
                 )
         )

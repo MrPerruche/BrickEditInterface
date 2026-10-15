@@ -7,6 +7,8 @@ from ui.widgets import Button, ComboBox, Label, StyledLabel, LabelStyle, Surface
 from ui.components.brick.property_widgets import ColorPropertyWidget
 from ui.dialogs import VehicleLoadingIssueDialog
 from ui.models import TooltipContents
+from ui.components import Tutorial
+from ui.rich_text import pmd
 
 from brickedit import *
 
@@ -169,7 +171,35 @@ class DowngradeVehicleMenu(base.BaseMenu):
         return "Vehicle Downgrader"
 
     def _make_menu_info(self) -> base.MenuInfo:
-        return base.MenuInfo(QIcon(":/assets/icons/DowngradeIcon.png"), True)
+        return base.MenuInfo(QIcon(":/assets/icons/DowngradeIcon.png"), True,
+            tutorial=Tutorial(self.get_menu_name(), self.mw)
+            .add_text("Downgrade vehicles from 1.11 to 1.10. Will be updated as updates are "
+                "released. If there are things that cannot be perfectly downgraded (such as, the"
+                "vehicle uses bricks or properties or values that do not exist in previous "
+                "versions), various settings will appear to control how these are handled.")
+            .add_steps(
+                "Save the vehicle in BR then (re)load it in BEI.",
+                "Pick the target version. If downgrading a vehicle gets ambiguous (eg. has "
+                "features that don't exist in previous versions), various configs will appear "
+                "to control how these are handled.",
+                "Press the 'Downgrade vehicle' button then re-open in BR."
+            )
+            .add_warning("Downgrading may be lossy, and not reversible simply by upgrading. You "
+                "can always use backups to revert back to the original 1.11 version.")
+            .add_faq(
+                pmd("**Why is my vehicle a different color in places?**\n"
+                    "This is because of how you configured BEI to downgrade the vehicle. If you "
+                    "don't want this to happen, adjust downgrade behavior."),
+                pmd("**Can I downgrade older than 1.10?**\n"
+                    "No. Downgrading to versions older than 1.10 is mostly pointless and "
+                    "BrickEdit does not support very old versions reliably."),
+                pmd("**Will logic still work after downgrading?**\n"
+                    "Maybe. If all operations used existed in older versions, defintively. If "
+                    "not, BEI tries to replace newer logic with older logic but cannot replace "
+                    "all operations. As such, it depends on which operations from newer versions "
+                    "are used.")
+            )
+        )
 
     def update_can_downgrade(self):
         self.downgrade_vehicle_button.set_enabled(self.version_to_int(self.current_version_setting.get_text()) >

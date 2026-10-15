@@ -52,12 +52,10 @@ def _build_tutorial(mw, name: str = "Getting Started", standalone: bool = True):
             "You can select bricks easily by assigning them a named group and filtering by "
                 "editor or weld group."
         )
-        .add_raw_faq(
-            
-        )
+#         .add_raw_faq()
 
         .add_sep(bottom=0)
-        .add_sep(top=2)
+        .add_sep(top=0)
         .add_text(pmd("**Below are tutorials explaining many BEI features in-depth. You don't "
             "have to read them. Other tutorials will redirect you to different parts of the "
             "content available below when necessary: **"))

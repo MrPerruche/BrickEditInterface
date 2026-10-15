@@ -3,7 +3,7 @@ BrickEdit-Interface is a tool to help users exploit BrickEdit's capabilities wit
 
 # About Windows Defender
 
-Windows Defenders believes the file is a virus because I did not pay hundreds of euros a month to get a certificate so it stop complaining. I cannot do anything about that. If you trust this software, ignore its warnings and whitelist it if it gets quarantined. If you do not trust this software, do not download it.
+Windows Defender believes the file is a virus because I'm not paying hundreds of euros a month to get a certificate so it stops complaining. I cannot do anything about that. To ignore Windows Defender (if the "Windows protected your PC" popup appears), press "More Info" (underlined text) then "Run anyway".
 
 
 # How to compile yourself for newbies:
@@ -21,8 +21,8 @@ Windows Defenders believes the file is a virus because I did not pay hundreds of
     2. See the `resources.qrc` file. You will see all pathes lead to either a license or assets such as images.
     3. Run the following command: `pyside6-rcc resources.qrc -o resources_rc.py`
 10. Do not close the terminal window. You should now be able to run `python main.py` by double clicking (and selecting Python 3.13 if necessary)
-11. Compile the program by running `python -m nuitka --standalone --windows-console-mode=disable --windows-icon-from-ico="assets/icons/brickeditinterface.ico" --output-dir=compiled_build --enable-plugin=pyside6 main.py`. This will take a few minutes
-12. You are done. The compiled build is the `compiled_build/main.dist` folder. Run `main.exe` inside it by double clicking it (keep it in that folder: it needs the files next to it).
+11. Compile the program by running the compilation command available below. This will take a few minutes
+12. You are done. The compiled build is the `compiled_build/main.dist` folder. Run `BrickEdit-Interface.exe` inside it by double clicking it (keep it in that folder: it needs the files next to it. You can make a shortcut if you want).
 
 
 # For developers:
@@ -66,13 +66,3 @@ python -m nuitka `
     --report=compiled_build/compilation-report.xml `
     main.py
 ```
-
-What the extra flags do, and how to keep the build lean:
-- `--lto=yes` / `--lto=no`: link-time optimization. Smaller and faster exe, but much slower to link. Only worth it for release builds.
-- `--python-flag=no_docstrings`: strips docstrings from the compiled code (smaller exe). `no_asserts` is intentionally not used, since some code relies on `assert`.
-- `--nofollow-import-to=...`: skips modules that are never used at runtime (numpy's Fortran wrapper and test helpers, tkinter, unittest). Do not exclude `multiprocessing`: the image importer uses a process pool.
-- `--noinclude-dlls="*qt6pdf*"`: drops Qt's PDF library (~5 MB), which the app does not use.
-- `--company-name`, `--product-name`, `--file-*`, `--product-version`: fills in the exe's Windows file properties. Update the versions to match `var.py`. Proper metadata also tends to reduce (not eliminate) antivirus false positives.
-- `--report=...`: writes an XML listing of every module compiled and its size. Check it after adding a dependency: a single import can pull in hundreds of modules (this is how scipy was found to be adding ~90 MB).
-- Do not add heavy dependencies (scipy, pandas, matplotlib, ...) for small tasks. Prefer numpy/PIL, which are already bundled.
-- If something misbehaves in a build, first remove `--nofollow-import-to` and `--noinclude-dlls` to see whether they are the cause.
