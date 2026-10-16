@@ -301,6 +301,10 @@ class DowngradeVehicleMenu(base.BaseMenu):
                         brick.set_property(p.INPUT_CNL_B_VALUE, 2.0)
                         brick.set_property(p.INPUT_CNL_B_INPUT_AXIS, p.InputCnl_B_InputAxis.CONST)
                         brick.set_property(p.INPUT_CNL_B_SOURCE_BRICKS, p.InputCnl_B_SourceBricks.EMPTY)
+                    
+                    else:
+                        brick.set_property(p.BRICK_COLOR, self.operation_handling_recolor.get_value(0))
+                        brick.set_property(p.OPERATION, p.Operation.ADD)
 
                     brick.reset_property(p.INPUT_CNL_C_INPUT_AXIS)
                     brick.reset_property(p.INPUT_CNL_D_INPUT_AXIS)
