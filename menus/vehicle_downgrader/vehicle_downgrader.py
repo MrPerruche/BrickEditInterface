@@ -15,7 +15,7 @@ from brickedit import *
 import logging
 logger = logging.getLogger(__name__)
 
-_1_11_OPERATIONS: tuple[str] = (
+_1_11_MATH_BRICK_OPS: tuple[str] = (
     p.Operation.DISTANCE,
     p.Operation.HYPOTENUSE,
     p.Operation.COPY_SIGN,
@@ -51,6 +51,18 @@ _1_11_OPERATIONS: tuple[str] = (
 _1_11_BRICKS: tuple[str] = (
     bt.SCALABLE_SQUARE_TO_CIRCLE.name(),
     bt.SCALABLE_SQUARE_TO_QUARTER_CIRCLE.name()
+)
+
+_1_11_MATH_BRICK_PROPERTIES: tuple[str] = (
+    p.INPUT_CNL_C_INPUT_AXIS,
+    p.INPUT_CNL_C_SOURCE_BRICKS,
+    p.INPUT_CNL_C_VALUE,
+    p.INPUT_CNL_D_INPUT_AXIS,
+    p.INPUT_CNL_D_SOURCE_BRICKS,
+    p.INPUT_CNL_D_VALUE,
+    p.INPUT_CNL_E_INPUT_AXIS,
+    p.INPUT_CNL_E_SOURCE_BRICKS,
+    p.INPUT_CNL_E_VALUE,
 )
 
 _SUPPORTED_VERSIONS: tuple[str] = ("1.10", "1.11")
@@ -174,7 +186,7 @@ class DowngradeVehicleMenu(base.BaseMenu):
         return base.MenuInfo(QIcon(":/assets/icons/DowngradeIcon.png"), True,
             tutorial=Tutorial(self.get_menu_name(), self.mw)
             .add_text("Downgrade vehicles from 1.11 to 1.10. Will be updated as updates are "
-                "released. If there are things that cannot be perfectly downgraded (such as, the"
+                "released. If there are things that cannot be perfectly downgraded (such as, the "
                 "vehicle uses bricks or properties or values that do not exist in previous "
                 "versions), various settings will appear to control how these are handled.")
             .add_steps(
@@ -225,7 +237,7 @@ class DowngradeVehicleMenu(base.BaseMenu):
                 for brick in brvf.bricks:
                     if brick.meta().name() == bt.MATH_BRICK.name():
                         op = brick.get_property(p.OPERATION)
-                        has_1_11_operations = True if op in _1_11_OPERATIONS else has_1_11_operations
+                        has_1_11_operations = True if op in _1_11_MATH_BRICK_OPS else has_1_11_operations
 
                     has_1_11_bricks = True if brick.meta().name() in _1_11_BRICKS else has_1_11_bricks
 
@@ -302,21 +314,12 @@ class DowngradeVehicleMenu(base.BaseMenu):
                         brick.set_property(p.INPUT_CNL_B_INPUT_AXIS, p.InputCnl_B_InputAxis.CONST)
                         brick.set_property(p.INPUT_CNL_B_SOURCE_BRICKS, p.InputCnl_B_SourceBricks.EMPTY)
                     
-                    else:
+                    elif op in _1_11_MATH_BRICK_OPS:
                         brick.set_property(p.BRICK_COLOR, self.operation_handling_recolor.get_value(0))
                         brick.set_property(p.OPERATION, p.Operation.ADD)
 
-                    brick.reset_property(p.INPUT_CNL_C_INPUT_AXIS)
-                    brick.reset_property(p.INPUT_CNL_D_INPUT_AXIS)
-                    brick.reset_property(p.INPUT_CNL_E_INPUT_AXIS)
-
-                    brick.reset_property(p.INPUT_CNL_C_SOURCE_BRICKS)
-                    brick.reset_property(p.INPUT_CNL_D_SOURCE_BRICKS)
-                    brick.reset_property(p.INPUT_CNL_E_SOURCE_BRICKS)
-
-                    brick.reset_property(p.INPUT_CNL_C_VALUE)
-                    brick.reset_property(p.INPUT_CNL_D_VALUE)
-                    brick.reset_property(p.INPUT_CNL_E_VALUE)
+                    for prop in _1_11_MATH_BRICK_PROPERTIES:
+                        brick.reset_property(prop)
 
                 elif brick.meta().name() in _1_11_BRICKS:
                     new_meta = bt.SCALABLE_BRICK
