@@ -184,10 +184,14 @@ class Tutorial(QDialog):
         bar_layout.addWidget(self.search_next_button)
         outer_layout.addWidget(bar)
 
-        QShortcut(QKeySequence.StandardKey.Find, self, activated=self._toggle_search)
+        # Lambdas and no activated= kwarg: PySide wires constructor kwargs up in C++, past Nuitka's workaround for
+        # PySide dropping a reference too many on compiled bound methods (see VehicleSelector.__init__)
+        find_shortcut = QShortcut(QKeySequence.StandardKey.Find, self)
+        find_shortcut.activated.connect(lambda: self._toggle_search())
         # Escape closes the bar rather than the tutorial while it has focus
-        QShortcut(QKeySequence(Qt.Key.Key_Escape), bar, activated=self._close_search,
-                  context=Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        escape_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), bar,
+                                    context=Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        escape_shortcut.activated.connect(lambda: self._close_search())
 
     def _on_search_enter(self):
         shift = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier

@@ -80,7 +80,10 @@ class VehicleSelector(Widget):
         self.master_layout.addWidget(self.list_view)
         self.master_layout.addStretch(1)
         # Listing and reading vehicles is done off the UI thread, but still: let the window show up first.
-        QTimer.singleShot(100, self, self._reload)
+        # Lambda, not self._reload: in Nuitka builds, PySide6 drops one reference too many on a compiled bound
+        # method passed to singleShot(msec > 0, context, method) (Nuitka's workaround misses this overload). That
+        # freed _reload, and its memory was reused by a later lambda, so the reload button called the wrong function.
+        QTimer.singleShot(100, self, lambda: self._reload())
         register_has_theme_and_apply(self)
 
 
@@ -97,17 +100,17 @@ class VehicleSelector(Widget):
             self.vehicle_selected.emit(folder_path)
 
 
-    def request_reload(self, *args, ignore_old: bool = False):
+    def request_reload(self, ignore_old: bool = False):
         """Rescans the vehicles folder. Ignore old ignores cached results and forces re-reading every vehicle
         (and thumbnail); otherwise only vehicles whose files changed are read again."""
-        self._reload(ignore_old=ignore_old)
+        self._reload(ignore_old)
 
 
     def _search_changed(self, *args):
         self._filter_proxy.set_query(self.search_box.get_text())
 
 
-    def _reload(self, *args, ignore_old: bool = False):
+    def _reload(self, ignore_old: bool = False):
         if ignore_old:
             self._cache.clear()
             self.list_view.itemDelegate().clear_thumbnails()
